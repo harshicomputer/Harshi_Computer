@@ -3,164 +3,148 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>5 वर्ष वेतन रिकॉर्ड — Prototype</title>
+<title>Salary Record System — Full Prototype</title>
 <style>
-:root{--bg:#f4f7fb;--card:#fff;--text:#172033;--muted:#657189;--primary:#2563eb;--border:#dce3ee;--good:#15803d;--warn:#b45309}
-*{box-sizing:border-box}body{margin:0;font-family:Arial,"Noto Sans Devanagari",sans-serif;background:var(--bg);color:var(--text)}
-header{background:#123b73;color:white;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
-header h1{font-size:21px;margin:0}.badge{background:#ffffff22;border:1px solid #ffffff44;padding:7px 12px;border-radius:20px;font-size:13px}
-nav{background:white;border-bottom:1px solid var(--border);padding:10px 24px;display:flex;gap:8px;flex-wrap:wrap}
-nav button,.btn{border:1px solid var(--border);background:white;padding:9px 14px;border-radius:8px;cursor:pointer;color:var(--text)}
-nav button.active,.btn.primary{background:var(--primary);color:white;border-color:var(--primary)}
-main{max-width:1250px;margin:22px auto;padding:0 18px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:17px;box-shadow:0 2px 8px #1020400a}.stat{font-size:27px;font-weight:700;margin:8px 0}.muted{color:var(--muted);font-size:13px}
-.section{margin-top:18px}.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
-input,select{padding:10px;border:1px solid var(--border);border-radius:8px;background:white;min-width:180px}
-table{width:100%;border-collapse:collapse;background:white;border:1px solid var(--border);border-radius:10px;overflow:hidden}
-th,td{padding:11px 10px;border-bottom:1px solid #edf0f5;text-align:left;font-size:14px}th{background:#f7f9fc}
-a{color:var(--primary);cursor:pointer;text-decoration:none;font-weight:600}.right{text-align:right}
-.hidden{display:none}.profile{display:grid;grid-template-columns:1fr 2fr;gap:16px}
-.alert{padding:11px 13px;border-radius:8px;background:#fff7ed;color:var(--warn);border:1px solid #fed7aa}
-@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.profile{grid-template-columns:1fr}}
-@media(max-width:520px){.grid{grid-template-columns:1fr}header{padding:14px}.grid{gap:10px}}
+:root{--blue:#1857a8;--blue2:#0f3d78;--bg:#f3f6fa;--card:#fff;--line:#dce4ef;--text:#172033;--muted:#667085;--green:#16803c;--orange:#b45309;--red:#b42318}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,"Noto Sans Devanagari",sans-serif}
+button,input,select{font:inherit}.login{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(135deg,#0f3d78,#2b70c9)}
+.loginbox{width:min(430px,100%);background:white;border-radius:16px;padding:28px;box-shadow:0 20px 60px #001b3d55}
+.loginbox h1{margin:0 0 7px;font-size:23px}.muted{color:var(--muted);font-size:13px}.loginbox input{width:100%;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:9px}
+.btn{border:1px solid var(--line);background:white;padding:9px 13px;border-radius:8px;cursor:pointer}.primary{background:var(--blue);border-color:var(--blue);color:#fff}.danger{color:var(--red)}.full{width:100%;margin-top:14px}
+.app{display:none}.top{height:62px;background:var(--blue2);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 22px}.top h1{font-size:19px;margin:0}
+.user{display:flex;align-items:center;gap:10px}.user button{background:#ffffff18;border:1px solid #ffffff44;color:white;padding:7px 10px;border-radius:7px;cursor:pointer}
+nav{background:white;border-bottom:1px solid var(--line);padding:10px 20px;display:flex;gap:7px;flex-wrap:wrap}nav button{border:1px solid var(--line);background:white;padding:9px 13px;border-radius:8px;cursor:pointer}nav button.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+main{max-width:1250px;margin:20px auto;padding:0 16px}.page{display:none}.page.active{display:block}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:0 2px 8px #10204008}.stat{font-size:25px;font-weight:700;margin-top:7px}.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:12px}input,select{padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff}table{width:100%;border-collapse:collapse;background:white}th,td{padding:10px;border-bottom:1px solid #edf1f6;text-align:left;font-size:14px}th{background:#f7f9fc}.scroll{overflow:auto}.link{color:var(--blue);font-weight:600;cursor:pointer}.pill{display:inline-block;padding:4px 8px;border-radius:99px;font-size:12px;background:#eef4ff;color:var(--blue)}.ok{color:var(--green);font-weight:600}.warn{color:var(--orange);font-weight:600}.notice{padding:11px;background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;color:#9a4b06}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.yearcards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.smallstat{padding:12px;border:1px solid var(--line);border-radius:9px}.smallstat b{display:block;margin-top:5px}.backup{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.footer{margin:25px 0;color:var(--muted);font-size:12px}
+@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}.yearcards{grid-template-columns:repeat(2,1fr)}}@media(max-width:500px){.grid{grid-template-columns:1fr}.top{padding:0 12px}.top h1{font-size:16px}}
 </style>
 </head>
 <body>
-<header>
-  <h1>5 वर्ष वेतन / भुगतान रिकॉर्ड</h1>
-  <div class="badge">Admin • Prototype</div>
-</header>
+
+<div id="login" class="login">
+  <div class="loginbox">
+    <h1>5 वर्ष वेतन रिकॉर्ड सिस्टम</h1>
+    <div class="muted">सुरक्षित Login — Prototype</div>
+    <input id="loginUser" placeholder="Username" value="admin">
+    <input id="loginPass" type="password" placeholder="Password" value="admin123">
+    <button class="btn primary full" onclick="login()">Login</button>
+    <p class="muted">डेमो Login: <b>admin</b> / <b>admin123</b></p>
+  </div>
+</div>
+
+<div id="app" class="app">
+<header class="top"><h1>5 वर्ष वेतन / भुगतान रिकॉर्ड</h1><div class="user">Admin <button onclick="logout()">Logout</button></div></header>
 <nav>
-  <button class="active" onclick="show('dashboard',this)">डैशबोर्ड</button>
-  <button onclick="show('employees',this)">कर्मचारी सूची</button>
-  <button onclick="show('record',this)">मासिक रिकॉर्ड</button>
-  <button onclick="show('reports',this)">रिपोर्ट</button>
+<button class="active" onclick="page('dashboard',this)">डैशबोर्ड</button>
+<button onclick="page('employees',this)">कर्मचारी</button>
+<button onclick="page('record',this)">मासिक रिकॉर्ड</button>
+<button onclick="page('reports',this)">रिपोर्ट</button>
+<button onclick="page('backup',this)">Backup / Export</button>
 </nav>
 
 <main>
-<section id="dashboard">
-  <div class="grid">
-    <div class="card"><div class="muted">कुल कर्मचारी</div><div class="stat">200</div><div class="muted">मास्टर सूची</div></div>
-    <div class="card"><div class="muted">रिकॉर्ड अवधि</div><div class="stat">5 वर्ष</div><div class="muted">60 माह प्रति कर्मचारी</div></div>
-    <div class="card"><div class="muted">दर्ज भुगतान</div><div class="stat" id="dashPaid">0</div><div class="muted">डेमो रिकॉर्ड</div></div>
-    <div class="card"><div class="muted">लंबित माह</div><div class="stat" id="dashPending">60</div><div class="muted">चयनित कर्मचारी</div></div>
-  </div>
-  <div class="section card">
-    <h2>प्रोटोटाइप का उद्देश्य</h2>
-    <p>यह स्क्रीन आपके Excel मॉडल को ऑनलाइन रिकॉर्ड सिस्टम में बदलने का प्रारंभिक नमूना है। कर्मचारी कोड/नाम, 5 साल के 60 महीने, राशि, Voucher और Date को एक ही रिकॉर्ड प्रणाली में रखा जा सकता है।</p>
-    <div class="alert">अभी यह ब्राउज़र-आधारित डेमो है। वास्तविक उपयोग के लिए Login, Database, Server Backup और multi-user security जोड़ी जाएगी।</div>
-  </div>
+<section id="dashboard" class="page active">
+<div class="grid">
+<div class="card"><div class="muted">कुल कर्मचारी</div><div class="stat">200</div></div>
+<div class="card"><div class="muted">कुल रिकॉर्ड क्षमता</div><div class="stat" id="dCapacity">0</div><div class="muted">200 × जनवरी 2019 से वर्तमान माह तक</div></div>
+<div class="card"><div class="muted">दर्ज भुगतान</div><div class="stat" id="dMonths">0</div></div>
+<div class="card"><div class="muted">कुल भुगतान</div><div class="stat" id="dTotal">₹0</div></div>
+</div>
+<div class="two" style="margin-top:15px">
+<div class="card"><h3>सिस्टम स्थिति</h3><p><b>रिकॉर्ड अवधि:</b> जनवरी 2019 से वर्तमान माह</p><p class="ok">● Database: Demo Local Storage</p><p class="ok">● Export: उपलब्ध</p><p class="ok">● Backup: उपलब्ध</p><p class="warn">● Production Server: अभी आवश्यक</p></div>
+<div class="card"><h3>डेटा सुरक्षा</h3><p>वास्तविक deployment में HTTPS, hashed passwords, database access control, automatic backup और audit log जोड़े जाएंगे।</p></div>
+</div>
 </section>
 
-<section id="employees" class="hidden">
-  <div class="card">
-    <div class="toolbar">
-      <input id="search" placeholder="कर्मचारी कोड या नाम खोजें" oninput="renderEmployees()">
-      <button class="btn primary" onclick="addDemo()">+ नया कर्मचारी</button>
-      <button class="btn" onclick="exportCSV()">Excel/CSV Export</button>
-    </div>
-    <table><thead><tr><th>कोड</th><th>कर्मचारी नाम</th><th>दर्ज माह</th><th>कुल भुगतान</th><th>लंबित माह</th><th>रिकॉर्ड</th></tr></thead>
-    <tbody id="empBody"></tbody></table>
-  </div>
+<section id="employees" class="page">
+<div class="card"><div class="toolbar"><input id="search" placeholder="कोड या नाम खोजें" oninput="renderEmployees()"><button class="btn" onclick="addEmployee()">+ कर्मचारी</button><button class="btn primary" onclick="exportCSV()">Excel/CSV Export</button></div>
+<div class="scroll"><table><thead><tr><th>कोड</th><th>नाम</th><th>दर्ज माह</th><th>कुल भुगतान</th><th>लंबित</th><th>Action</th></tr></thead><tbody id="empBody"></tbody></table></div></div>
 </section>
 
-<section id="record" class="hidden">
-  <div class="card">
-    <div class="toolbar">
-      <select id="empSelect" onchange="loadRecord()"></select>
-      <select id="yearSelect" onchange="loadRecord()"></select>
-      <button class="btn primary" onclick="saveRecord()">रिकॉर्ड सेव करें</button>
-    </div>
-    <div class="profile">
-      <div>
-        <h3 id="empTitle">कर्मचारी</h3>
-        <div class="muted">हर माह: राशि + Voucher No. + Date</div>
-      </div>
-      <div class="card" style="padding:12px">
-        <b>कुल 5-वर्ष भुगतान: </b><span id="empTotal">₹0</span>
-        &nbsp;&nbsp; <b>दर्ज माह: </b><span id="empMonths">0</span>
-      </div>
-    </div>
-    <div class="section">
-      <table><thead><tr><th>माह</th><th>राशि (₹)</th><th>Voucher No.</th><th>तिथि</th></tr></thead>
-      <tbody id="monthBody"></tbody></table>
-    </div>
-  </div>
+<section id="record" class="page">
+<div class="card"><div class="toolbar"><select id="empSelect" onchange="loadRecord()"></select><select id="yearSelect" onchange="loadRecord()"></select><button class="btn primary" onclick="saveRecord()">रिकॉर्ड सेव करें</button></div>
+<div class="card"><b id="recordTitle">कर्मचारी</b><span class="muted"> — राशि, Voucher और Date दर्ज करें</span><div style="margin-top:10px"><b>कुल:</b> <span id="eTotal">₹0</span> &nbsp; <b>दर्ज:</b> <span id="eMonths">0</span> &nbsp; <b>लंबित:</b> <span id="ePending">60</span></div></div>
+<div class="scroll" style="margin-top:12px"><table><thead><tr><th>माह</th><th>राशि ₹</th><th>Voucher No.</th><th>Date</th></tr></thead><tbody id="monthBody"></tbody></table></div></div>
 </section>
 
-<section id="reports" class="hidden">
-  <div class="card">
-    <h2>रिपोर्ट</h2>
-    <p>किसी कर्मचारी की 5-वर्षीय भुगतान हिस्ट्री, कुल भुगतान और लंबित महीनों की सूची यहाँ दिखाई जा सकती है।</p>
-    <button class="btn primary" onclick="window.print()">रिपोर्ट प्रिंट / PDF</button>
-    <button class="btn" onclick="exportCSV()">CSV Export</button>
-  </div>
+<section id="reports" class="page">
+<div class="card"><h2>5-वर्षीय रिपोर्ट</h2><div class="toolbar"><select id="reportEmp" onchange="renderReport()"></select><button class="btn primary" onclick="window.print()">Print / PDF</button></div><div id="reportBox"></div></div>
 </section>
+
+<section id="backup" class="page">
+<div class="card"><h2>Backup / Export</h2><div class="notice">यह prototype backup को आपके browser में JSON file के रूप में export/import करता है। Production version में server-side automatic backup भी रखा जाएगा।</div>
+<div class="backup" style="margin-top:15px"><button class="btn primary" onclick="downloadBackup()">⬇ Full Database Backup</button><label class="btn">⬆ Restore Backup<input id="restoreFile" type="file" accept=".json" style="display:none" onchange="restoreBackup(event)"></label><button class="btn" onclick="exportCSV()">⬇ Excel-compatible CSV</button></div>
+<div style="margin-top:18px"><b>Backup में शामिल होगा:</b><ul><li>200 कर्मचारियों की master list</li><li>हर कर्मचारी के 60 महीने</li><li>Amount, Voucher No. और Date</li><li>कुल भुगतान/दर्ज/लंबित गणना</li></ul></div></div>
+</section>
+<div class="footer">Prototype version — वास्तविक उपयोग से पहले production database, HTTPS, authentication और server backup लागू करें।</div>
 </main>
+</div>
 
 <script>
-const years=[2022,2023,2024,2025,2026];
-const months=["जनवरी","फरवरी","मार्च","अप्रैल","मई","जून","जुलाई","अगस्त","सितंबर","अक्टूबर","नवंबर","दिसंबर"];
-let employees=Array.from({length:200},(_,i)=>({code:"EMP-"+String(i+1).padStart(3,"0"),name:"कर्मचारी "+(i+1),records:{}}));
-let currentEmp=0;
+const START_YEAR=2019, START_MONTH=1;
+const MONTHS=["जनवरी","फरवरी","मार्च","अप्रैल","मई","जून","जुलाई","अगस्त","सितंबर","अक्टूबर","नवंबर","दिसंबर"];
+function monthList(){
+ const n=new Date(), a=[];
+ for(let y=START_YEAR;y<=n.getFullYear();y++){
+  let from=y===START_YEAR?START_MONTH:1, to=y===n.getFullYear()?n.getMonth()+1:12;
+  for(let m=from;m<=to;m++) a.push({y,m,key:y+"-"+String(m).padStart(2,"0"),label:MONTHS[m-1]+" "+y});
+ }
+ return a;
+}
+function yearList(){return [...new Set(monthList().map(x=>x.y))];}
 
-function show(id,btn){
- document.querySelectorAll('main>section').forEach(x=>x.classList.add('hidden'));
- document.getElementById(id).classList.remove('hidden');
- document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
- btn.classList.add('active');
- if(id==="employees")renderEmployees();
- if(id==="record")setupRecord();
-}
-function stats(e){
- let vals=Object.values(e.records);
- return {months:vals.filter(x=>x.amount>0).length,total:vals.reduce((s,x)=>s+(Number(x.amount)||0),0)};
-}
-function renderEmployees(){
- let q=(document.getElementById('search')?.value||"").toLowerCase();
- let body=document.getElementById('empBody');
- body.innerHTML=employees.filter(e=>(e.code+" "+e.name).toLowerCase().includes(q)).map((e,i)=>{
-  let s=stats(e); return `<tr><td>${e.code}</td><td>${e.name}</td><td>${s.months}</td><td>₹${s.total.toLocaleString('en-IN')}</td><td>${60-s.months}</td><td><a onclick="openEmp(${employees.indexOf(e)})">खोलें</a></td></tr>`;
- }).join('');
-}
-function openEmp(i){currentEmp=i; document.querySelector('nav button:nth-child(3)').click(); document.getElementById('empSelect').value=i; loadRecord();}
+let employees=Array.from({length:200},(_,i)=>({code:"EMP-"+String(i+1).padStart(3,"0"),name:"कर्मचारी "+(i+1),records:{}}));
+let current=0;
+
+function login(){let u=document.getElementById("loginUser").value,p=document.getElementById("loginPass").value;if(u==="admin"&&p==="admin123"){document.getElementById("login").style.display="none";document.getElementById("app").style.display="block";init();}else alert("Username या Password गलत है।");}
+function logout(){location.reload();}
+function page(id,btn){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));btn.classList.add("active");if(id==="employees")renderEmployees();if(id==="record")setupRecord();if(id==="reports")setupReport();updateDashboard();}
+function stats(e){let r=Object.values(e.records);return {months:r.filter(x=>Number(x.amount)>0).length,total:r.reduce((s,x)=>s+(Number(x.amount)||0),0)}}
+function totals(){return employees.reduce((a,e)=>{let s=stats(e);a.months+=s.months;a.total+=s.total;return a},{months:0,total:0})}
+function init(){setupRecord();setupReport();renderEmployees();updateDashboard();}
+function updateDashboard(){let t=totals();document.getElementById("dMonths").textContent=t.months.toLocaleString("en-IN");document.getElementById("dCapacity").textContent=(200*monthList().length).toLocaleString("en-IN");document.getElementById("dTotal").textContent="₹"+t.total.toLocaleString("en-IN");}
+function renderEmployees(){let q=(document.getElementById("search")?.value||"").toLowerCase(),b=document.getElementById("empBody");b.innerHTML=employees.filter(e=>(e.code+" "+e.name).toLowerCase().includes(q)).map(e=>{let s=stats(e),i=employees.indexOf(e);return `<tr><td>${e.code}</td><td>${e.name}</td><td>${s.months}</td><td>₹${s.total.toLocaleString("en-IN")}</td><td>${monthList().length-s.months}</td><td><span class="link" onclick="openEmployee(${i})">रिकॉर्ड खोलें</span></td></tr>`}).join("")}
+function openEmployee(i){current=i;document.querySelectorAll("nav button")[2].click();setupRecord();document.getElementById("empSelect").value=i;loadRecord();}
 function setupRecord(){
- let es=document.getElementById('empSelect'), ys=document.getElementById('yearSelect');
- es.innerHTML=employees.map((e,i)=>`<option value="${i}">${e.code} — ${e.name}</option>`).join('');
- es.value=currentEmp; ys.innerHTML=years.map(y=>`<option>${y}</option>`).join('');
+ let e=document.getElementById("empSelect"),y=document.getElementById("yearSelect"); if(!e)return;
+ e.innerHTML=employees.map((x,i)=>`<option value="${i}">${x.code} — ${x.name}</option>`).join("");
+ e.value=current;
+ y.innerHTML=yearList().map(x=>`<option value="${x}">${x}</option>`).join("");
+ y.value=yearList()[yearList().length-1];
  loadRecord();
 }
 function loadRecord(){
- currentEmp=Number(document.getElementById('empSelect').value);
- let y=Number(document.getElementById('yearSelect').value), e=employees[currentEmp], body=document.getElementById('monthBody');
- document.getElementById('empTitle').textContent=e.code+" — "+e.name;
- body.innerHTML=months.map((m,mi)=>{
-  let key=y+"-"+String(mi+1).padStart(2,"0"),r=e.records[key]||{};
-  return `<tr><td>${m} ${y}</td><td><input id="amt-${mi}" type="number" min="0" value="${r.amount||""}" placeholder="0"></td><td><input id="vou-${mi}" value="${r.voucher||""}" placeholder="Voucher No."></td><td><input id="date-${mi}" type="date" value="${r.date||""}"></td></tr>`;
- }).join('');
- refreshTotals();
+ current=Number(document.getElementById("empSelect").value);
+ let y=Number(document.getElementById("yearSelect").value), e=employees[current], now=new Date();
+ let from=y===START_YEAR?START_MONTH:1, to=y===now.getFullYear()?now.getMonth()+1:12;
+ document.getElementById("recordTitle").textContent=e.code+" — "+e.name;
+ let rows=[];
+ for(let m=from;m<=to;m++){
+  let k=y+"-"+String(m).padStart(2,"0"),r=e.records[k]||{};
+  rows.push(`<tr><td>${MONTHS[m-1]} ${y}</td><td><input id="a${m}" type="number" min="0" value="${r.amount||""}"></td><td><input id="v${m}" value="${r.voucher||""}"></td><td><input id="dt${m}" type="date" value="${r.date||""}"></td></tr>`);
+ }
+ document.getElementById("monthBody").innerHTML=rows.join("");
+ refreshEmployee();
 }
 function saveRecord(){
- let y=Number(document.getElementById('yearSelect').value),e=employees[currentEmp];
- months.forEach((m,mi)=>{
-  let key=y+"-"+String(mi+1).padStart(2,"0"), amount=Number(document.getElementById("amt-"+mi).value)||0, voucher=document.getElementById("vou-"+mi).value, date=document.getElementById("date-"+mi).value;
-  if(amount||voucher||date)e.records[key]={amount,voucher,date}; else delete e.records[key];
- });
- refreshTotals(); renderEmployees(); alert("रिकॉर्ड सेव हो गया।");
+ let y=Number(document.getElementById("yearSelect").value),e=employees[current],now=new Date();
+ let from=y===START_YEAR?START_MONTH:1, to=y===now.getFullYear()?now.getMonth()+1:12;
+ for(let m=from;m<=to;m++){
+  let k=y+"-"+String(m).padStart(2,"0"),amount=Number(document.getElementById("a"+m).value)||0;
+  let v=document.getElementById("v"+m).value,d=document.getElementById("dt"+m).value;
+  if(amount||v||d)e.records[k]={amount,voucher:v,date:d};else delete e.records[k];
+ }
+ persist();refreshEmployee();renderEmployees();updateDashboard();alert("रिकॉर्ड सेव हो गया।");
 }
-function refreshTotals(){
- let s=stats(employees[currentEmp]);
- document.getElementById('empTotal').textContent="₹"+s.total.toLocaleString('en-IN');
- document.getElementById('empMonths').textContent=s.months;
- document.getElementById('dashPaid').textContent=s.total.toLocaleString('en-IN');
- document.getElementById('dashPending').textContent=60-s.months;
-}
-function addDemo(){alert("वास्तविक संस्करण में यहाँ नया कर्मचारी जोड़ने का फॉर्म होगा। अभी 200 कर्मचारी पहले से तैयार हैं।");}
-function exportCSV(){
- let rows=[["Employee Code","Employee Name","Recorded Months","Total Paid","Pending Months"]];
- employees.forEach(e=>{let s=stats(e);rows.push([e.code,e.name,s.months,s.total,60-s.months])});
- let csv=rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\\n");
- let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="salary_summary.csv";a.click();
-}
+function refreshEmployee(){let s=stats(employees[current]);document.getElementById("eTotal").textContent="₹"+s.total.toLocaleString("en-IN");document.getElementById("eMonths").textContent=s.months;document.getElementById("ePending").textContent=monthList().length-s.months;}
+function addEmployee(){let n=prompt("कर्मचारी का नाम:");if(!n)return;let i=employees.length+1;employees.push({code:"EMP-"+String(i).padStart(3,"0"),name:n,records:{}});persist();renderEmployees();alert("नया कर्मचारी जोड़ा गया।");}
+function setupReport(){let s=document.getElementById("reportEmp");if(!s)return;s.innerHTML=employees.map((e,i)=>`<option value="${i}">${e.code} — ${e.name}</option>`).join("");s.value=current;renderReport();}
+function renderReport(){let i=Number(document.getElementById("reportEmp").value),e=employees[i],rows=Object.entries(e.records).sort().map(([k,r])=>`<tr><td>${k}</td><td>₹${Number(r.amount||0).toLocaleString("en-IN")}</td><td>${r.voucher||""}</td><td>${r.date||""}</td></tr>`).join("");let s=stats(e);document.getElementById("reportBox").innerHTML=`<h3>${e.code} — ${e.name}</h3><p><b>कुल भुगतान:</b> ₹${s.total.toLocaleString("en-IN")} &nbsp; <b>दर्ज माह:</b> ${s.months} &nbsp; <b>लंबित:</b> ${monthList().length-s.months}</p><div class="scroll"><table><thead><tr><th>माह</th><th>राशि</th><th>Voucher</th><th>Date</th></tr></thead><tbody>${rows||"<tr><td colspan=4>अभी कोई रिकॉर्ड नहीं</td></tr>"}</tbody></table></div>`}
+function persist(){localStorage.setItem("salaryPrototypeDB",JSON.stringify(employees));}
+function loadPersist(){try{let x=localStorage.getItem("salaryPrototypeDB");if(x)employees=JSON.parse(x)}catch(e){}}
+function downloadBackup(){let data={version:"prototype-1.0",backupDate:new Date().toISOString(),employees};let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));a.download="salary_database_backup_"+new Date().toISOString().slice(0,10)+".json";a.click();}
+function restoreBackup(ev){let f=ev.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!Array.isArray(d.employees))throw 0;employees=d.employees;persist();init();alert("Backup restore हो गया।");}catch(e){alert("Backup file मान्य नहीं है।")}};r.readAsText(f);}
+function exportCSV(){let rows=[["Employee Code","Employee Name","Month","Amount","Voucher No","Date"]];employees.forEach(e=>Object.entries(e.records).forEach(([m,r])=>rows.push([e.code,e.name,m,r.amount||0,r.voucher||"",r.date||""])));let csv=rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="salary_records.csv";a.click();}
+loadPersist();
 </script>
-</body></html>
+</body>
+</html>
