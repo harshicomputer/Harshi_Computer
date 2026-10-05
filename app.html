@@ -119,13 +119,24 @@ async function previewPaymentUpload(){
         pendingPaymentRows.push({code,name:e?.name||"",employee_id:e?.id||null,month_start:month,amount,payment_date:payDate||null,sheet:name})
       }
     }
-    let bad=pendingPaymentRows.filter(x=>!x.employee_id),dup=new Set(),dups=[];
-    pendingPaymentRows.forEach(x=>{let k=x.code+"|"+x.month_start;if(dup.has(k))dups.push(k);dup.add(k)});
-    let total=pendingPaymentRows.reduce((s,x)=>s+x.amount,0);
+    let bad=pendingPaymentRows.filter(x=>!x.employee_id),seen=new Map(),dups=[];
+    pendingPaymentRows.forEach((x,i)=>{
+      const k=x.code.toUpperCase()+"|"+x.month_start;
+      if(seen.has(k)){const first=seen.get(k);dups.push({key:k,code:x.code,name:x.name||first.name||"—",month:x.month_start,firstIndex:first.index+1,secondIndex:i+1,firstSheet:first.sheet,secondSheet:x.sheet})}
+      else seen.set(k,{index:i,name:x.name,sheet:x.sheet});
+    });
+    let dupKeys=new Set(dups.map(x=>x.key)),total=pendingPaymentRows.reduce((s,x)=>s+x.amount,0);
     msgEl.textContent=pendingPaymentRows.length+" भुगतान रिकॉर्ड मिले | कुल राशि ₹"+total.toLocaleString("en-IN")+" | Match नहीं: "+bad.length+(dups.length?" | Duplicate: "+dups.length:"");
-    box.innerHTML="<table><thead><tr><th>Code</th><th>नाम</th><th>माह</th><th>राशि</th><th>Payment Date</th><th>स्थिति</th></tr></thead><tbody>"+pendingPaymentRows.slice(0,100).map(x=>"<tr><td>"+x.code+"</td><td>"+(x.name||"—")+"</td><td>"+x.month_start+"</td><td>₹"+x.amount.toLocaleString("en-IN")+"</td><td>"+(x.payment_date||"—")+"</td><td>"+(x.employee_id?"✓ Match":"✗ Employee नहीं मिला")+"</td></tr>").join("")+"</tbody></table>"+(pendingPaymentRows.length>100?"<p class='muted'>पहले 100 रिकॉर्ड Preview में दिखाए गए हैं।</p>":"");
-    btn.disabled=pendingPaymentRows.length===0||bad.length>0;
-    if(bad.length)msgEl.textContent+=" | पहले unmatched Employee Code ठीक करें।"
+    box.innerHTML="<table><thead><tr><th>Code</th><th>नाम</th><th>माह</th><th>राशि</th><th>Payment Date</th><th>स्थिति</th></tr></thead><tbody>"+
+      pendingPaymentRows.slice(0,100).map((x,i)=>{
+        const k=x.code.toUpperCase()+"|"+x.month_start,isDup=dupKeys.has(k);
+        return "<tr><td>"+x.code+"</td><td>"+(x.name||"—")+"</td><td>"+x.month_start+"</td><td>₹"+x.amount.toLocaleString("en-IN")+"</td><td>"+(x.payment_date||"—")+"</td><td>"+(x.employee_id?(isDup?"⚠ Duplicate":"✓ Match"):"✗ Employee नहीं मिला")+"</td></tr>"
+      }).join("")+
+      "</tbody></table>"+(pendingPaymentRows.length>100?"<p class='muted'>पहले 100 रिकॉर्ड Preview में दिखाए गए हैं।</p>":"")+
+      (dups.length?"<div class='notice' style='margin-top:10px'><b>Duplicate रिकॉर्ड:</b><br>"+dups.map((d,i)=>(i+1)+". <b>"+d.name+"</b> ("+d.code+") — "+d.month+" — Excel row "+d.firstIndex+" और "+d.secondIndex+"; Sheets: "+d.firstSheet+" / "+d.secondSheet).join("<br>")+"</div>":"");
+    btn.disabled=pendingPaymentRows.length===0||bad.length>0||dups.length>0;
+    if(bad.length)msgEl.textContent+=" | पहले unmatched Employee Code ठीक करें।";
+    if(dups.length)msgEl.textContent+=" | Duplicate हटाएँ/सुधारें, फिर Confirm करें।"
   }catch(e){msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
 }
 async function confirmPaymentUpload(){if(!pendingPaymentRows.length)return;let msgEl=document.getElementById("paymentMsg"),btn=document.getElementById("confirmPaymentBtn");btn.disabled=true;let u=(await window.salaryDb.auth.getUser()).data.user;if(!u){msgEl.textContent="Login session समाप्त हो गई है।";btn.disabled=false;return}let rows=pendingPaymentRows.filter(x=>x.employee_id).map(x=>({employee_id:x.employee_id,month_start:x.month_start,amount:x.amount,payment_date:x.payment_date,updated_by:u.id}));let{error}=await window.salaryDb.from("salary_records").upsert(rows,{onConflict:"employee_id,month_start"});if(error){msgEl.textContent="Upload error: "+error.message;btn.disabled=false;return}await refresh();renderEmployees();updateDash();setupRecord();msgEl.textContent=rows.length+" भुगतान रिकॉर्ड Database में सफलतापूर्वक सेव हो गए।";pendingPaymentRows=[];document.getElementById("paymentFile").value="";document.getElementById("paymentPreview").innerHTML=""}
