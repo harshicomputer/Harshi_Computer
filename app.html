@@ -43,7 +43,7 @@ function msg(x,ok=false){let el=document.getElementById("authMsg");el.textConten
 async function signIn(){let email=document.getElementById("email").value.trim().toLowerCase(),password=document.getElementById("password").value,btn=document.getElementById("loginBtn");if(!email||!password)return msg("Email और Password दोनों भरें।");if(!window.supabase)return msg("Supabase library load नहीं हुई। कृपया Ctrl+F5 करके फिर प्रयास करें।");if(!window.salaryDb)return msg("Database connection तैयार नहीं हुई। कृपया 10 सेकंड बाद फिर प्रयास करें।");btn.disabled=true;btn.textContent="Login हो रहा है...";msg("Login जाँच रहा है...",true);try{let{error}=await window.salaryDb.auth.signInWithPassword({email,password});if(error){let x=error.message.toLowerCase();msg(x.includes("invalid login credentials")?"Email या Password गलत है।":x.includes("email not confirmed")?"Email confirmation बाकी है। Supabase Auth में Confirm Email बंद करें या email से confirmation link खोलें।":error.message)}}catch(e){msg("Login में तकनीकी समस्या: "+(e?.message||e))}finally{btn.disabled=false;btn.textContent="Login"}}
 async function signUp(){let email=document.getElementById("email").value.trim().toLowerCase(),password=document.getElementById("password").value;if(!email||!email.includes("@"))return msg("सही Email address दर्ज करें।");if(password.length<6)return msg("Password कम से कम 6 characters का रखें।");let b=document.getElementById("signupBtn");b.disabled=true;b.textContent="Account बनाया जा रहा है...";msg("Supabase में Admin Account बनाया जा रहा है...",true);try{let{data,error}=await window.salaryDb.auth.signUp({email,password,options:{data:{role:"admin"},emailRedirectTo:window.location.origin+window.location.pathname}});if(error)return msg(error.message);if(data.session)msg("Admin account बन गया और Login हो गया।",true);else msg("Admin account बन गया। अब इसी Email से Login करें।",true)}catch(e){msg("Account बनाने में समस्या: "+(e?.message||e))}finally{b.disabled=false;b.textContent="पहली बार Admin Account बनाएं"}}
 async function signOut(){await window.salaryDb.auth.signOut()}
-window.salaryDb.auth.onAuthStateChange((e,s)=>{if(s)start(s);else{document.getElementById("app").style.display="none";document.getElementById("login").style.display="grid"}})
+window.salaryDb.auth.onAuthStateChange((e,s)=>{if(s){setTimeout(()=>start(s),0)}else{document.getElementById("app").style.display="none";document.getElementById("login").style.display="grid"}})
 async function start(s){document.getElementById("login").style.display="none";document.getElementById("app").style.display="block";document.getElementById("who").textContent=s.user.user_metadata?.username||s.user.email;await refresh();init()}
 async function refresh(){let a=await window.salaryDb.from("employees").select("*").order("code");if(a.error)return alert(a.error.message);employees=a.data;let b=await window.salaryDb.from("salary_records").select("*");if(b.error)return alert(b.error.message);records=b.data}
 function init(){updateDash();renderEmployees();setupRecord();setupReport()}
@@ -65,4 +65,55 @@ function monthISO(v){let d=excelDate(v);return d?d.getFullYear()+"-"+String(d.ge
 function normalizeHeader(x){return String(x||"").trim().toLowerCase().replace(/[ _.-]/g,"")}
 async function previewPaymentUpload(){let file=document.getElementById("paymentFile").files[0],msgEl=document.getElementById("paymentMsg"),box=document.getElementById("paymentPreview"),btn=document.getElementById("confirmPaymentBtn");pendingPaymentRows=[];btn.disabled=true;box.innerHTML="";if(!file)return msgEl.textContent="पहले Payment Excel/CSV फ़ाइल चुनें।";try{let data=await file.arrayBuffer(),wb=XLSX.read(data,{type:"array",cellDates:true}),codes=new Map(employees.map(e=>[String(e.code).trim().toUpperCase(),e]));for(let si=0;si<wb.SheetNames.length;si++){let name=wb.SheetNames[si],raw=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:""});let hi=raw.findIndex(row=>row.some(v=>["employeenumber","employeeid","employeecode","code","employee"].includes(normalizeHeader(v)))&&row.some(v=>["amount","netpay","paidamount","paymentamount"].includes(normalizeHeader(v))));if(hi<0)continue;let headers=raw[hi].map(normalizeHeader),rows=raw.slice(hi+1),find=names=>names.map(normalizeHeader).map(n=>headers.indexOf(n)).find(i=>i>=0),ci=find(["employee number","employee id","employee code","code","employee"]),ai=find(["amount","net pay","paid amount","payment amount"]),mi=find(["month","payment date","date"]),di=find(["payment date","date"]);if(ci==null||ai==null||mi==null)continue;for(let row of rows){let code=String(row[ci]??"").trim(),amount=Number(String(row[ai]??"").replace(/,/g,""));if(!code||!isFinite(amount)||amount<=0||/^total$/i.test(code))continue;let month=monthISO(row[mi]);if(!month)continue;let payDate=di!=null?dateISO(row[di]):"";let e=codes.get(code.toUpperCase());pendingPaymentRows.push({code,name:e?.name||"",employee_id:e?.id||null,month_start:month,amount,payment_date:payDate||null,sheet:name})}}let bad=pendingPaymentRows.filter(x=>!x.employee_id),dup=new Set(),dups=[];pendingPaymentRows.forEach(x=>{let k=x.code+"|"+x.month_start;if(dup.has(k))dups.push(k);dup.add(k)});let total=pendingPaymentRows.reduce((s,x)=>s+x.amount,0);msgEl.textContent=pendingPaymentRows.length+" भुगतान रिकॉर्ड मिले | कुल राशि ₹"+total.toLocaleString("en-IN")+" | Match नहीं: "+bad.length+(dups.length?" | Duplicate: "+dups.length:"");box.innerHTML="<table><thead><tr><th>Code</th><th>नाम</th><th>माह</th><th>राशि</th><th>Payment Date</th><th>स्थिति</th></tr></thead><tbody>"+pendingPaymentRows.slice(0,100).map(x=>"<tr><td>"+x.code+"</td><td>"+(x.name||"—")+"</td><td>"+x.month_start+"</td><td>₹"+x.amount.toLocaleString("en-IN")+"</td><td>"+(x.payment_date||"—")+"</td><td>"+(x.employee_id?"✓ Match":"✗ Employee नहीं मिला")+"</td></tr>").join("")+"</tbody></table>"+(pendingPaymentRows.length>100?"<p class='muted'>पहले 100 रिकॉर्ड Preview में दिखाए गए हैं।</p>":"");btn.disabled=pendingPaymentRows.length===0||bad.length>0;if(bad.length)msgEl.textContent+=" | पहले unmatched Employee Code ठीक करें।"}catch(e){msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}}
 async function confirmPaymentUpload(){if(!pendingPaymentRows.length)return;let msgEl=document.getElementById("paymentMsg"),btn=document.getElementById("confirmPaymentBtn");btn.disabled=true;let u=(await window.salaryDb.auth.getUser()).data.user;if(!u){msgEl.textContent="Login session समाप्त हो गई है।";btn.disabled=false;return}let rows=pendingPaymentRows.filter(x=>x.employee_id).map(x=>({employee_id:x.employee_id,month_start:x.month_start,amount:x.amount,payment_date:x.payment_date,updated_by:u.id}));let{error}=await window.salaryDb.from("salary_records").upsert(rows,{onConflict:"employee_id,month_start"});if(error){msgEl.textContent="Upload error: "+error.message;btn.disabled=false;return}await refresh();renderEmployees();updateDash();setupRecord();msgEl.textContent=rows.length+" भुगतान रिकॉर्ड Database में सफलतापूर्वक सेव हो गए।";pendingPaymentRows=[];document.getElementById("paymentFile").value="";document.getElementById("paymentPreview").innerHTML=""}
-function downloadBulkTemplate(){let rows=[["Employee ID","Employee Name","Post","Department"],["EMP-001","कर्मचारी 1","",""],["EMP-002","कर्मचारी 2","",""]];let ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Employees");XLSX.writeFile(wb,"employee-bulk-upload-template.xlsx")}>
+function downloadBulkTemplate(){let rows=[["Employee ID","Employee Name","Post","Department"],["EMP-001","कर्मचारी 1","",""],["EMP-002","कर्मचारी 2","",""]];let ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Employees");XLSX.writeFile(wb,"employee-bulk-upload-template.xlsx")}
+async function bulkUpload(){
+  const file=document.getElementById("bulkFile").files[0],out=document.getElementById("bulkMsg");
+  if(!file){out.textContent="पहले Employee Excel/CSV फ़ाइल चुनें।";return}
+  try{
+    const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true});
+    const rows=[];
+    for(const sn of wb.SheetNames){
+      const raw=XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:""});
+      for(const r of raw){
+        const keys=Object.keys(r), norm=k=>String(k).toLowerCase().replace(/[ _.-]/g,"");
+        const get=names=>{const k=keys.find(x=>names.includes(norm(x)));return k===undefined?"":r[k]};
+        const code=String(get(["employeeid","employeecode","employeenumber","code"])).trim();
+        const name=String(get(["employeename","name","employee"])).trim();
+        if(code&&name)rows.push({code,name,post:String(get(["post","designation"])).trim()||null,department:String(get(["department","dept"])).trim()||null});
+      }
+    }
+    const unique=[...new Map(rows.map(x=>[x.code.toUpperCase(),x])).values()];
+    if(!unique.length){out.textContent="कोई Employee record नहीं मिला।";return}
+    const {error}=await window.salaryDb.from("employees").upsert(unique,{onConflict:"code"});
+    if(error){out.textContent="Upload error: "+error.message;return}
+    await refresh();init();out.textContent=unique.length+" कर्मचारी Database में सफलतापूर्वक सेव/अपडेट हो गए।";
+  }catch(e){out.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
+}
+function newEmployee(){
+  const code=prompt("Employee Code / ID दर्ज करें:"); if(!code)return;
+  const name=prompt("Employee Name दर्ज करें:"); if(!name)return;
+  const post=prompt("Post (वैकल्पिक):")||null,department=prompt("Department (वैकल्पिक):")||null;
+  window.salaryDb.from("employees").upsert({code:code.trim(),name:name.trim(),post,department},{onConflict:"code"})
+    .then(async({error})=>{if(error)alert(error.message);else{await refresh();init();alert("कर्मचारी सेव हो गया।")}})
+}
+function downloadBulkTemplate(){
+  const rows=[["Employee ID","Employee Name","Post","Department"],["EMP-001","कर्मचारी 1","",""],["EMP-002","कर्मचारी 2","",""]];
+  const ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Employees");XLSX.writeFile(wb,"employee-bulk-upload-template.xlsx");
+}
+async function downloadBackup(){
+  const a=await window.salaryDb.from("employees").select("*"),b=await window.salaryDb.from("salary_records").select("*");
+  if(a.error||b.error){alert((a.error||b.error).message);return}
+  const blob=new Blob([JSON.stringify({exported_at:new Date().toISOString(),employees:a.data,salary_records:b.data},null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob),x=document.createElement("a");x.href=url;x.download="salary-system-backup.json";x.click();URL.revokeObjectURL(url);
+}
+async function exportCSV(){
+  const {data,error}=await window.salaryDb.from("salary_records").select("*");
+  if(error){alert(error.message);return}
+  const head=["employee_id","month_start","payable_amount","amount","voucher_no","payment_date","remarks"];
+  const esc=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+  const csv=[head.join(","),...data.map(r=>head.map(k=>esc(r[k])).join(","))].join("\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),x=document.createElement("a");
+  x.href=url;x.download="salary-records.csv";x.click();URL.revokeObjectURL(url);
+}
+</script></body></html>
