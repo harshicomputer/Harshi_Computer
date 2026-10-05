@@ -97,12 +97,13 @@ function dateISO(v){
   return p?p.y+"-"+String(p.m).padStart(2,"0")+"-"+String(p.d||1).padStart(2,"0"):"";
 }
 function normalizeHeader(x){return String(x||"").trim().toLowerCase().replace(/[ _.-]/g,"")}
+function normalizeCode(x){return String(x??"").toUpperCase().replace(/[^A-Z0-9]/g,"")}
 async function previewPaymentUpload(){
   let file=document.getElementById("paymentFile").files[0],msgEl=document.getElementById("paymentMsg"),box=document.getElementById("paymentPreview"),btn=document.getElementById("confirmPaymentBtn");
   pendingPaymentRows=[];btn.disabled=true;box.innerHTML="";
   if(!file)return msgEl.textContent="पहले Payment Excel/CSV फ़ाइल चुनें।";
   try{
-    let data=await file.arrayBuffer(),wb=XLSX.read(data,{type:"array",cellDates:false}),codes=new Map(employees.map(e=>[String(e.code).trim().toUpperCase(),e]));
+    let data=await file.arrayBuffer(),wb=XLSX.read(data,{type:"array",cellDates:false}),codes=new Map(employees.map(e=>[normalizeCode(e.code),e]));
     for(let si=0;si<wb.SheetNames.length;si++){
       let name=wb.SheetNames[si],raw=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:"",raw:true});
       let hi=raw.findIndex(row=>row.some(v=>["employeenumber","employeeid","employeecode","code","employee"].includes(normalizeHeader(v)))&&row.some(v=>["amount","netpay","paidamount","paymentamount"].includes(normalizeHeader(v))));
@@ -117,13 +118,13 @@ async function previewPaymentUpload(){
         let payable=pi!=null?Number(String(row[pi]??"").replace(/,/g,"")):0;
         if(!isFinite(payable)||payable<0)payable=0;
         let payDate=di!=null?dateISO(row[di]):"";
-        let e=codes.get(code.toUpperCase());
+        let e=codes.get(normalizeCode(code));
         pendingPaymentRows.push({code,name:e?.name||"",employee_id:e?.id||null,month_start:month,payable_amount:payable,amount,payment_date:payDate||null,sheet:name})
       }
     }
     let bad=pendingPaymentRows.filter(x=>!x.employee_id),seen=new Map(),dups=[];
     pendingPaymentRows.forEach((x,i)=>{
-      const k=x.code.toUpperCase()+"|"+x.month_start;
+      const k=normalizeCode(x.code)+"|"+x.month_start;
       if(seen.has(k)){const first=seen.get(k);dups.push({key:k,code:x.code,name:x.name||first.name||"—",month:x.month_start,firstIndex:first.index+1,secondIndex:i+1,firstSheet:first.sheet,secondSheet:x.sheet})}
       else seen.set(k,{index:i,name:x.name,sheet:x.sheet});
     });
@@ -131,7 +132,7 @@ async function previewPaymentUpload(){
     msgEl.textContent=pendingPaymentRows.length+" भुगतान रिकॉर्ड मिले | कुल राशि ₹"+total.toLocaleString("en-IN")+" | Match नहीं: "+bad.length+(dups.length?" | Duplicate: "+dups.length:"");
     box.innerHTML="<table><thead><tr><th>Code</th><th>नाम</th><th>माह</th><th>Payable Amount</th><th>भुगतान राशि</th><th>Pending</th><th>Payment Date</th><th>स्थिति</th></tr></thead><tbody>"+
       pendingPaymentRows.slice(0,100).map((x,i)=>{
-        const k=x.code.toUpperCase()+"|"+x.month_start,isDup=dupKeys.has(k);
+        const k=normalizeCode(x.code)+"|"+x.month_start,isDup=dupKeys.has(k);
         return "<tr><td>"+x.code+"</td><td>"+(x.name||"—")+"</td><td>"+x.month_start+"</td><td>₹"+x.payable_amount.toLocaleString("en-IN")+"</td><td>₹"+x.amount.toLocaleString("en-IN")+"</td><td>₹"+(x.payable_amount-x.amount).toLocaleString("en-IN")+"</td><td>"+(x.payment_date||"—")+"</td><td>"+(x.employee_id?(isDup?"⚠ Duplicate":"✓ Match"):"✗ Employee नहीं मिला")+"</td></tr>"
       }).join("")+
       "</tbody></table>"+(pendingPaymentRows.length>100?"<p class='muted'>पहले 100 रिकॉर्ड Preview में दिखाए गए हैं।</p>":"")+
