@@ -108,15 +108,17 @@ async function previewPaymentUpload(){
       let hi=raw.findIndex(row=>row.some(v=>["employeenumber","employeeid","employeecode","code","employee"].includes(normalizeHeader(v)))&&row.some(v=>["amount","netpay","paidamount","paymentamount"].includes(normalizeHeader(v))));
       if(hi<0)continue;
       let headers=raw[hi].map(normalizeHeader),rows=raw.slice(hi+1),find=names=>names.map(normalizeHeader).map(n=>headers.indexOf(n)).find(i=>i>=0);
-      let ci=find(["employee number","employee id","employee code","code","employee"]),ai=find(["amount","net pay","paid amount","payment amount"]),mi=find(["month","salary month","payment month","payment date","date"]),di=find(["payment date"]);
+      let ci=find(["employee number","employee id","employee code","code","employee"]),pi=find(["payble amount","payable amount","payable","due amount","salary payable"]),ai=find(["amount","net pay","paid amount","payment amount"]),mi=find(["month","salary month","payment month","payment date","date"]),di=find(["payment date"]);
       if(ci==null||ai==null||mi==null)continue;
       for(let row of rows){
         let code=String(row[ci]??"").trim(),amount=Number(String(row[ai]??"").replace(/,/g,""));
         if(!code||!isFinite(amount)||amount<=0||/^total$/i.test(code))continue;
         let month=monthISO(row[mi]);if(!month)continue;
+        let payable=pi!=null?Number(String(row[pi]??"").replace(/,/g,"")):0;
+        if(!isFinite(payable)||payable<0)payable=0;
         let payDate=di!=null?dateISO(row[di]):"";
         let e=codes.get(code.toUpperCase());
-        pendingPaymentRows.push({code,name:e?.name||"",employee_id:e?.id||null,month_start:month,amount,payment_date:payDate||null,sheet:name})
+        pendingPaymentRows.push({code,name:e?.name||"",employee_id:e?.id||null,month_start:month,payable_amount:payable,amount,payment_date:payDate||null,sheet:name})
       }
     }
     let bad=pendingPaymentRows.filter(x=>!x.employee_id),seen=new Map(),dups=[];
@@ -127,10 +129,10 @@ async function previewPaymentUpload(){
     });
     let dupKeys=new Set(dups.map(x=>x.key)),total=pendingPaymentRows.reduce((s,x)=>s+x.amount,0);
     msgEl.textContent=pendingPaymentRows.length+" भुगतान रिकॉर्ड मिले | कुल राशि ₹"+total.toLocaleString("en-IN")+" | Match नहीं: "+bad.length+(dups.length?" | Duplicate: "+dups.length:"");
-    box.innerHTML="<table><thead><tr><th>Code</th><th>नाम</th><th>माह</th><th>राशि</th><th>Payment Date</th><th>स्थिति</th></tr></thead><tbody>"+
+    box.innerHTML="<table><thead><tr><th>Code</th><th>नाम</th><th>माह</th><th>Payable Amount</th><th>भुगतान राशि</th><th>Pending</th><th>Payment Date</th><th>स्थिति</th></tr></thead><tbody>"+
       pendingPaymentRows.slice(0,100).map((x,i)=>{
         const k=x.code.toUpperCase()+"|"+x.month_start,isDup=dupKeys.has(k);
-        return "<tr><td>"+x.code+"</td><td>"+(x.name||"—")+"</td><td>"+x.month_start+"</td><td>₹"+x.amount.toLocaleString("en-IN")+"</td><td>"+(x.payment_date||"—")+"</td><td>"+(x.employee_id?(isDup?"⚠ Duplicate":"✓ Match"):"✗ Employee नहीं मिला")+"</td></tr>"
+        return "<tr><td>"+x.code+"</td><td>"+(x.name||"—")+"</td><td>"+x.month_start+"</td><td>₹"+x.payable_amount.toLocaleString("en-IN")+"</td><td>₹"+x.amount.toLocaleString("en-IN")+"</td><td>₹"+(x.payable_amount-x.amount).toLocaleString("en-IN")+"</td><td>"+(x.payment_date||"—")+"</td><td>"+(x.employee_id?(isDup?"⚠ Duplicate":"✓ Match"):"✗ Employee नहीं मिला")+"</td></tr>"
       }).join("")+
       "</tbody></table>"+(pendingPaymentRows.length>100?"<p class='muted'>पहले 100 रिकॉर्ड Preview में दिखाए गए हैं।</p>":"")+
       (dups.length?"<div class='notice' style='margin-top:10px'><b>Duplicate रिकॉर्ड:</b><br>"+dups.map((d,i)=>(i+1)+". <b>"+d.name+"</b> ("+d.code+") — "+d.month+" — Excel row "+d.firstIndex+" और "+d.secondIndex+"; Sheets: "+d.firstSheet+" / "+d.secondSheet).join("<br>")+"</div>":"");
@@ -139,7 +141,7 @@ async function previewPaymentUpload(){
     if(dups.length)msgEl.textContent+=" | Duplicate हटाएँ/सुधारें, फिर Confirm करें।"
   }catch(e){msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
 }
-async function confirmPaymentUpload(){if(!pendingPaymentRows.length)return;let msgEl=document.getElementById("paymentMsg"),btn=document.getElementById("confirmPaymentBtn");btn.disabled=true;let u=(await window.salaryDb.auth.getUser()).data.user;if(!u){msgEl.textContent="Login session समाप्त हो गई है।";btn.disabled=false;return}let rows=pendingPaymentRows.filter(x=>x.employee_id).map(x=>({employee_id:x.employee_id,month_start:x.month_start,amount:x.amount,payment_date:x.payment_date,updated_by:u.id}));let{error}=await window.salaryDb.from("salary_records").upsert(rows,{onConflict:"employee_id,month_start"});if(error){msgEl.textContent="Upload error: "+error.message;btn.disabled=false;return}await refresh();renderEmployees();updateDash();setupRecord();msgEl.textContent=rows.length+" भुगतान रिकॉर्ड Database में सफलतापूर्वक सेव हो गए।";pendingPaymentRows=[];document.getElementById("paymentFile").value="";document.getElementById("paymentPreview").innerHTML=""}
+async function confirmPaymentUpload(){if(!pendingPaymentRows.length)return;let msgEl=document.getElementById("paymentMsg"),btn=document.getElementById("confirmPaymentBtn");btn.disabled=true;let u=(await window.salaryDb.auth.getUser()).data.user;if(!u){msgEl.textContent="Login session समाप्त हो गई है।";btn.disabled=false;return}let rows=pendingPaymentRows.filter(x=>x.employee_id).map(x=>({employee_id:x.employee_id,month_start:x.month_start,payable_amount:x.payable_amount||0,amount:x.amount,payment_date:x.payment_date,updated_by:u.id}));let{error}=await window.salaryDb.from("salary_records").upsert(rows,{onConflict:"employee_id,month_start"});if(error){msgEl.textContent="Upload error: "+error.message;btn.disabled=false;return}await refresh();renderEmployees();updateDash();setupRecord();msgEl.textContent=rows.length+" भुगतान रिकॉर्ड Database में सफलतापूर्वक सेव हो गए।";pendingPaymentRows=[];document.getElementById("paymentFile").value="";document.getElementById("paymentPreview").innerHTML=""}
 function downloadBulkTemplate(){let rows=[["Employee ID","Employee Name","Post","Department"],["EMP-001","कर्मचारी 1","",""],["EMP-002","कर्मचारी 2","",""]];let ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Employees");XLSX.writeFile(wb,"employee-bulk-upload-template.xlsx")}
 async function bulkUpload(){
   const file=document.getElementById("bulkFile").files[0],out=document.getElementById("bulkMsg");
