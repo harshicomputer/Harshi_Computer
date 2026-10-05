@@ -3,23 +3,29 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harshi Computer — Salary Record</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
+let loginStarting=false;
 window.loginNow=async function(){
   const msgEl=document.getElementById("authMsg"),btn=document.getElementById("loginBtn");
-  const email=(document.getElementById("email").value||"").trim().toLowerCase(),password=document.getElementById("password").value||"";
+  const email=(document.getElementById("email").value||"").trim().toLowerCase();
+  const password=document.getElementById("password").value||"";
   if(!email||!password){msgEl.textContent="Email और Password दोनों भरें।";msgEl.className="error";return}
-  btn.disabled=true;btn.textContent="Login हो रहा है...";msgEl.textContent="Login जाँच रहा है...";msgEl.className="ok";
+  if(!window.salaryDb){msgEl.textContent="Database connection तैयार नहीं हुई।";msgEl.className="error";return}
+  loginStarting=true;btn.disabled=true;btn.textContent="Login हो रहा है...";msgEl.textContent="Login जाँच रहा है...";msgEl.className="ok";
   try{
-    if(!window.salaryDb)throw new Error("Database connection तैयार नहीं हुई।");
-    const {data,error}=await window.salaryDb.auth.signInWithPassword({email,password});
+    const authPromise=window.salaryDb.auth.signInWithPassword({email,password});
+    const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error("Login server से response नहीं मिला। 15 सेकंड बाद फिर प्रयास करें।")),15000));
+    const {data,error}=await Promise.race([authPromise,timeout]);
     if(error)throw error;
     if(!data?.session)throw new Error("Login हुआ लेकिन session नहीं मिला।");
     msgEl.textContent="Login सफल — Dashboard खोला जा रहा है...";msgEl.className="ok";
-    setTimeout(()=>start(data.session),0);
+    await start(data.session);
   }catch(e){
     const x=String(e?.message||e);
     msgEl.textContent=x.toLowerCase().includes("invalid login credentials")?"Email या Password गलत है।":x;
     msgEl.className="error";
-  }finally{btn.disabled=false;btn.textContent="Login"}
+  }finally{
+    loginStarting=false;btn.disabled=false;btn.textContent="Login";
+  }
 }
 </script>
 <style>
@@ -44,7 +50,7 @@ function msg(x,ok=false){let el=document.getElementById("authMsg");el.textConten
 async function signIn(){let email=document.getElementById("email").value.trim().toLowerCase(),password=document.getElementById("password").value,btn=document.getElementById("loginBtn");if(!email||!password)return msg("Email और Password दोनों भरें।");if(!window.supabase)return msg("Supabase library load नहीं हुई। कृपया Ctrl+F5 करके फिर प्रयास करें।");if(!window.salaryDb)return msg("Database connection तैयार नहीं हुई। कृपया 10 सेकंड बाद फिर प्रयास करें।");btn.disabled=true;btn.textContent="Login हो रहा है...";msg("Login जाँच रहा है...",true);try{let{error}=await window.salaryDb.auth.signInWithPassword({email,password});if(error){let x=error.message.toLowerCase();msg(x.includes("invalid login credentials")?"Email या Password गलत है।":x.includes("email not confirmed")?"Email confirmation बाकी है। Supabase Auth में Confirm Email बंद करें या email से confirmation link खोलें।":error.message)}}catch(e){msg("Login में तकनीकी समस्या: "+(e?.message||e))}finally{btn.disabled=false;btn.textContent="Login"}}
 async function signUp(){let email=document.getElementById("email").value.trim().toLowerCase(),password=document.getElementById("password").value;if(!email||!email.includes("@"))return msg("सही Email address दर्ज करें।");if(password.length<6)return msg("Password कम से कम 6 characters का रखें।");let b=document.getElementById("signupBtn");b.disabled=true;b.textContent="Account बनाया जा रहा है...";msg("Supabase में Admin Account बनाया जा रहा है...",true);try{let{data,error}=await window.salaryDb.auth.signUp({email,password,options:{data:{role:"admin"},emailRedirectTo:window.location.origin+window.location.pathname}});if(error)return msg(error.message);if(data.session)msg("Admin account बन गया और Login हो गया।",true);else msg("Admin account बन गया। अब इसी Email से Login करें।",true)}catch(e){msg("Account बनाने में समस्या: "+(e?.message||e))}finally{b.disabled=false;b.textContent="पहली बार Admin Account बनाएं"}}
 async function signOut(){await window.salaryDb.auth.signOut()}
-window.salaryDb.auth.onAuthStateChange((e,s)=>{if(s){setTimeout(()=>start(s),0)}else{document.getElementById("app").style.display="none";document.getElementById("login").style.display="grid"}})
+window.salaryDb.auth.onAuthStateChange((e,s)=>{if(s&&!loginStarting){setTimeout(()=>start(s),0)}else if(!s){document.getElementById("app").style.display="none";document.getElementById("login").style.display="grid"}})
 async function start(s){document.getElementById("login").style.display="none";document.getElementById("app").style.display="block";document.getElementById("who").textContent=s.user.user_metadata?.username||s.user.email;try{await Promise.race([refresh(),new Promise((_,rej)=>setTimeout(()=>rej(new Error("Database response timeout")),10000))]);init()}catch(e){console.error(e);init();alert("Login सफल है। Database data load होने में समस्या है: "+(e?.message||e))}}
 async function refresh(){let a=await window.salaryDb.from("employees").select("*").order("code");if(a.error)return alert(a.error.message);employees=a.data;let b=await window.salaryDb.from("salary_records").select("*");if(b.error)return alert(b.error.message);records=b.data}
 function init(){updateDash();renderEmployees();setupRecord();setupReport()}
