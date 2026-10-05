@@ -7,16 +7,17 @@ window.loginNow=async function(){
   const msgEl=document.getElementById("authMsg"),btn=document.getElementById("loginBtn");
   const email=(document.getElementById("email").value||"").trim().toLowerCase(),password=document.getElementById("password").value||"";
   if(!email||!password){msgEl.textContent="Email और Password दोनों भरें।";msgEl.className="error";return}
-  btn.disabled=true;btn.textContent="Login हो रहा है...";
-  msgEl.textContent="Login जाँच रहा है...";msgEl.className="ok";
+  btn.disabled=true;btn.textContent="Login हो रहा है...";msgEl.textContent="Login जाँच रहा है...";msgEl.className="ok";
   try{
-    if(!window.supabase){throw new Error("Supabase library load नहीं हुई।")}
-    if(!window.salaryDb){window.salaryDb=window.supabase.createClient("https://khwzoolgjzghdixlclwu.supabase.co","sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P")}
-    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);let response;try{response=await fetch("https://khwzoolgjzghdixlclwu.supabase.co/auth/v1/token?grant_type=password",{method:"POST",headers:{"Content-Type":"application/json","apikey":"sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P"} ,body:JSON.stringify({email,password}),signal:controller.signal});}finally{clearTimeout(timer)}let result;try{result=await response.json()}catch(e){throw new Error("Supabase से सही उत्तर नहीं मिला (HTTP "+response.status+")")}if(!response.ok)throw new Error(result.error_description||result.msg||result.message||"Login असफल (HTTP "+response.status+")");const {error}=await window.salaryDb.auth.setSession({access_token:result.access_token,refresh_token:result.refresh_token});
-    if(error) throw error;
+    if(!window.salaryDb)throw new Error("Database connection तैयार नहीं हुई।");
+    const {data,error}=await window.salaryDb.auth.signInWithPassword({email,password});
+    if(error)throw error;
+    if(!data?.session)throw new Error("Login हुआ लेकिन session नहीं मिला।");
+    msgEl.textContent="Login सफल — Dashboard खोला जा रहा है...";msgEl.className="ok";
+    setTimeout(()=>start(data.session),0);
   }catch(e){
     const x=String(e?.message||e);
-    msgEl.textContent=x.toLowerCase().includes("invalid login credentials")?"Email या Password गलत है।":x.toLowerCase().includes("abort")?"Supabase server से 12 सेकंड में उत्तर नहीं आया। Internet/Supabase connection जाँचनी होगी।":x;
+    msgEl.textContent=x.toLowerCase().includes("invalid login credentials")?"Email या Password गलत है।":x;
     msgEl.className="error";
   }finally{btn.disabled=false;btn.textContent="Login"}
 }
@@ -44,7 +45,7 @@ async function signIn(){let email=document.getElementById("email").value.trim().
 async function signUp(){let email=document.getElementById("email").value.trim().toLowerCase(),password=document.getElementById("password").value;if(!email||!email.includes("@"))return msg("सही Email address दर्ज करें।");if(password.length<6)return msg("Password कम से कम 6 characters का रखें।");let b=document.getElementById("signupBtn");b.disabled=true;b.textContent="Account बनाया जा रहा है...";msg("Supabase में Admin Account बनाया जा रहा है...",true);try{let{data,error}=await window.salaryDb.auth.signUp({email,password,options:{data:{role:"admin"},emailRedirectTo:window.location.origin+window.location.pathname}});if(error)return msg(error.message);if(data.session)msg("Admin account बन गया और Login हो गया।",true);else msg("Admin account बन गया। अब इसी Email से Login करें।",true)}catch(e){msg("Account बनाने में समस्या: "+(e?.message||e))}finally{b.disabled=false;b.textContent="पहली बार Admin Account बनाएं"}}
 async function signOut(){await window.salaryDb.auth.signOut()}
 window.salaryDb.auth.onAuthStateChange((e,s)=>{if(s){setTimeout(()=>start(s),0)}else{document.getElementById("app").style.display="none";document.getElementById("login").style.display="grid"}})
-async function start(s){document.getElementById("login").style.display="none";document.getElementById("app").style.display="block";document.getElementById("who").textContent=s.user.user_metadata?.username||s.user.email;await refresh();init()}
+async function start(s){document.getElementById("login").style.display="none";document.getElementById("app").style.display="block";document.getElementById("who").textContent=s.user.user_metadata?.username||s.user.email;try{await Promise.race([refresh(),new Promise((_,rej)=>setTimeout(()=>rej(new Error("Database response timeout")),10000))]);init()}catch(e){console.error(e);init();alert("Login सफल है। Database data load होने में समस्या है: "+(e?.message||e))}}
 async function refresh(){let a=await window.salaryDb.from("employees").select("*").order("code");if(a.error)return alert(a.error.message);employees=a.data;let b=await window.salaryDb.from("salary_records").select("*");if(b.error)return alert(b.error.message);records=b.data}
 function init(){updateDash();renderEmployees();setupRecord();setupReport()}
 function showPage(id,b){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");if(id==="employees")renderEmployees();if(id==="records")setupRecord();if(id==="reports")setupReport();updateDash()}
