@@ -12,11 +12,11 @@ window.loginNow=async function(){
   try{
     if(!window.supabase){throw new Error("Supabase library load नहीं हुई।")}
     if(!window.salaryDb){window.salaryDb=window.supabase.createClient("https://khwzoolgjzghdixlclwu.supabase.co","sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P")}
-    const {error}=await window.salaryDb.auth.signInWithPassword({email,password});
+    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);let response;try{response=await fetch("https://khwzoolgjzghdixlclwu.supabase.co/auth/v1/token?grant_type=password",{method:"POST",headers:{"Content-Type":"application/json","apikey":"sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P"} ,body:JSON.stringify({email,password}),signal:controller.signal});}finally{clearTimeout(timer)}let result;try{result=await response.json()}catch(e){throw new Error("Supabase से सही उत्तर नहीं मिला (HTTP "+response.status+")")}if(!response.ok)throw new Error(result.error_description||result.msg||result.message||"Login असफल (HTTP "+response.status+")");const {error}=await window.salaryDb.auth.setSession({access_token:result.access_token,refresh_token:result.refresh_token});
     if(error) throw error;
   }catch(e){
     const x=String(e?.message||e);
-    msgEl.textContent=x.toLowerCase().includes("invalid login credentials")?"Email या Password गलत है।":x;
+    msgEl.textContent=x.toLowerCase().includes("invalid login credentials")?"Email या Password गलत है।":x.toLowerCase().includes("abort")?"Supabase server से 12 सेकंड में उत्तर नहीं आया। Internet/Supabase connection जाँचनी होगी।":x;
     msgEl.className="error";
   }finally{btn.disabled=false;btn.textContent="Login"}
 }
