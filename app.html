@@ -66,11 +66,68 @@ async function saveYear(){let e=employees[current],y=Number(yearSelect.value),n=
 function setupReport(){reportEmp.innerHTML=employees.map((e,i)=>`<option value="${i}">${e.code} — ${e.name}</option>`).join("");reportEmp.value=current;renderReport()}
 function renderReport(){let e=employees[Number(reportEmp.value)],rr=records.filter(x=>x.employee_id===e.id).sort((a,b)=>a.month_start.localeCompare(b.month_start)),s=stats(e);let body=rr.map(r=>"<tr><td>"+r.month_start+"</td><td>₹"+Number(r.payable_amount||0).toLocaleString("en-IN")+"</td><td>₹"+Number(r.amount||0).toLocaleString("en-IN")+"</td><td>₹"+(Number(r.payable_amount||0)-Number(r.amount||0)).toLocaleString("en-IN")+"</td><td>"+(r.voucher_no||"")+"</td><td>"+(r.payment_date||"")+"</td><td>"+(r.remarks||"")+"</td></tr>").join("")||"<tr><td colspan=7>कोई रिकॉर्ड नहीं</td></tr>";reportBox.innerHTML="<p><b>भुगतान योग्य:</b> ₹"+s.payable.toLocaleString("en-IN")+" &nbsp; <b>भुगतान किया:</b> ₹"+s.total.toLocaleString("en-IN")+" &nbsp; <b>लंबित राशि:</b> ₹"+s.pending.toLocaleString("en-IN")+" &nbsp; <b>दर्ज:</b> "+s.months+"</p><div class=\"scroll\"><table><thead><tr><th>माह</th><th>भुगतान योग्य</th><th>भुगतान किया</th><th>लंबित</th><th>Voucher</th><th>Date</th><th>Remarks</th></tr></thead><tbody>"+body+"</tbody></table></div>"}
 let pendingPaymentRows=[];
-function excelDate(v){if(v instanceof Date&&!isNaN(v))return v;if(typeof v==="number"){let d=XLSX.SSF.parse_date_code(v);return d?new Date(d.y,d.m-1,d.d):null}if(v){let d=new Date(v);if(!isNaN(d))return d}return null}
-function dateISO(v){let d=excelDate(v);return d?d.toISOString().slice(0,10):""}
-function monthISO(v){let d=excelDate(v);return d?d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-01":""}
+function parseExcelParts(v){
+  if(v instanceof Date&&!isNaN(v)) return {y:v.getFullYear(),m:v.getMonth()+1,d:v.getDate()};
+  if(typeof v==="number"&&isFinite(v)){
+    const d=XLSX.SSF.parse_date_code(v);
+    return d?{y:d.y,m:d.m,d:d.d}:null;
+  }
+  const s=String(v??"").trim();
+  if(!s)return null;
+  let m=s.match(/^(\\d{4})[\\/-](\\d{1,2})(?:[\\/-](\\d{1,2}))?/);
+  if(m)return {y:Number(m[1]),m:Number(m[2]),d:Number(m[3]||1)};
+  m=s.match(/^(\\d{1,2})[\\/-](\\d{4})(?:[\\/-](\\d{1,2}))?/);
+  if(m)return {y:Number(m[2]),m:Number(m[1]),d:Number(m[3]||1)};
+  const months={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12};
+  const low=s.toLowerCase();
+  for(const [name,num] of Object.entries(months)){
+    const hit=low.match(new RegExp(name+"\\\\s+([0-9]{4})"));
+    if(hit)return {y:Number(hit[1]),m:num,d:1};
+  }
+  const d=new Date(s);
+  if(!isNaN(d))return {y:d.getFullYear(),m:d.getMonth()+1,d:d.getDate()};
+  return null;
+}
+function monthISO(v){
+  const p=parseExcelParts(v);
+  return p&&p.y>=2019&&p.m>=1&&p.m<=12?p.y+"-"+String(p.m).padStart(2,"0")+"-01":"";
+}
+function dateISO(v){
+  const p=parseExcelParts(v);
+  return p?p.y+"-"+String(p.m).padStart(2,"0")+"-"+String(p.d||1).padStart(2,"0"):"";
+}
 function normalizeHeader(x){return String(x||"").trim().toLowerCase().replace(/[ _.-]/g,"")}
-async function previewPaymentUpload(){let file=document.getElementById("paymentFile").files[0],msgEl=document.getElementById("paymentMsg"),box=document.getElementById("paymentPreview"),btn=document.getElementById("confirmPaymentBtn");pendingPaymentRows=[];btn.disabled=true;box.innerHTML="";if(!file)return msgEl.textContent="पहले Payment Excel/CSV फ़ाइल चुनें।";try{let data=await file.arrayBuffer(),wb=XLSX.read(data,{type:"array",cellDates:true}),codes=new Map(employees.map(e=>[String(e.code).trim().toUpperCase(),e]));for(let si=0;si<wb.SheetNames.length;si++){let name=wb.SheetNames[si],raw=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:""});let hi=raw.findIndex(row=>row.some(v=>["employeenumber","employeeid","employeecode","code","employee"].includes(normalizeHeader(v)))&&row.some(v=>["amount","netpay","paidamount","paymentamount"].includes(normalizeHeader(v))));if(hi<0)continue;let headers=raw[hi].map(normalizeHeader),rows=raw.slice(hi+1),find=names=>names.map(normalizeHeader).map(n=>headers.indexOf(n)).find(i=>i>=0),ci=find(["employee number","employee id","employee code","code","employee"]),ai=find(["amount","net pay","paid amount","payment amount"]),mi=find(["month","payment date","date"]),di=find(["payment date","date"]);if(ci==null||ai==null||mi==null)continue;for(let row of rows){let code=String(row[ci]??"").trim(),amount=Number(String(row[ai]??"").replace(/,/g,""));if(!code||!isFinite(amount)||amount<=0||/^total$/i.test(code))continue;let month=monthISO(row[mi]);if(!month)continue;let payDate=di!=null?dateISO(row[di]):"";let e=codes.get(code.toUpperCase());pendingPaymentRows.push({code,name:e?.name||"",employee_id:e?.id||null,month_start:month,amount,payment_date:payDate||null,sheet:name})}}let bad=pendingPaymentRows.filter(x=>!x.employee_id),dup=new Set(),dups=[];pendingPaymentRows.forEach(x=>{let k=x.code+"|"+x.month_start;if(dup.has(k))dups.push(k);dup.add(k)});let total=pendingPaymentRows.reduce((s,x)=>s+x.amount,0);msgEl.textContent=pendingPaymentRows.length+" भुगतान रिकॉर्ड मिले | कुल राशि ₹"+total.toLocaleString("en-IN")+" | Match नहीं: "+bad.length+(dups.length?" | Duplicate: "+dups.length:"");box.innerHTML="<table><thead><tr><th>Code</th><th>नाम</th><th>माह</th><th>राशि</th><th>Payment Date</th><th>स्थिति</th></tr></thead><tbody>"+pendingPaymentRows.slice(0,100).map(x=>"<tr><td>"+x.code+"</td><td>"+(x.name||"—")+"</td><td>"+x.month_start+"</td><td>₹"+x.amount.toLocaleString("en-IN")+"</td><td>"+(x.payment_date||"—")+"</td><td>"+(x.employee_id?"✓ Match":"✗ Employee नहीं मिला")+"</td></tr>").join("")+"</tbody></table>"+(pendingPaymentRows.length>100?"<p class='muted'>पहले 100 रिकॉर्ड Preview में दिखाए गए हैं।</p>":"");btn.disabled=pendingPaymentRows.length===0||bad.length>0;if(bad.length)msgEl.textContent+=" | पहले unmatched Employee Code ठीक करें।"}catch(e){msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}}
+async function previewPaymentUpload(){
+  let file=document.getElementById("paymentFile").files[0],msgEl=document.getElementById("paymentMsg"),box=document.getElementById("paymentPreview"),btn=document.getElementById("confirmPaymentBtn");
+  pendingPaymentRows=[];btn.disabled=true;box.innerHTML="";
+  if(!file)return msgEl.textContent="पहले Payment Excel/CSV फ़ाइल चुनें।";
+  try{
+    let data=await file.arrayBuffer(),wb=XLSX.read(data,{type:"array",cellDates:false}),codes=new Map(employees.map(e=>[String(e.code).trim().toUpperCase(),e]));
+    for(let si=0;si<wb.SheetNames.length;si++){
+      let name=wb.SheetNames[si],raw=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:"",raw:true});
+      let hi=raw.findIndex(row=>row.some(v=>["employeenumber","employeeid","employeecode","code","employee"].includes(normalizeHeader(v)))&&row.some(v=>["amount","netpay","paidamount","paymentamount"].includes(normalizeHeader(v))));
+      if(hi<0)continue;
+      let headers=raw[hi].map(normalizeHeader),rows=raw.slice(hi+1),find=names=>names.map(normalizeHeader).map(n=>headers.indexOf(n)).find(i=>i>=0);
+      let ci=find(["employee number","employee id","employee code","code","employee"]),ai=find(["amount","net pay","paid amount","payment amount"]),mi=find(["month","salary month","payment month","payment date","date"]),di=find(["payment date"]);
+      if(ci==null||ai==null||mi==null)continue;
+      for(let row of rows){
+        let code=String(row[ci]??"").trim(),amount=Number(String(row[ai]??"").replace(/,/g,""));
+        if(!code||!isFinite(amount)||amount<=0||/^total$/i.test(code))continue;
+        let month=monthISO(row[mi]);if(!month)continue;
+        let payDate=di!=null?dateISO(row[di]):"";
+        let e=codes.get(code.toUpperCase());
+        pendingPaymentRows.push({code,name:e?.name||"",employee_id:e?.id||null,month_start:month,amount,payment_date:payDate||null,sheet:name})
+      }
+    }
+    let bad=pendingPaymentRows.filter(x=>!x.employee_id),dup=new Set(),dups=[];
+    pendingPaymentRows.forEach(x=>{let k=x.code+"|"+x.month_start;if(dup.has(k))dups.push(k);dup.add(k)});
+    let total=pendingPaymentRows.reduce((s,x)=>s+x.amount,0);
+    msgEl.textContent=pendingPaymentRows.length+" भुगतान रिकॉर्ड मिले | कुल राशि ₹"+total.toLocaleString("en-IN")+" | Match नहीं: "+bad.length+(dups.length?" | Duplicate: "+dups.length:"");
+    box.innerHTML="<table><thead><tr><th>Code</th><th>नाम</th><th>माह</th><th>राशि</th><th>Payment Date</th><th>स्थिति</th></tr></thead><tbody>"+pendingPaymentRows.slice(0,100).map(x=>"<tr><td>"+x.code+"</td><td>"+(x.name||"—")+"</td><td>"+x.month_start+"</td><td>₹"+x.amount.toLocaleString("en-IN")+"</td><td>"+(x.payment_date||"—")+"</td><td>"+(x.employee_id?"✓ Match":"✗ Employee नहीं मिला")+"</td></tr>").join("")+"</tbody></table>"+(pendingPaymentRows.length>100?"<p class='muted'>पहले 100 रिकॉर्ड Preview में दिखाए गए हैं।</p>":"");
+    btn.disabled=pendingPaymentRows.length===0||bad.length>0;
+    if(bad.length)msgEl.textContent+=" | पहले unmatched Employee Code ठीक करें।"
+  }catch(e){msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
+}
 async function confirmPaymentUpload(){if(!pendingPaymentRows.length)return;let msgEl=document.getElementById("paymentMsg"),btn=document.getElementById("confirmPaymentBtn");btn.disabled=true;let u=(await window.salaryDb.auth.getUser()).data.user;if(!u){msgEl.textContent="Login session समाप्त हो गई है।";btn.disabled=false;return}let rows=pendingPaymentRows.filter(x=>x.employee_id).map(x=>({employee_id:x.employee_id,month_start:x.month_start,amount:x.amount,payment_date:x.payment_date,updated_by:u.id}));let{error}=await window.salaryDb.from("salary_records").upsert(rows,{onConflict:"employee_id,month_start"});if(error){msgEl.textContent="Upload error: "+error.message;btn.disabled=false;return}await refresh();renderEmployees();updateDash();setupRecord();msgEl.textContent=rows.length+" भुगतान रिकॉर्ड Database में सफलतापूर्वक सेव हो गए।";pendingPaymentRows=[];document.getElementById("paymentFile").value="";document.getElementById("paymentPreview").innerHTML=""}
 function downloadBulkTemplate(){let rows=[["Employee ID","Employee Name","Post","Department"],["EMP-001","कर्मचारी 1","",""],["EMP-002","कर्मचारी 2","",""]];let ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Employees");XLSX.writeFile(wb,"employee-bulk-upload-template.xlsx")}
 async function bulkUpload(){
