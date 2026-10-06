@@ -102,6 +102,8 @@ async function syncLoanSchedule(l){
     else if(rate>0){interest=Math.max(0,balance*rate);principal=Math.max(0,emi-interest)}else principal=Math.min(emi,Math.max(0,balance));
     principal=Math.min(principal,Math.max(0,balance));if(!have.has(due))rows.push({loan_id:l.id,installment_no:i,due_date:due,emi_amount:emi,principal_due:Number(principal.toFixed(2)),interest_due:Number(interest.toFixed(2)),paid_amount:0,principal_paid:0,interest_paid:0,status:"pending"});balance=Math.max(0,balance-principal);m++;if(m>11){m=0;y++}}
   if(rows.length){const ins=await db.from("loan_installments").insert(rows);if(ins.error)throw ins.error}
+  const all=await db.from("loan_installments").select("id,due_date,paid_amount,status").eq("loan_id",l.id).order("installment_no",{ascending:true});if(all.error)throw all.error;
+  for(const inst of (all.data||[])){const matches=payments.filter(p=>p.loan_id===l.id&&String(p.payment_date||"").slice(0,7)===String(inst.due_date||"").slice(0,7));if(matches.length){const paid=matches.reduce((a,p)=>a+Number(p.amount||0),0),pp=matches.reduce((a,p)=>a+Number(p.principal_component||0),0),ii=matches.reduce((a,p)=>a+Number(p.interest_component||0),0),last=matches.slice().sort((a,b)=>String(b.payment_date||"").localeCompare(String(a.payment_date||"")))[0];await db.from("loan_installments").update({paid_amount:paid,principal_paid:pp,interest_paid:ii,paid_date:last.payment_date,payment_mode:last.payment_mode||null,reference_no:last.reference_no||null,status:"paid",remarks:last.remarks||null}).eq("id",inst.id)}} 
 }
 function projected(l){
   const p=Number(l.principal_amount||0), annual=Number(l.interest_rate||0), n=Number(l.tenure_months||0), type=l.interest_type;
