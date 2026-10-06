@@ -125,8 +125,8 @@ function normalizeCode(x){return String(x??"").toUpperCase().replace(/[^A-Z0-9]/
 function downloadPaymentTemplate(){
   const rows=[
     ["Employee Code","Employee Name","Salary Month","Payable Amount","Paid Amount","Payment Date","Voucher No.","Remarks"],
-    ["R16800037","Fidel Kabri","2026-05",54706,54706,"06-08-2026","V-001","May 2026 salary"],
-    ["R16800070","Suresh Sathe","2026-06",35128,35128,"06-08-2026","V-002","June 2026 salary"]
+    ["R16800037","Fidel Kabri","May 2026",54706,54706,"06-08-2026","V-001","May 2026 salary"],
+    ["R16800070","Suresh Sathe","June 2026",35128,35128,"06-08-2026","V-002","June 2026 salary"]
   ];
   const ws=XLSX.utils.aoa_to_sheet(rows);
   ws["!cols"]=[{wch:18},{wch:24},{wch:15},{wch:16},{wch:16},{wch:16},{wch:16},{wch:30}];
