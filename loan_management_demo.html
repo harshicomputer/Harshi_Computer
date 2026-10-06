@@ -24,7 +24,7 @@
 <div class="field"><label>Original Amount / मूल लोन राशि *</label><input id="principal_amount" type="number" min="0" step="0.01" required placeholder="₹"></div>
 <div class="field"><label>Interest Rate % / ब्याज दर</label><input id="interest_rate" type="number" min="0" step="0.001"></div>
 <div class="field"><label>Interest Type / ब्याज प्रकार</label><select id="interest_type"><option value="reducing">Reducing</option><option value="flat">Flat</option><option value="fixed">Fixed</option><option value="other">Other</option></select></div>
-<div class="field"><label>Start Date / प्रारंभ तारीख</label><input id="start_date" type="date"></div>
+<div class="field"><label>Start Date / लोन प्रारंभ तारीख</label><input id="start_date" type="date"></div><div class="field"><label>First EMI Date / पहली EMI तारीख</label><input id="first_emi_date" type="date"><small style="color:#666">यदि पहली EMI अगले महीने से है तो यहाँ वही तारीख दें।</small></div>
 <div class="field"><label>Tenure / अवधि (Months) *</label><input id="tenure_months" type="number" min="1" required></div>
 <div class="field"><label>EMI Amount / EMI राशि</label><input id="emi_amount" type="number" min="0" step="0.01"></div>
 <div class="field"><label>EMI Day / EMI तारीख</label><input id="emi_day" type="number" min="1" max="31"></div>
@@ -96,7 +96,7 @@ function firstEmiDate(start,emiDay){const s=new Date(start+"T00:00:00Z");let y=s
 async function syncLoanSchedule(l){
   if(!l||!l.id||!l.start_date||!l.emi_day||!l.emi_amount||!l.tenure_months)return;
   const existing=await db.from("loan_installments").select("id,installment_no,due_date").eq("loan_id",l.id).order("installment_no",{ascending:true});if(existing.error)throw existing.error;
-  const have=new Set((existing.data||[]).map(x=>x.due_date));const todayStr=new Date().toISOString().slice(0,10);const start=firstEmiDate(l.start_date,l.emi_day);const rows=[];let balance=Number(l.principal_amount||0),y=start.y,m=start.m,maxCount=Math.min(Number(l.tenure_months||0),1200);
+  const have=new Set((existing.data||[]).map(x=>x.due_date));const todayStr=new Date().toISOString().slice(0,10);const start=firstEmiDate(l.first_emi_date||l.start_date,l.emi_day);const rows=[];let balance=Number(l.principal_amount||0),y=start.y,m=start.m,maxCount=Math.min(Number(l.tenure_months||0),1200);
   for(let i=1;i<=maxCount;i++){const due=dueDateForMonth(y,m,l.emi_day);if(due>todayStr)break;let interest=0,principal=0,emi=Number(l.emi_amount||0),rate=Number(l.interest_rate||0)/1200;
     if(String(l.interest_type||"").toLowerCase()==="flat"){const totalInterest=Number(l.principal_amount||0)*(Number(l.interest_rate||0)/100)*(Number(l.tenure_months||0)/12);interest=Number(l.tenure_months)?totalInterest/Number(l.tenure_months):0;principal=Math.max(0,emi-interest)}
     else if(rate>0){interest=Math.max(0,balance*rate);principal=Math.max(0,emi-interest)}else principal=Math.min(emi,Math.max(0,balance));
@@ -157,7 +157,7 @@ document.getElementById("p_interest").addEventListener("input",()=>markManual("p
 document.getElementById("loanForm").addEventListener("submit",async e=>{
   e.preventDefault();const msg=document.getElementById("loanMsg");msg.className="";msg.textContent="Saving...";
   const v=id=>document.getElementById(id).value;
-  const payload={loan_name:v("loan_name"),lender_name:v("lender_name")||null,loan_type:v("loan_type"),account_number:v("account_number")||null,principal_amount:Number(v("principal_amount")||0),interest_rate:Number(v("interest_rate")||0),interest_type:v("interest_type"),start_date:v("start_date")||null,tenure_months:Number(v("tenure_months")),emi_amount:Number(v("emi_amount")||v("calc_emi")||0),emi_day:v("emi_day")?Number(v("emi_day")):null,processing_fee:Number(v("processing_fee")||0),notes:v("notes")||null};
+  const payload={loan_name:v("loan_name"),lender_name:v("lender_name")||null,loan_type:v("loan_type"),account_number:v("account_number")||null,principal_amount:Number(v("principal_amount")||0),interest_rate:Number(v("interest_rate")||0),interest_type:v("interest_type"),start_date:v("start_date")||null,first_emi_date:v("first_emi_date")||null,tenure_months:Number(v("tenure_months")),emi_amount:Number(v("emi_amount")||v("calc_emi")||0),emi_day:v("emi_day")?Number(v("emi_day")):null,processing_fee:Number(v("processing_fee")||0),notes:v("notes")||null};
   let result;
   if(editingLoanId){result=await db.from("loan_accounts").update(payload).eq("id",editingLoanId).eq("user_id",session.user.id).select().single()}
   else{result=await db.from("loan_accounts").insert({...payload,user_id:session.user.id,status:"active"}).select().single()}
@@ -170,7 +170,7 @@ function editLoan(id){
   const l=loans.find(x=>String(x.id)===String(id));if(!l){alert("Loan रिकॉर्ड नहीं मिला।");return}
   editingLoanId=l.id;
   const set=(field,val)=>{const el=document.getElementById(field);if(el)el.value=val??""};
-  set("loan_name",l.loan_name);set("lender_name",l.lender_name);set("loan_type",l.loan_type||"Other");set("account_number",l.account_number);set("principal_amount",l.principal_amount);set("interest_rate",l.interest_rate);set("interest_type",l.interest_type||"reducing");set("start_date",l.start_date);set("tenure_months",l.tenure_months);set("emi_amount",l.emi_amount);set("emi_day",l.emi_day);set("processing_fee",l.processing_fee??0);set("notes",l.notes);
+  set("loan_name",l.loan_name);set("lender_name",l.lender_name);set("loan_type",l.loan_type||"Other");set("account_number",l.account_number);set("principal_amount",l.principal_amount);set("interest_rate",l.interest_rate);set("interest_type",l.interest_type||"reducing");set("start_date",l.start_date);set("first_emi_date",l.first_emi_date||"");set("tenure_months",l.tenure_months);set("emi_amount",l.emi_amount);set("emi_day",l.emi_day);set("processing_fee",l.processing_fee??0);set("notes",l.notes);
   document.querySelector("#add .title").textContent="Edit Loan / लोन जानकारी एडिट करें";
   document.querySelector("#loanForm .btn.green").textContent="Update Loan / जानकारी अपडेट करें";
   document.getElementById("loanMsg").textContent="आप इस Loan की Start Date और EMI Date सहित सभी Basic जानकारी अपडेट कर सकते हैं।";
