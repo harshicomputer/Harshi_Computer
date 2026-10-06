@@ -194,4 +194,23 @@ async function exportCSV(){
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),x=document.createElement("a");
   x.href=url;x.download="salary-records.csv";x.click();URL.revokeObjectURL(url);
 }
+
+// 10-minute inactivity security logout
+let inactivityTimer=null;
+const INACTIVITY_LIMIT=600000;
+function resetInactivityTimer(){
+  clearTimeout(inactivityTimer);
+  inactivityTimer=setTimeout(async function(){
+    try{ await window.salaryDb.auth.signOut({scope:"local"}); }catch(e){}
+    alert("सुरक्षा के लिए 10 मिनट तक कोई गतिविधि नहीं होने के कारण आपको स्वतः Logout कर दिया गया है।");
+    location.reload();
+  },INACTIVITY_LIMIT);
+}
+["mousemove","mousedown","keydown","scroll","touchstart","click"].forEach(function(evt){
+  window.addEventListener(evt,resetInactivityTimer,{passive:true});
+});
+document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState==="visible") resetInactivityTimer();
+});
+resetInactivityTimer();
 </script></body></html>
