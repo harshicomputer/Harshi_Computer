@@ -203,7 +203,7 @@ function resetInactivityTimer(){
   inactivityTimer=setTimeout(async function(){
     try{ await window.salaryDb.auth.signOut({scope:"local"}); }catch(e){}
     alert("सुरक्षा के लिए 10 मिनट तक कोई गतिविधि नहीं होने के कारण आपको स्वतः Logout कर दिया गया है।");
-    location.reload();
+    location.href="index.html";
   },INACTIVITY_LIMIT);
 }
 ["mousemove","mousedown","keydown","scroll","touchstart","click"].forEach(function(evt){
