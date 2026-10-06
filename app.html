@@ -138,18 +138,21 @@ async function previewPaymentUpload(){
       // Never use Payment Date as Salary Month. If the Excel has no explicit
       // Month column, derive the salary month as the month immediately before
       // the payment date (common salary-sheet format: July salary paid on 06-Aug).
-      let mi=find(["month","salary month","payment month"]),di=find(["payment date","paid date","date"]);
-      if(ci==null||ai==null||((mi==null)&&(di==null)))continue;
+      // Salary month is authoritative from an explicit Month column OR the sheet/title
+      // (this workbook uses sheet names MAY-2026. and JUNE-2026.).
+      // Payment Date must NEVER be used as Salary Month.
+      let mi=find(["month","salary month","payment month"]),di=find(["payment date","paid date"]);
+      let sheetMonth=monthISO(name)||"";
+      if(!sheetMonth){
+        const titleText=raw.slice(0,3).flat().map(v=>String(v??"")).join(" ");
+        sheetMonth=monthISO(titleText)||"";
+      }
+      if(ci==null||ai==null||((mi==null)&&(di==null))||(!sheetMonth&&mi==null))continue;
       for(let row of rows){
         let code=String(row[ci]??"").trim(),amount=Number(String(row[ai]??"").replace(/,/g,""));
         if(!code||!isFinite(amount)||amount<=0||/^total$/i.test(code))continue;
         let payDate=di!=null?dateISO(row[di]):"";
-        let month=mi!=null?monthISO(row[mi]):"";
-        if(!month&&payDate){
-          const d=new Date(payDate+"T00:00:00Z");
-          d.setUTCMonth(d.getUTCMonth()-1);
-          month=d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-01";
-        }
+        let month=sheetMonth||(mi!=null?monthISO(row[mi]):"");
         if(!month)continue;
         let payable=pi!=null?Number(String(row[pi]??"").replace(/,/g,"")):0;
         if(!isFinite(payable)||payable<0)payable=0;
