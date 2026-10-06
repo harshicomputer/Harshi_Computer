@@ -42,7 +42,7 @@
 </main></div>
 <div id="paymentModal" class="modal"><div class="modalbox"><div class="modalhead"><h3>Payment Entry / भुगतान प्रविष्टि</h3><button class="close" onclick="closePayment()">×</button></div><form id="paymentForm"><div class="form">
 <div class="field"><label>Loan / लोन *</label><select id="p_loan" required></select></div>
-<div class="field"><label>EMI No.</label><input id="p_emi_no" type="number"></div>
+<div class="field"><label>EMI No. / किस्त क्रमांक</label><input id="p_emi_no" type="number" min="1"></div>
 <div class="field"><label>Payment Date / भुगतान तारीख *</label><input id="p_date" type="date" required></div>
 <div class="field"><label>Paid Amount / भुगतान राशि *</label><input id="p_amount" type="number" min="0.01" step="0.01" required></div>
 <div class="field"><label>Principal / मूलधन</label><input id="p_principal" type="number" min="0" step="0.01" value="0"></div>
@@ -51,6 +51,7 @@
 <div class="field"><label>Payment Mode / माध्यम</label><select id="p_mode"><option>Bank Transfer</option><option>UPI</option><option>Cash</option><option>Cheque</option><option>Other</option></select></div>
 <div class="field"><label>Transaction/Voucher No.</label><input id="p_ref"></div>
 <div class="field full"><label>Remarks / टिप्पणी</label><textarea id="p_remarks" rows="2"></textarea></div>
+<div class="field full"><div id="paymentCalc" class="note">Loan चुनते ही पिछली स्थिति और इस EMI की अनुमानित Principal/Interest राशि दिखाई जाएगी।</div></div>
 </div><div class="actions"><button class="btn green" type="submit">Save Payment / भुगतान सेव करें</button><button class="btn secondary" type="button" onclick="closePayment()">Cancel</button></div><div id="payMsg"></div></form></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -101,10 +102,38 @@ function totals(l){const ps=loanPayments(l.id);const paid=ps.reduce((a,p)=>a+Num
 function renderAll(){renderDashboard();renderLoans();renderPayments();renderClosed();renderReports();populateLoanSelect()}
 function renderDashboard(){const arr=realLoans(),active=arr.filter(l=>l.status!=="closed"),closed=arr.filter(l=>l.status==="closed"),paid=arr.reduce((a,l)=>a+totals(l).paid,0),out=arr.filter(l=>!l.demo).reduce((a,l)=>a+totals(l).outstanding,0);document.getElementById("dashCards").innerHTML=[["Total Loans / कुल लोन",arr.length],["Active / चालू",active.length],["Closed / बंद",closed.length],["Total Paid / कुल भुगतान",money(paid)],["Outstanding / बकाया",loans.length?money(out):"—"]].map(x=>'<div class="card"><small>'+x[0]+'</small><div class="num">'+x[1]+'</div></div>').join("");document.getElementById("dashArea").innerHTML=loans.length?'':'<div class="demo">ℹ️ अभी वास्तविक लोन दर्ज नहीं हुआ है। नीचे दिखाई देने वाला रिकॉर्ड केवल Sample/Demo है। पहला वास्तविक लोन सेव होते ही Sample Data हटकर आपका वास्तविक डेटा दिखेगा।</div>'}
 function renderLoans(){const arr=realLoans();document.getElementById("loanTable").innerHTML='<table class="table"><thead><tr><th>Loan</th><th>Bank/Company</th><th>Account No.</th><th>Original Amount</th><th>EMI</th><th>Paid</th><th>Outstanding</th><th>Status</th><th>Action</th></tr></thead><tbody>'+arr.map(l=>{const t=totals(l);return '<tr><td><b>'+esc(l.loan_name)+'</b></td><td>'+esc(l.lender_name)+'</td><td>'+esc(l.account_number)+'</td><td>'+money(l.principal_amount)+'</td><td>'+money(l.emi_amount)+'</td><td>'+money(t.paid)+'</td><td>'+money(t.outstanding)+'</td><td><span class="badge '+(l.status==="closed"?"closed":"active")+'">'+(l.status==="closed"?"Closed / बंद":"Active / चालू")+'</span></td><td>'+(l.demo?'Demo':'<button class="btn secondary" onclick="openLoanView(\''+l.id+'\')">View</button> <button class="btn secondary" onclick="editLoan(\''+l.id+'\')">Edit</button> <button class="btn secondary" onclick="openPayment(\''+l.id+'\')">Payment</button>')+'</td></tr>'}).join('')+'</tbody></table>'}
-function renderPayments(){const arr=payments;document.getElementById("paymentTable").innerHTML=arr.length?'<table class="table"><thead><tr><th>Date</th><th>Loan</th><th>EMI No.</th><th>Paid</th><th>Principal</th><th>Interest</th><th>Mode</th><th>Voucher</th></tr></thead><tbody>'+arr.map(p=>{const l=loans.find(x=>x.id===p.loan_id);return '<tr><td>'+esc(p.payment_date)+'</td><td>'+esc(l?.loan_name||"")+'</td><td>'+esc(p.emi_no||"—")+'</td><td>'+money(p.amount)+'</td><td>'+money(p.principal_component)+'</td><td>'+money(p.interest_component)+'</td><td>'+esc(p.payment_mode)+'</td><td>'+esc(p.reference_no||"")+'</td></tr>'}).join('')+'</tbody></table>':'<div class="empty">अभी कोई वास्तविक Payment दर्ज नहीं है। पुराने लोन की आज तक की EMI/Payment यहाँ दर्ज करें।</div>'}
+function renderPayments(){const arr=payments;document.getElementById("paymentTable").innerHTML=arr.length?'<table class="table"><thead><tr><th>Date</th><th>Loan</th><th>EMI No.</th><th>Paid</th><th>Principal</th><th>Interest</th><th>Mode</th><th>Voucher</th></tr></thead><tbody>'+arr.map(p=>{const l=loans.find(x=>x.id===p.loan_id);return '<tr><td>'+esc(p.payment_date)+'</td><td>'+esc(l?.loan_name||"")+'</td><td>'+esc(p.installment_no||"—")+'</td><td>'+money(p.amount)+'</td><td>'+money(p.principal_component)+'</td><td>'+money(p.interest_component)+'</td><td>'+esc(p.payment_mode)+'</td><td>'+esc(p.reference_no||"")+'</td></tr>'}).join('')+'</tbody></table>':'<div class="empty">अभी कोई वास्तविक Payment दर्ज नहीं है। पुराने लोन की आज तक की EMI/Payment यहाँ दर्ज करें।</div>'}
 function renderClosed(){const arr=loans.filter(l=>l.status==="closed");document.getElementById("closedTable").innerHTML=arr.length?'<table class="table"><thead><tr><th>Loan</th><th>Bank/Company</th><th>Original</th><th>Total Paid</th><th>Interest Paid</th><th>Closure Date</th></tr></thead><tbody>'+arr.map(l=>{const t=totals(l);return '<tr><td>'+esc(l.loan_name)+'</td><td>'+esc(l.lender_name)+'</td><td>'+money(l.principal_amount)+'</td><td>'+money(t.paid)+'</td><td>'+money(t.interest)+'</td><td>'+esc(l.closure_date||"—")+'</td></tr>'}).join('')+'</tbody></table>':'<div class="empty">अभी कोई बंद वास्तविक लोन नहीं है।</div>'}
 function renderReports(){const totalPaid=payments.reduce((a,p)=>a+Number(p.amount||0),0),principal=payments.reduce((a,p)=>a+Number(p.principal_component||0),0),interest=payments.reduce((a,p)=>a+Number(p.interest_component||0),0);document.getElementById("reportArea").innerHTML='<div class="kpi"><div class="mini">Loans<b>'+loans.length+'</b></div><div class="mini">Total Paid<b>'+money(totalPaid)+'</b></div><div class="mini">Principal Paid<b>'+money(principal)+'</b></div><div class="mini">Interest Paid<b>'+money(interest)+'</b></div></div><div class="section"><h3>Payment History / भुगतान इतिहास</h3>'+(!payments.length?'<div class="empty">अभी भुगतान रिकॉर्ड उपलब्ध नहीं है।</div>':'<table class="table"><thead><tr><th>Date</th><th>Loan</th><th>Amount</th><th>Principal</th><th>Interest</th></tr></thead><tbody>'+payments.map(p=>{const l=loans.find(x=>x.id===p.loan_id);return '<tr><td>'+p.payment_date+'</td><td>'+esc(l?.loan_name||"")+'</td><td>'+money(p.amount)+'</td><td>'+money(p.principal_component)+'</td><td>'+money(p.interest_component)+'</td></tr>'}).join("")+'</tbody></table>')+'</div>'}
 function populateLoanSelect(){const s=document.getElementById("p_loan");s.innerHTML=loans.map(l=>'<option value="'+l.id+'">'+esc(l.loan_name)+' — '+esc(l.lender_name||"")+'</option>').join('');if(!loans.length)s.innerHTML='<option value="">पहले Loan सेव करें</option>'}
+function paymentCalculation(){
+  const id=document.getElementById("p_loan").value,l=loans.find(x=>x.id===id),box=document.getElementById("paymentCalc");
+  if(!l){box.textContent="पहले Loan सेव करें।";return}
+  const t=totals(l),ps=loanPayments(id),no=Number(document.getElementById("p_emi_no").value||ps.length+1);
+  const paidAmt=Number(document.getElementById("p_amount").value||l.emi_amount||0);
+  let interest=0,principal=0;
+  if(l.interest_type==="flat"){
+    const n=Number(l.tenure_months||0), totalInterest=Number(l.principal_amount||0)*(Number(l.interest_rate||0)/100)*(n/12);
+    interest=n?totalInterest/n:0; principal=Math.max(0,paidAmt-interest);
+  }else if(Number(l.interest_rate||0)>0){
+    const opening=Math.max(0,Number(l.principal_amount||0)-t.principal), rate=Number(l.interest_rate||0)/1200;
+    interest=opening*rate; principal=Math.max(0,paidAmt-interest);
+  }else{principal=Math.min(paidAmt,Math.max(0,Number(l.principal_amount||0)-t.principal));interest=Math.max(0,paidAmt-principal)}
+  if(!document.getElementById("p_principal").dataset.manual)document.getElementById("p_principal").value=principal.toFixed(2);
+  if(!document.getElementById("p_interest").dataset.manual)document.getElementById("p_interest").value=interest.toFixed(2);
+  const nextOutstanding=Math.max(0,t.outstanding-principal);
+  const remaining=Math.max(0,Number(l.tenure_months||0)-no);
+  box.innerHTML="<b>Loan स्थिति:</b> अब तक भुगतान "+money(t.paid)+" | मूलधन भुगतान "+money(t.principal)+" | वर्तमान बकाया "+money(t.outstanding)+
+    "<br><b>इस EMI की गणना:</b> Principal "+money(principal)+" + Interest "+money(interest)+" = "+money(paidAmt)+
+    "<br><b>इस भुगतान के बाद अनुमानित बकाया:</b> "+money(nextOutstanding)+" | <b>शेष EMI:</b> "+remaining;
+}
+function markManual(id){document.getElementById(id).dataset.manual="1";}
+function resetPaymentAuto(){["p_principal","p_interest"].forEach(id=>{const e=document.getElementById(id);e.dataset.manual="";e.value="0"})}
+document.getElementById("p_loan").addEventListener("change",()=>{resetPaymentAuto();paymentCalculation()});
+document.getElementById("p_emi_no").addEventListener("input",paymentCalculation);
+document.getElementById("p_amount").addEventListener("input",paymentCalculation);
+document.getElementById("p_principal").addEventListener("input",()=>markManual("p_principal"));
+document.getElementById("p_interest").addEventListener("input",()=>markManual("p_interest"));
 document.getElementById("loanForm").addEventListener("submit",async e=>{
   e.preventDefault();const msg=document.getElementById("loanMsg");msg.className="";msg.textContent="Saving...";
   const v=id=>document.getElementById(id).value;
@@ -142,8 +171,19 @@ function openLoanView(id){
     "\nPayments Recorded: "+ps.length+
     (calc?"\nProjected Total Interest: "+money(calc.interest):""));
 }
-function openPayment(id){if(!loans.length){alert("पहले कम से कम एक वास्तविक Loan सेव करें।");return}populateLoanSelect();if(id)document.getElementById("p_loan").value=id;document.getElementById("p_date").value=new Date().toISOString().slice(0,10);document.getElementById("paymentModal").classList.add("show")}
-function closePayment(){document.getElementById("paymentModal").classList.remove("show");document.getElementById("paymentForm").reset()}
-document.getElementById("paymentForm").addEventListener("submit",async e=>{e.preventDefault();const msg=document.getElementById("payMsg");const v=id=>document.getElementById(id).value;msg.className="";msg.textContent="Saving...";const {error}=await db.from("loan_payments").insert({loan_id:v("p_loan"),payment_date:v("p_date"),amount:Number(v("p_amount")||0),principal_component:Number(v("p_principal")||0),interest_component:Number(v("p_interest")||0),charges_component:Number(v("p_charges")||0),payment_mode:v("p_mode"),reference_no:v("p_ref")||null,remarks:v("p_remarks")||null});if(error){msg.className="error";msg.textContent="Payment save नहीं हुआ: "+error.message;return}msg.className="success";msg.textContent="Payment सेव हो गया।";await refresh();setTimeout(closePayment,400)})
+function openPayment(id){if(!loans.length){alert("पहले कम से कम एक वास्तविक Loan सेव करें।");return}populateLoanSelect();resetPaymentAuto();if(id)document.getElementById("p_loan").value=id;const l=loans.find(x=>x.id===document.getElementById("p_loan").value),ps=l?loanPayments(l.id):[];document.getElementById("p_emi_no").value=ps.length+1;document.getElementById("p_amount").value=l?.emi_amount||"";document.getElementById("p_date").value=new Date().toISOString().slice(0,10);paymentCalculation();document.getElementById("paymentModal").classList.add("show")}
+function closePayment(){document.getElementById("paymentModal").classList.remove("show");document.getElementById("paymentForm").reset();resetPaymentAuto();document.getElementById("paymentCalc").textContent="Loan चुनते ही पिछली स्थिति और इस EMI की अनुमानित Principal/Interest राशि दिखाई जाएगी।"}
+document.getElementById("paymentForm").addEventListener("submit",async e=>{
+  e.preventDefault();const msg=document.getElementById("payMsg");const v=id=>document.getElementById(id).value;msg.className="";msg.textContent="Saving...";
+  const loanId=v("p_loan"),amount=Number(v("p_amount")||0),principal=Number(v("p_principal")||0),interest=Number(v("p_interest")||0),charges=Number(v("p_charges")||0);
+  if(!loanId||amount<=0){msg.className="error";msg.textContent="Loan और Payment Amount जरूरी है।";return}
+  if(principal+interest+charges>amount+0.01){msg.className="error";msg.textContent="Principal + Interest + Charges, Paid Amount से अधिक नहीं हो सकते।";return}
+  const {error}=await db.from("loan_payments").insert({loan_id:loanId,installment_no:v("p_emi_no")?Number(v("p_emi_no")):null,payment_date:v("p_date"),amount,principal_component:principal,interest_component:interest,charges_component:charges,payment_mode:v("p_mode"),reference_no:v("p_ref")||null,remarks:v("p_remarks")||null});
+  if(error){msg.className="error";msg.textContent="Payment save नहीं हुआ: "+error.message;return}
+  const l=loans.find(x=>x.id===loanId),newOutstanding=Math.max(0,Number(l?.principal_amount||0)-(totals(l).principal+principal));
+  if(l&&newOutstanding<=0){await db.from("loan_accounts").update({status:"closed",closure_date:v("p_date")}).eq("id",loanId).eq("user_id",session.user.id)}
+  msg.className="success";msg.textContent=newOutstanding<=0?"Payment सेव हो गया और Loan स्वतः Closed हो गया।":"Payment सेव हो गया।";
+  await refresh();setTimeout(closePayment,500)
+})
 init().catch(e=>{console.error(e);document.body.insertAdjacentHTML("afterbegin",'<div style="background:#fee2e2;color:#991b1b;padding:10px;text-align:center">Loan data load नहीं हो पाया: '+esc(e.message)+'</div>')});
 </script></body></html>
