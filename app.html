@@ -36,7 +36,7 @@ window.loginNow=async function(){
 <nav><button class="active" onclick="showPage('dash',this)">डैशबोर्ड</button><button onclick="showPage('employees',this)">कर्मचारी</button><button onclick="showPage('records',this)">मासिक रिकॉर्ड</button><button onclick="showPage('reports',this)">रिपोर्ट</button><button onclick="showPage('backup',this)">Backup / Export</button></nav>
 <main>
 <section id="dash" class="page active"><div class="grid"><div class="card"><div class="muted">कुल कर्मचारी</div><div class="stat" id="cntEmp">0</div></div><div class="card"><div class="muted">अवधि</div><div class="stat" id="period">0 माह</div></div><div class="card"><div class="muted">दर्ज महीने</div><div class="stat" id="cntRec">0</div></div><div class="card"><div class="muted">भुगतान योग्य</div><div class="stat" id="sumPayable">₹0</div></div><div class="card"><div class="muted">भुगतान की गई राशि</div><div class="stat" id="sumRec">₹0</div></div><div class="card"><div class="muted">कुल लंबित राशि</div><div class="stat" id="sumPending">₹0</div></div></div><div class="card" style="margin-top:14px"><h3>सिस्टम स्थिति</h3><p class="ok">● Cloud Database connected</p><p class="ok">● Login protected</p><p class="ok">● Backup / Export available</p></div></section>
-<section id="employees" class="page"><div class="card"><div class="toolbar"><input id="search" placeholder="कोड/नाम खोजें" oninput="renderEmployees()"><button class="btn primary" onclick="newEmployee()">+ कर्मचारी</button></div><details style="margin-bottom:12px"><summary class="link">Bulk Upload / एक बार कर्मचारी सूची जोड़ें</summary><div class="notice" style="margin-top:10px">Excel में <b>Employee ID/Code, Employee Name/Name</b> अनिवार्य हैं। <b>Post</b> और <b>Department</b> वैकल्पिक हैं। ये दोनों जानकारी कर्मचारी के साथ database में सुरक्षित रहेगी, लेकिन सामान्य स्क्रीन पर अलग से नहीं दिखाई जाएगी।</div><div class="toolbar" style="margin-top:10px"><input id="bulkFile" type="file" accept=".xlsx,.xls,.csv"><button class="btn primary" onclick="bulkUpload()">Excel से जोड़ें</button><button class="btn" onclick="downloadBulkTemplate()">Template डाउनलोड</button></div><p id="bulkMsg" class="muted"></p></details><details style="margin-bottom:12px"><summary class="link">Bulk Payment Upload / भुगतान राशि व दिनांक अपलोड करें</summary><div class="notice" style="margin-top:10px">Excel की एक या कई sheets से <b>Employee Code/Employee Number</b>, <b>Amount/Net Pay</b> और <b>Month/Payment Date</b> पढ़े जाएंगे। पहले Preview बनेगा; Confirm करने के बाद ही Database में भुगतान सेव होगा। यदि Excel में केवल Month है, वही Salary Month माना जाएगा और वास्तविक Payment Date खाली रहेगी।</div><div class="toolbar" style="margin-top:10px"><input id="paymentFile" type="file" accept=".xlsx,.xls,.csv"><button class="btn primary" onclick="previewPaymentUpload()">Preview / जाँचें</button><button id="confirmPaymentBtn" class="btn" onclick="confirmPaymentUpload()" disabled>Confirm & Upload</button></div><p id="paymentMsg" class="muted"></p><div id="paymentPreview" class="scroll" style="margin-top:10px"></div></details><div class="scroll"><table><thead><tr><th>कोड</th><th>नाम</th><th>दर्ज माह</th><th>भुगतान योग्य</th><th>भुगतान किया</th><th>लंबित राशि</th><th></th></tr></thead><tbody id="empBody"></tbody></table></div></div></section>
+<section id="employees" class="page"><div class="card"><div class="toolbar"><input id="search" placeholder="कोड/नाम खोजें" oninput="renderEmployees()"><button class="btn primary" onclick="newEmployee()">+ कर्मचारी</button></div><details style="margin-bottom:12px"><summary class="link">Bulk Upload / एक बार कर्मचारी सूची जोड़ें</summary><div class="notice" style="margin-top:10px">Excel में <b>Employee ID/Code, Employee Name/Name</b> अनिवार्य हैं। <b>Post</b> और <b>Department</b> वैकल्पिक हैं। ये दोनों जानकारी कर्मचारी के साथ database में सुरक्षित रहेगी, लेकिन सामान्य स्क्रीन पर अलग से नहीं दिखाई जाएगी।</div><div class="toolbar" style="margin-top:10px"><input id="bulkFile" type="file" accept=".xlsx,.xls,.csv"><button class="btn primary" onclick="bulkUpload()">Excel से जोड़ें</button><button class="btn" onclick="downloadBulkTemplate()">Template डाउनलोड</button></div><p id="bulkMsg" class="muted"></p></details><details style="margin-bottom:12px"><summary class="link">Bulk Payment Upload / भुगतान राशि व दिनांक अपलोड करें</summary><div class="notice" style="margin-top:10px">Excel की एक या कई sheets से <b>Employee Code/Employee Number</b>, <b>Amount/Net Pay</b> और <b>Month/Payment Date</b> पढ़े जाएंगे। पहले Preview बनेगा; Confirm करने के बाद ही Database में भुगतान सेव होगा। यदि Excel में केवल Month है, वही Salary Month माना जाएगा और वास्तविक Payment Date खाली रहेगी।</div><div class="toolbar" style="margin-top:10px"><input id="paymentFile" type="file" accept=".xlsx,.xls,.csv"><button class="btn" onclick="downloadPaymentTemplate()">📥 Payment Template डाउनलोड</button><button class="btn primary" onclick="previewPaymentUpload()">Preview / जाँचें</button><button id="confirmPaymentBtn" class="btn" onclick="confirmPaymentUpload()" disabled>Confirm & Upload</button></div><p id="paymentMsg" class="muted"></p><div id="paymentPreview" class="scroll" style="margin-top:10px"></div></details><div class="scroll"><table><thead><tr><th>कोड</th><th>नाम</th><th>दर्ज माह</th><th>भुगतान योग्य</th><th>भुगतान किया</th><th>लंबित राशि</th><th></th></tr></thead><tbody id="empBody"></tbody></table></div></div></section>
 <section id="records" class="page"><div class="card"><div class="toolbar"><select id="empSelect" onchange="loadYear()"></select><select id="yearSelect" onchange="loadYear()"></select><button class="btn primary" onclick="saveYear()">रिकॉर्ड सेव करें</button></div><div class="card"><b id="recTitle">—</b><br><b>भुगतान योग्य:</b> <span id="ePayable">₹0</span> &nbsp; <b>भुगतान किया:</b> <span id="eTotal">₹0</span> &nbsp; <b>लंबित:</b> <span id="ePendingAmount">₹0</span> &nbsp; <b>दर्ज:</b> <span id="eMonths">0</span></div><div class="scroll" style="margin-top:12px"><table><thead><tr><th>माह</th><th>भुगतान योग्य ₹</th><th>भुगतान की गई ₹</th><th>लंबित ₹</th><th>Voucher No.</th><th>Payment Date</th><th>Remarks</th></tr></thead><tbody id="monthBody"></tbody></table></div></div></section>
 <section id="reports" class="page"><div class="card"><h2>कर्मचारी रिपोर्ट</h2><div class="toolbar"><select id="reportEmp" onchange="renderReport()"></select><button class="btn primary" onclick="window.print()">Print / PDF</button></div><div id="reportBox"></div></div></section>
 <section id="backup" class="page"><div class="card"><h2>🔐 Data Security + Backup</h2>
@@ -122,44 +122,49 @@ function dateISO(v){
 }
 function normalizeHeader(x){return String(x||"").trim().toLowerCase().replace(/[ _.-]/g,"")}
 function normalizeCode(x){return String(x??"").toUpperCase().replace(/[^A-Z0-9]/g,"")}
+function downloadPaymentTemplate(){
+  const rows=[
+    ["Employee Code","Employee Name","Salary Month","Payable Amount","Paid Amount","Payment Date","Voucher No.","Remarks"],
+    ["R16800037","Fidel Kabri","2026-05",54706,54706,"06-08-2026","V-001","May 2026 salary"],
+    ["R16800070","Suresh Sathe","2026-06",35128,35128,"06-08-2026","V-002","June 2026 salary"]
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"]=[{wch:18},{wch:24},{wch:15},{wch:16},{wch:16},{wch:16},{wch:16},{wch:30}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Payment Upload");
+  XLSX.writeFile(wb,"salary-payment-upload-template.xlsx");
+}
 async function previewPaymentUpload(){
   let file=document.getElementById("paymentFile").files[0],msgEl=document.getElementById("paymentMsg"),box=document.getElementById("paymentPreview"),btn=document.getElementById("confirmPaymentBtn");
   pendingPaymentRows=[];btn.disabled=true;box.innerHTML="";
-  if(!file)return msgEl.textContent="पहले Payment Excel/CSV फ़ाइल चुनें।";
+  if(!file)return msgEl.textContent="पहले fixed Payment Template वाली Excel फ़ाइल चुनें।";
   try{
     let data=await file.arrayBuffer(),wb=XLSX.read(data,{type:"array",cellDates:false}),codes=new Map(employees.map(e=>[normalizeCode(e.code),e]));
+    const required=["employeecode","employeename","salarymonth","payableamount","paidamount","paymentdate","voucherno","remarks"];
+    let invalidSheets=[];
     for(let si=0;si<wb.SheetNames.length;si++){
       let name=wb.SheetNames[si],raw=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:"",raw:true});
-      let hi=raw.findIndex(row=>row.some(v=>["employeenumber","employeeid","employeecode","code","employee"].includes(normalizeHeader(v)))&&row.some(v=>["amount","netpay","paidamount","paymentamount"].includes(normalizeHeader(v))));
-      if(hi<0)continue;
-      let headers=raw[hi].map(normalizeHeader),rows=raw.slice(hi+1),find=names=>names.map(normalizeHeader).map(n=>headers.indexOf(n)).find(i=>i>=0);
-      let ci=find(["employee number","employee id","employee code","code","employee"]),pi=find(["payble amount","payable amount","payable","due amount","salary payable"]),ai=find(["amount","net pay","paid amount","payment amount"]);
-      // IMPORTANT: Salary Month and Payment Date are different fields.
-      // Never use Payment Date as Salary Month. If the Excel has no explicit
-      // Month column, derive the salary month as the month immediately before
-      // the payment date (common salary-sheet format: July salary paid on 06-Aug).
-      // Salary month is authoritative from an explicit Month column OR the sheet/title
-      // (this workbook uses sheet names MAY-2026. and JUNE-2026.).
-      // Payment Date must NEVER be used as Salary Month.
-      let mi=find(["month","salary month","payment month"]),di=find(["payment date","paid date"]);
-      let sheetMonth=monthISO(name)||"";
-      if(!sheetMonth){
-        const titleText=raw.slice(0,3).flat().map(v=>String(v??"")).join(" ");
-        sheetMonth=monthISO(titleText)||"";
-      }
-      if(ci==null||ai==null||((mi==null)&&(di==null))||(!sheetMonth&&mi==null))continue;
+      if(!raw.length)continue;
+      let hi=raw.findIndex(row=>required.every(h=>row.some(v=>normalizeHeader(v)===h)));
+      if(hi<0){invalidSheets.push(name);continue;}
+      let headers=raw[hi].map(normalizeHeader),rows=raw.slice(hi+1);
+      let col=h=>headers.indexOf(h);
+      let ci=col("employeecode"),ni=col("employeename"),mi=col("salarymonth"),pi=col("payableamount"),ai=col("paidamount"),di=col("paymentdate"),vi=col("voucherno"),ri=col("remarks");
       for(let row of rows){
-        let code=String(row[ci]??"").trim(),amount=Number(String(row[ai]??"").replace(/,/g,""));
-        if(!code||!isFinite(amount)||amount<=0||/^total$/i.test(code))continue;
-        let payDate=di!=null?dateISO(row[di]):"";
-        let month=sheetMonth||(mi!=null?monthISO(row[mi]):"");
+        let code=String(row[ci]??"").trim(),nameCell=String(row[ni]??"").trim(),amount=Number(String(row[ai]??"").replace(/,/g,""));
+        if(!code&&!nameCell&&!row[mi]&&!row[ai])continue;
+        if(!code||!isFinite(amount)||amount<0)continue;
+        let month=monthISO(row[mi]);
         if(!month)continue;
-        let payable=pi!=null?Number(String(row[pi]??"").replace(/,/g,"")):0;
-        if(!isFinite(payable)||payable<0)payable=0;
-        let payDate=di!=null?dateISO(row[di]):"";
+        let payDate=dateISO(row[di]);
+        let payable=Number(String(row[pi]??"").replace(/,/g,"")); if(!isFinite(payable)||payable<0)payable=0;
         let e=codes.get(normalizeCode(code));
-        pendingPaymentRows.push({code,name:e?.name||"",employee_id:e?.id||null,month_start:month,payable_amount:payable,amount,payment_date:payDate||null,sheet:name})
+        pendingPaymentRows.push({code,name:e?.name||nameCell,employee_id:e?.id||null,month_start:month,payable_amount:payable,amount,payment_date:payDate||null,voucher_no:String(row[vi]??"").trim(),remarks:String(row[ri]??"").trim(),sheet:name});
       }
+    }
+    if(invalidSheets.length&&!pendingPaymentRows.length){
+      msgEl.textContent="गलत Excel Format। केवल 'Payment Template' के निर्धारित 8 columns स्वीकार हैं: Employee Code, Employee Name, Salary Month, Payable Amount, Paid Amount, Payment Date, Voucher No., Remarks.";
+      return;
     }
     let bad=pendingPaymentRows.filter(x=>!x.employee_id),seen=new Map(),dups=[];
     pendingPaymentRows.forEach((x,i)=>{
@@ -168,17 +173,13 @@ async function previewPaymentUpload(){
       else seen.set(k,{index:i,name:x.name,sheet:x.sheet});
     });
     let dupKeys=new Set(dups.map(x=>x.key)),total=pendingPaymentRows.reduce((s,x)=>s+x.amount,0);
-    msgEl.textContent=pendingPaymentRows.length+" भुगतान रिकॉर्ड मिले | कुल राशि ₹"+total.toLocaleString("en-IN")+" | Match नहीं: "+bad.length+(dups.length?" | Duplicate: "+dups.length:"");
-    box.innerHTML="<table><thead><tr><th>Code</th><th>नाम</th><th>माह</th><th>Payable Amount</th><th>भुगतान राशि</th><th>Pending</th><th>Payment Date</th><th>स्थिति</th></tr></thead><tbody>"+
+    msgEl.textContent=pendingPaymentRows.length+" भुगतान रिकॉर्ड मिले | कुल राशि ₹"+total.toLocaleString("en-IN")+" | Match नहीं: "+bad.length+(dups.length?" | Duplicate: "+dups.length:"")+(invalidSheets.length?" | गलत format sheets: "+invalidSheets.join(", "):"");
+    box.innerHTML="<table><thead><tr><th>Code</th><th>नाम</th><th>माह</th><th>Payable Amount</th><th>भुगतान राशि</th><th>Pending</th><th>Payment Date</th><th>Voucher</th><th>स्थिति</th></tr></thead><tbody>"+
       pendingPaymentRows.slice(0,100).map((x,i)=>{
         const k=normalizeCode(x.code)+"|"+x.month_start,isDup=dupKeys.has(k);
-        return "<tr><td>"+x.code+"</td><td>"+(x.name||"—")+"</td><td>"+x.month_start+"</td><td>₹"+x.payable_amount.toLocaleString("en-IN")+"</td><td>₹"+x.amount.toLocaleString("en-IN")+"</td><td>₹"+(x.payable_amount-x.amount).toLocaleString("en-IN")+"</td><td>"+(x.payment_date||"—")+"</td><td>"+(x.employee_id?(isDup?"⚠ Duplicate":"✓ Match"):"✗ Employee नहीं मिला")+"</td></tr>"
-      }).join("")+
-      "</tbody></table>"+(pendingPaymentRows.length>100?"<p class='muted'>पहले 100 रिकॉर्ड Preview में दिखाए गए हैं।</p>":"")+
-      (dups.length?"<div class='notice' style='margin-top:10px'><b>Duplicate रिकॉर्ड:</b><br>"+dups.map((d,i)=>(i+1)+". <b>"+d.name+"</b> ("+d.code+") — "+d.month+" — Excel row "+d.firstIndex+" और "+d.secondIndex+"; Sheets: "+d.firstSheet+" / "+d.secondSheet).join("<br>")+"</div>":"");
-    btn.disabled=pendingPaymentRows.length===0||bad.length>0||dups.length>0;
-    if(bad.length)msgEl.textContent+=" | पहले unmatched Employee Code ठीक करें।";
-    if(dups.length)msgEl.textContent+=" | Duplicate हटाएँ/सुधारें, फिर Confirm करें।"
+        return "<tr><td>"+x.code+"</td><td>"+(x.name||"—")+"</td><td>"+x.month_start+"</td><td>₹"+Number(x.payable_amount||0).toLocaleString("en-IN")+"</td><td>₹"+Number(x.amount||0).toLocaleString("en-IN")+"</td><td>₹"+(Number(x.payable_amount||0)-Number(x.amount||0)).toLocaleString("en-IN")+"</td><td>"+(x.payment_date||"")+"</td><td>"+(x.voucher_no||"")+"</td><td>"+(x.employee_id?"✓ Match":"✗ Employee नहीं मिला")+(isDup?" | Duplicate":"")+"</td></tr>"
+      }).join("")+"</tbody></table>";
+    btn.disabled=!pendingPaymentRows.length||bad.length>0||dups.length>0;
   }catch(e){msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
 }
 async function confirmPaymentUpload(){if(!pendingPaymentRows.length)return;let msgEl=document.getElementById("paymentMsg"),btn=document.getElementById("confirmPaymentBtn");btn.disabled=true;let u=(await window.salaryDb.auth.getUser()).data.user;if(!u){msgEl.textContent="Login session समाप्त हो गई है।";btn.disabled=false;return}let rows=pendingPaymentRows.filter(x=>x.employee_id).map(x=>({employee_id:x.employee_id,month_start:x.month_start,payable_amount:x.payable_amount||0,amount:x.amount,payment_date:x.payment_date,updated_by:u.id}));let{error}=await window.salaryDb.from("salary_records").upsert(rows,{onConflict:"employee_id,month_start"});if(error){msgEl.textContent="Upload error: "+error.message;btn.disabled=false;return}await refresh();renderEmployees();updateDash();setupRecord();msgEl.textContent=rows.length+" भुगतान रिकॉर्ड Database में सफलतापूर्वक सेव हो गए।";pendingPaymentRows=[];document.getElementById("paymentFile").value="";document.getElementById("paymentPreview").innerHTML=""}
