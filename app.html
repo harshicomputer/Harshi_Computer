@@ -133,12 +133,24 @@ async function previewPaymentUpload(){
       let hi=raw.findIndex(row=>row.some(v=>["employeenumber","employeeid","employeecode","code","employee"].includes(normalizeHeader(v)))&&row.some(v=>["amount","netpay","paidamount","paymentamount"].includes(normalizeHeader(v))));
       if(hi<0)continue;
       let headers=raw[hi].map(normalizeHeader),rows=raw.slice(hi+1),find=names=>names.map(normalizeHeader).map(n=>headers.indexOf(n)).find(i=>i>=0);
-      let ci=find(["employee number","employee id","employee code","code","employee"]),pi=find(["payble amount","payable amount","payable","due amount","salary payable"]),ai=find(["amount","net pay","paid amount","payment amount"]),mi=find(["month","salary month","payment month","payment date","date"]),di=find(["payment date"]);
-      if(ci==null||ai==null||mi==null)continue;
+      let ci=find(["employee number","employee id","employee code","code","employee"]),pi=find(["payble amount","payable amount","payable","due amount","salary payable"]),ai=find(["amount","net pay","paid amount","payment amount"]);
+      // IMPORTANT: Salary Month and Payment Date are different fields.
+      // Never use Payment Date as Salary Month. If the Excel has no explicit
+      // Month column, derive the salary month as the month immediately before
+      // the payment date (common salary-sheet format: July salary paid on 06-Aug).
+      let mi=find(["month","salary month","payment month"]),di=find(["payment date","paid date","date"]);
+      if(ci==null||ai==null||((mi==null)&&(di==null)))continue;
       for(let row of rows){
         let code=String(row[ci]??"").trim(),amount=Number(String(row[ai]??"").replace(/,/g,""));
         if(!code||!isFinite(amount)||amount<=0||/^total$/i.test(code))continue;
-        let month=monthISO(row[mi]);if(!month)continue;
+        let payDate=di!=null?dateISO(row[di]):"";
+        let month=mi!=null?monthISO(row[mi]):"";
+        if(!month&&payDate){
+          const d=new Date(payDate+"T00:00:00Z");
+          d.setUTCMonth(d.getUTCMonth()-1);
+          month=d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-01";
+        }
+        if(!month)continue;
         let payable=pi!=null?Number(String(row[pi]??"").replace(/,/g,"")):0;
         if(!isFinite(payable)||payable<0)payable=0;
         let payDate=di!=null?dateISO(row[di]):"";
