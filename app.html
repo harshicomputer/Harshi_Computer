@@ -304,7 +304,7 @@ async function openAccountLedger(head,fy){
   await renderAccountLedger();
 }
 let currentAccountHead="",currentAccountFY="";
-function openAccountLedgerPage(head,fy){window.location.href="account_ledger.html?head="+encodeURIComponent(head)+"&fy="+encodeURIComponent(fy);}
+function openAccountLedgerPage(head,fy){const url="account_ledger.html?head="+encodeURIComponent(head)+"&fy="+encodeURIComponent(fy);window.open(url,"_blank","noopener,noreferrer");}
 async function renderAccountLedger(){
   const head=currentAccountHead,fy=currentAccountFY;
   if(!head||!fy)return;
