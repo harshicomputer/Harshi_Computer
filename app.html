@@ -465,7 +465,16 @@ async function saveFdr(){
   const id=document.getElementById("fdrId").value;const parentId=document.getElementById("fdrParentId").value||null;
   const num=id=>document.getElementById(id).value===""?null:Number(document.getElementById(id).value);
   const txt=id=>document.getElementById(id).value.trim()||null;
-  const payload={user_id:u.id,replaced_fdr_id:parentId,fdr_number:txt("fdrNumber"),head_or_mad:txt("fdrHead"),depositor_name:txt("fdrDepositor"),bank_name:txt("fdrBank"),branch:txt("fdrBranch"),account_customer_no:txt("fdrAccount"),customer_id:txt("fdrCustomerId"),cif_no:txt("fdrCif"),pan_no:txt("fdrPan"),deposit_type:txt("fdrDepositType"),deposit_period:txt("fdrPeriod"),fdr_amount:Number(document.getElementById("fdrAmount").value||0),interest_rate:num("fdrRate"),annualised_yield:num("fdrYield"),total_interest:num("fdrTotalInterest"),interest_type:txt("fdrInterestType"),mode_of_operation:txt("fdrMode"),start_date:document.getElementById("fdrStart").value||null,maturity_date:document.getElementById("fdrMaturity").value||null,maturity_amount:num("fdrMaturityAmount"),interest_paid_to_account:txt("fdrInterestPaidTo"),nominee:txt("fdrNominee"),nomination_status:txt("fdrNominationStatus"),status:document.getElementById("fdrStatus").value,remarks:txt("fdrRemarks")};
+  const payload={user_id:u.id,replaced_fdr_id:parentId,  if(!id){
+    const duplicateNumber=payload.fdr_number?fdrRecords.find(x=>String(x.fdr_number||"").trim().toLowerCase()===String(payload.fdr_number).trim().toLowerCase()):null;
+    const duplicateAccount=payload.account_customer_no?fdrRecords.find(x=>String(x.account_customer_no||"").trim().toLowerCase()===String(payload.account_customer_no).trim().toLowerCase() && String(x.bank_name||"").trim().toLowerCase()===String(payload.bank_name||"").trim().toLowerCase()):null;
+    if(duplicateNumber||duplicateAccount){
+      const d=duplicateNumber||duplicateAccount;
+      msgEl.textContent="⚠️ Duplicate FDR रोक दी गई। यह FDR/Account Number पहले से दर्ज है: "+(d.fdr_number||d.account_customer_no);
+      msgEl.className="error"; return;
+    }
+  }
+fdr_number:txt("fdrNumber"),head_or_mad:txt("fdrHead"),depositor_name:txt("fdrDepositor"),bank_name:txt("fdrBank"),branch:txt("fdrBranch"),account_customer_no:txt("fdrAccount"),customer_id:txt("fdrCustomerId"),cif_no:txt("fdrCif"),pan_no:txt("fdrPan"),deposit_type:txt("fdrDepositType"),deposit_period:txt("fdrPeriod"),fdr_amount:Number(document.getElementById("fdrAmount").value||0),interest_rate:num("fdrRate"),annualised_yield:num("fdrYield"),total_interest:num("fdrTotalInterest"),interest_type:txt("fdrInterestType"),mode_of_operation:txt("fdrMode"),start_date:document.getElementById("fdrStart").value||null,maturity_date:document.getElementById("fdrMaturity").value||null,maturity_amount:num("fdrMaturityAmount"),interest_paid_to_account:txt("fdrInterestPaidTo"),nominee:txt("fdrNominee"),nomination_status:txt("fdrNominationStatus"),status:document.getElementById("fdrStatus").value,remarks:txt("fdrRemarks")};
   const msgEl=document.getElementById("fdrMsg");
   if(!payload.fdr_number||!payload.head_or_mad||!payload.bank_name){msgEl.textContent="FDR No., हेड / मद और Bank Name भरना आवश्यक है।";msgEl.className="error";return}
   msgEl.textContent="सेव हो रहा है...";msgEl.className="muted";
