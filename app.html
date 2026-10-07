@@ -285,30 +285,68 @@ async function openAccountLedger(head,fy){
 }
 function closeAccountLedger(){document.getElementById("accountLedgerBox").style.display="none";}
 async function importAccountExcel(){
-  const file=document.getElementById("accountExcelFile")?.files?.[0]; if(!file)return;
-  const msg=document.getElementById("accountMsg"); msg.textContent="Excel पढ़ी जा रही है...";
-  const buf=await file.arrayBuffer(), book=XLSX.read(buf,{type:"array",cellDates:true});
-  const fy="2025-26"; let heads=0, tx=0;
-  for(const ws of book.SheetNames){
-    if(ws==="मदवार बकाया ") continue;
-    const rows=XLSX.utils.sheet_to_json(book.Sheets[ws],{header:1,raw:true,defval:null});
-    const opening=Number(rows[2]?.[2]||0);
-    let receipt=0,payment=0;
-    for(let i=3;i<rows.length;i++){
-      const r=rows[i]||[]; const rec=Number(r[2]||0), pay=Number(r[5]||0);
-      const cFormula=(r[2]===undefined);
-      if(!rec&&!pay)continue;
-      receipt+=rec;payment+=pay;
-      let d=r[1]||r[4]||null;
-      if(typeof d==="string"&&/^\d{2}-\d{2}-\d{4}$/.test(d)){const p=d.split("-");d=p[2]+"-"+p[1]+"-"+p[0]}
-      const ins=await window.salaryDb.from("account_transactions").insert({financial_year:fy,head_name:ws,transaction_date:d,voucher_no:r[3]?String(r[3]):null,receipt_amount:rec,payment_amount:pay,description:r[6]?String(r[6]):null,source_sheet:ws,source_row:i+1});
-      if(!ins.error)tx++;
+  const file=document.getElementById("accountExcelFile")?.files?.[0];
+  if(!file)return;
+  const msg=document.getElementById("accountMsg");
+  msg.textContent="Excel पढ़ी जा रही है...";
+  try{
+    const buf=await file.arrayBuffer();
+    const book=XLSX.read(buf,{type:"array",cellDates:true});
+    const fy=document.getElementById("accountFY")?.value||"2025-26";
+    const u=(await window.salaryDb.auth.getUser()).data.user;
+    if(!u){msg.textContent="Login session समाप्त हो गई है।";return}
+    let heads=0,tx=0;
+    for(const ws of book.SheetNames){
+      if(ws==="मदवार बकाया ")continue;
+      const rows=XLSX.utils.sheet_to_json(book.Sheets[ws],{header:1,raw:true,defval:null});
+      if(rows.length<3)continue;
+      const header=(rows[1]||[]).map(v=>String(v??"").trim().toLowerCase());
+      const dateCols=[];
+      header.forEach((h,i)=>{if(h.includes("fnukad"))dateCols.push(i)});
+      const pDateCol=dateCols.length>=2?dateCols[dateCols.length-1]:4;
+      const pAmountCol=pDateCol+1;
+      const pDescCol=pAmountCol+1;
+      const pVoucherCol=pDateCol-1;
+      const opening=Number(rows[2]?.[2]||0);
+      let receipt=0,payment=0;
+      const txRows=[];
+      const parseDate=v=>{
+        if(v instanceof Date&&!isNaN(v))return v.toISOString().slice(0,10);
+        const s=String(v??"").trim();
+        let m=s.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+        if(m)return m[3]+"-"+m[2]+"-"+m[1];
+        m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if(m)return m[3]+"-"+m[2]+"-"+m[1];
+        m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return m?s:"";
+      };
+      for(let i=3;i<rows.length;i++){
+        const r=rows[i]||[];
+        const rec=Number(String(r[2]??"").replace(/,/g,""))||0;
+        const pay=Number(String(r[pAmountCol]??"").replace(/,/g,""))||0;
+        if(!rec&&!pay)continue;
+        const receiptDate=parseDate(r[1]);
+        const paymentDate=parseDate(r[pDateCol]);
+        const date=paymentDate||receiptDate||null;
+        const voucher=pay?(r[pVoucherCol]!=null?String(r[pVoucherCol]):null):(r[3]!=null?String(r[3]):null);
+        const desc=r[pDescCol]!=null?String(r[pDescCol]):null;
+        txRows.push({user_id:u.id,financial_year:fy,head_name:ws,transaction_date:date,voucher_no:voucher||null,receipt_amount:rec,payment_amount:pay,description:desc||null,source_sheet:ws,source_row:i+1});
+        receipt+=rec;payment+=pay;
+      }
+      if(txRows.length){
+        const up=await window.salaryDb.from("account_transactions").upsert(txRows,{onConflict:"user_id,financial_year,source_sheet,source_row"});
+        if(up.error)throw new Error(ws+": "+up.error.message);
+        tx+=txRows.length;
+      }
+      const hu=await window.salaryDb.from("account_heads").upsert({user_id:u.id,financial_year:fy,head_name:ws,opening_balance:opening,total_receipts:receipt,total_payments:payment,closing_balance:opening+receipt-payment},{onConflict:"user_id,financial_year,head_name"});
+      if(hu.error)throw new Error(ws+": "+hu.error.message);
+      heads++;
     }
-    const up=await window.salaryDb.from("account_heads").upsert({financial_year:fy,head_name:ws,opening_balance:opening,total_receipts:receipt,total_payments:payment,closing_balance:opening+receipt-payment,user_id:(window.currentSession?.user?.id)}, {onConflict:"user_id,financial_year,head_name"});
-    if(!up.error)heads++;
+    msg.textContent="✅ Excel Import पूरा: "+heads+" Head और "+tx+" detailed Ledger entries सुरक्षित हो गईं।";
+    await setupAccount();
+  }catch(e){
+    msg.textContent="❌ Excel Import में समस्या: "+(e?.message||e);
   }
-  msg.textContent="✅ Excel Import पूरा: "+heads+" Head और "+tx+" Ledger entries process हुईं।";
-  await setupAccount();
 }
 function init(){updateDash();renderEmployees();setupRecord();setupReport();setupFdrFinancialYears();renderFdr();setupAccount()}
 function showPage(id,b){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");if(id==="employees")renderEmployees();if(id==="records")setupRecord();if(id==="reports")setupReport();if(id==="fdr")renderFdr();if(id==="officeAccount")setupAccount();if(id==="backup")renderBackupList();updateDash()}
