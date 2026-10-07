@@ -33,14 +33,53 @@ window.loginNow=async function(){
 .portal{display:none;min-height:100vh;background:linear-gradient(135deg,#eef5ff,#f8fbff);padding:40px 20px}.portal.show{display:block}.portal-head{text-align:center;margin-bottom:28px}.portal-head h2{margin:0;color:#123b73;font-size:30px}.portal-head p{color:#667085}.portal-grid{max-width:900px;margin:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:22px}.portal-card{background:#fff;border:1px solid #dce4ef;border-radius:18px;padding:30px;text-align:center;box-shadow:0 12px 35px #123b7312}.portal-icon{font-size:48px}.portal-card h3{margin:12px 0 6px;color:#123b73}.portal-card p{color:#667085;min-height:42px}.portal-card .btn{min-width:180px}@media(max-width:650px){.portal-grid{grid-template-columns:1fr}.portal{padding:25px 14px}}</style></head><body>
 <div id="login" class="login"><div class="box"><h2>Dynamic Salary Record</h2><p class="muted">जनवरी 2019 से वर्तमान माह तक</p><input id="email" type="email" autocomplete="email" placeholder="Email"><input id="password" type="password" autocomplete="current-password" placeholder="Password"><button id="loginBtn" class="btn primary" style="width:100%;margin-top:8px" onclick="window.loginNow()">Login</button><p class="muted" style="margin:8px 0 0">Login के लिए आपका Email और Password इस्तेमाल होगा।</p><p id="authMsg" class="error"></p></div></div>
 <div id="portal" class="portal"><div class="portal-head"><h2>Harshi Computer Online Management System</h2><p>कृपया अपना कार्य क्षेत्र चुनें</p></div><div class="portal-grid"><div class="portal-card"><div class="portal-icon">🏢</div><h3>Office / ऑफिस</h3><p>कर्मचारी, वेतन, मासिक रिकॉर्ड, रिपोर्ट और Backup / Export से जुड़े सभी कार्य।</p><button class="btn primary" onclick="openOffice()">Office खोलें</button></div><div class="portal-card"><div class="portal-icon">👤</div><h3>Personal / व्यक्तिगत</h3><p>Loan Management और व्यक्तिगत वित्तीय रिकॉर्ड के लिए अलग क्षेत्र।</p><button class="btn" onclick="openPersonal()">Personal खोलें</button></div></div></div><div id="personal" class="app"><header class="top"><h1>Harshi Computer — Personal / Loan Management</h1><div><button class="btn" onclick="backToPortal()">मुख्य चयन</button> <button class="btn" onclick="signOut()">Logout</button></div></header><iframe src="loan_management_demo.html?v=20261006-1635" style="width:100%;height:calc(100vh - 70px);border:0;background:#f5f7fb"></iframe></div><div id="app" class="app"><header class="top"><h1>Harshi Computer — Office / Salary Record</h1><div><span id="who"></span> <button class="btn" onclick="signOut()">Logout</button></div></header>
-<nav><button class="active" onclick="showPage('dash',this)">डैशबोर्ड</button><button onclick="showPage('employees',this)">कर्मचारी</button><button onclick="showPage('records',this)">मासिक रिकॉर्ड</button><button onclick="showPage('reports',this)">रिपोर्ट</button><button onclick="showPage('backup',this)">Backup / Export</button></nav>
+<nav><button class="active" onclick="showPage('dash',this)">डैशबोर्ड</button><button onclick="showPage('employees',this)">कर्मचारी</button><button onclick="showPage('records',this)">मासिक रिकॉर्ड</button><button onclick="showPage('fdr',this)">🏦 FDR</button><button onclick="showPage('reports',this)">रिपोर्ट</button><button onclick="showPage('backup',this)">Backup / Export</button></nav>
 <main>
 <section id="dash" class="page active"><div class="grid"><div class="card"><div class="muted">कुल कर्मचारी</div><div class="stat" id="cntEmp">0</div></div><div class="card"><div class="muted">अवधि</div><div class="stat" id="period">0 माह</div></div><div class="card"><div class="muted">दर्ज महीने</div><div class="stat" id="cntRec">0</div></div><div class="card"><div class="muted">भुगतान योग्य</div><div class="stat" id="sumPayable">₹0</div></div><div class="card"><div class="muted">भुगतान की गई राशि</div><div class="stat" id="sumRec">₹0</div></div><div class="card"><div class="muted">कुल लंबित राशि</div><div class="stat" id="sumPending">₹0</div></div></div><div class="card" style="margin-top:14px"><h3>सिस्टम स्थिति</h3><p class="ok">● Cloud Database connected</p><p class="ok">● Login protected</p><p class="ok">● Backup / Export available</p></div></section>
 <section id="employees" class="page"><div class="card"><div class="toolbar"><input id="search" placeholder="कोड/नाम खोजें" oninput="renderEmployees()"><button class="btn primary" onclick="newEmployee()">+ कर्मचारी</button></div><details style="margin-bottom:12px"><summary class="link">Bulk Upload / एक बार कर्मचारी सूची जोड़ें</summary><div class="notice" style="margin-top:10px">Excel में <b>Employee ID/Code, Employee Name/Name</b> अनिवार्य हैं। <b>Post</b> और <b>Department</b> वैकल्पिक हैं। ये दोनों जानकारी कर्मचारी के साथ database में सुरक्षित रहेगी, लेकिन सामान्य स्क्रीन पर अलग से नहीं दिखाई जाएगी।</div><div class="toolbar" style="margin-top:10px"><input id="bulkFile" type="file" accept=".xlsx,.xls,.csv"><button class="btn primary" onclick="bulkUpload()">Excel से जोड़ें</button><button class="btn" onclick="downloadBulkTemplate()">Template डाउनलोड</button></div><p id="bulkMsg" class="muted"></p></details><details style="margin-bottom:12px"><summary class="link">Bulk Payment Upload / भुगतान राशि व दिनांक अपलोड करें</summary><div class="notice" style="margin-top:10px"><b>Fixed Excel Format:</b> Bulk Payment के लिए केवल निर्धारित Template इस्तेमाल करें। Columns क्रम/नाम: <b>Employee Code, Employee Name, Salary Month, Payable Amount, Paid Amount, Payment Date, Voucher No., Remarks</b>। <b>Salary Month हमेशा Excel के Salary Month column से ही लिया जाएगा</b>; Payment Date से महीना नहीं बदलेगा। उदाहरण: Salary Month <b>2026-05</b> और Payment Date <b>06-08-2026</b> होने पर रिकॉर्ड <b>May 2026</b> में ही जाएगा। पहले Preview बनेगा; Confirm के बाद ही Database में सेव होगा।</div><div class="toolbar" style="margin-top:10px"><input id="paymentFile" type="file" accept=".xlsx,.xls,.csv"><button class="btn" onclick="downloadPaymentTemplate()">📥 Payment Template डाउनलोड</button><button class="btn primary" onclick="previewPaymentUpload()">Preview / जाँचें</button><button id="confirmPaymentBtn" class="btn" onclick="confirmPaymentUpload()" disabled>Confirm & Upload</button></div><p id="paymentMsg" class="muted"></p><div id="paymentPreview" class="scroll" style="margin-top:10px"></div></details><div class="scroll"><table><thead><tr><th>कोड</th><th>नाम</th><th>दर्ज माह</th><th>भुगतान योग्य</th><th>भुगतान किया</th><th>लंबित राशि</th><th></th></tr></thead><tbody id="empBody"></tbody></table></div></div></section>
 <section id="records" class="page"><div class="card"><div class="toolbar"><select id="empSelect" onchange="loadYear()"></select><select id="yearSelect" onchange="loadYear()"></select><button class="btn primary" onclick="saveYear()">रिकॉर्ड सेव करें</button></div><div class="card"><b id="recTitle">—</b><br><b>भुगतान योग्य:</b> <span id="ePayable">₹0</span> &nbsp; <b>भुगतान किया:</b> <span id="eTotal">₹0</span> &nbsp; <b>लंबित:</b> <span id="ePendingAmount">₹0</span> &nbsp; <b>दर्ज:</b> <span id="eMonths">0</span></div><div class="scroll" style="margin-top:12px"><table><thead><tr><th>माह</th><th>भुगतान योग्य ₹</th><th>भुगतान की गई ₹</th><th>लंबित ₹</th><th>Voucher No.</th><th>Payment Date</th><th>Remarks</th></tr></thead><tbody id="monthBody"></tbody></table></div></div></section>
+<section id="fdr" class="page">
+<div class="card">
+  <div class="toolbar" style="justify-content:space-between">
+    <div><h2 style="margin:0">🏦 FDR Management</h2><div class="muted">Fixed Deposit की पूरी जानकारी सुरक्षित रखें</div></div>
+    <button class="btn primary" onclick="newFdr()">+ नई FDR</button>
+  </div>
+  <div class="notice" style="margin-bottom:12px"><b>हेड / मद</b> में स्पष्ट रूप से लिखें कि FDR किस उद्देश्य/मद की है, जैसे <b>Security Deposit, Earnest Money, कर्मचारी सुरक्षा निधि, GST/Tax, अन्य</b>। यही जानकारी सूची में भी दिखाई देगी।</div>
+  <details id="fdrFormBox" class="card" style="display:none;margin-bottom:14px;background:#f8fafc">
+    <summary class="link">FDR विवरण</summary>
+    <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:12px">
+      <input id="fdrId" type="hidden">
+      <label>FDR No.<input id="fdrNumber" placeholder="FDR नंबर"></label>
+      <label>हेड / मद *<input id="fdrHead" placeholder="जैसे Security Deposit / Earnest Money"></label>
+      <label>Bank Name *<input id="fdrBank" placeholder="बैंक का नाम"></label>
+      <label>Branch<input id="fdrBranch" placeholder="शाखा"></label>
+      <label>Account / Customer No.<input id="fdrAccount" placeholder="खाता / ग्राहक नंबर"></label>
+      <label>FDR Amount ₹<input id="fdrAmount" type="number" min="0" step="0.01" placeholder="0"></label>
+      <label>Interest Rate %<input id="fdrRate" type="number" min="0" step="0.01" placeholder="0"></label>
+      <label>Interest Type
+        <select id="fdrInterestType"><option value="">चुनें</option><option>Fixed</option><option>Floating</option><option>Cumulative</option><option>Non-Cumulative</option><option>Other</option></select>
+      </label>
+      <label>Start Date<input id="fdrStart" type="date"></label>
+      <label>Maturity Date<input id="fdrMaturity" type="date"></label>
+      <label>Maturity Amount ₹<input id="fdrMaturityAmount" type="number" min="0" step="0.01" placeholder="0"></label>
+      <label>Nominee<input id="fdrNominee" placeholder="नाम"></label>
+      <label>Status
+        <select id="fdrStatus"><option value="active">Active</option><option value="matured">Matured</option><option value="closed">Closed</option></select>
+      </label>
+    </div>
+    <label>Remarks<textarea id="fdrRemarks" rows="2" style="width:100%;padding:10px;border:1px solid #dce4ef;border-radius:8px;margin-top:10px" placeholder="अन्य जानकारी"></textarea></label>
+    <div class="toolbar" style="margin-top:12px"><button class="btn primary" onclick="saveFdr()">Save FDR</button><button class="btn" onclick="cancelFdr()">Cancel</button><span id="fdrMsg" class="muted"></span></div>
+  </details>
+  <div class="toolbar">
+    <input id="fdrSearch" placeholder="FDR No. / Bank / Head / मद खोजें" oninput="renderFdr()">
+    <select id="fdrFilter" onchange="renderFdr()"><option value="">सभी Status</option><option value="active">Active</option><option value="matured">Matured</option><option value="closed">Closed</option></select>
+  </div>
+  <div class="scroll"><table><thead><tr><th>FDR No.</th><th>हेड / मद</th><th>Bank / Branch</th><th>FDR Amount</th><th>Interest</th><th>Start Date</th><th>Maturity Date</th><th>Maturity Amount</th><th>Status</th><th></th></tr></thead><tbody id="fdrBody"></tbody></table></div>
+</div>
+</section>
 <section id="reports" class="page"><div class="card"><h2>कर्मचारी रिपोर्ट</h2><div class="toolbar"><select id="reportEmp" onchange="renderReport()"></select><button class="btn primary" onclick="window.print()">Print / PDF</button></div><div id="reportBox"></div></div></section>
 <section id="backup" class="page"><div class="card"><h2>🔐 Data Security + Backup</h2>
-<p class="notice"><b>सुरक्षित व्यवस्था:</b> आपका डेटा Cloud Database में है। Backup में कर्मचारी, वेतन रिकॉर्ड और Personal Loan के रिकॉर्ड शामिल किए जाते हैं। Backup केवल Login किए हुए Admin के लिए उपलब्ध है।</p>
+<p class="notice"><b>सुरक्षित व्यवस्था:</b> आपका डेटा Cloud Database में है। Backup में कर्मचारी, वेतन रिकॉर्ड, FDR और Personal Loan के रिकॉर्ड शामिल किए जाते हैं। Backup केवल Login किए हुए Admin के लिए उपलब्ध है।</p>
 <div class="toolbar" style="margin-top:14px">
 <button class="btn primary" onclick="createCloudBackup()">☁️ Cloud Backup बनाएं</button>
 <button class="btn" onclick="downloadBackup()">⬇️ Full JSON Backup</button>
@@ -52,7 +91,7 @@ window.loginNow=async function(){
 </main></div>
 <script>
 const SUPABASE_URL="https://khwzoolgjzghdixlclwu.supabase.co",SUPABASE_KEY="sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P";window.salaryDb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-const M=["जनवरी","फरवरी","मार्च","अप्रैल","मई","जून","जुलाई","अगस्त","सितंबर","अक्टूबर","नवंबर","दिसंबर"];let employees=[],records=[],current=0;
+const M=["जनवरी","फरवरी","मार्च","अप्रैल","मई","जून","जुलाई","अगस्त","सितंबर","अक्टूबर","नवंबर","दिसंबर"];let employees=[],records=[],fdrRecords=[],current=0;
 const periodMonths=()=>{let n=new Date(),a=[];for(let y=2019;y<=n.getFullYear();y++){let to=y===n.getFullYear()?n.getMonth()+1:12;for(let m=1;m<=to;m++)a.push({y,m,key:y+"-"+String(m).padStart(2,"0")})}return a};
 const years=()=>[...new Set(periodMonths().map(x=>x.y))];
 function msg(x,ok=false){let el=document.getElementById("authMsg");el.textContent=x;el.className=ok?"ok":"error"}
@@ -61,9 +100,9 @@ async function signUp(){msg("नया Account बनाना बंद है�
 async function signOut(){await window.salaryDb.auth.signOut()}
 window.salaryDb.auth.onAuthStateChange((e,s)=>{if(s&&!loginStarting){setTimeout(()=>start(s),0)}else if(!s){document.getElementById("app").style.display="none";document.getElementById("personal").style.display="none";document.getElementById("portal").classList.remove("show");document.getElementById("login").style.display="grid"}})
 async function start(s){document.getElementById("login").style.display="none";document.getElementById("portal").classList.add("show");document.getElementById("app").style.display="none";document.getElementById("personal").style.display="none";window.currentSession=s;try{await Promise.race([refresh(),new Promise((_,rej)=>setTimeout(()=>rej(new Error("Database response timeout")),10000))]);init()}catch(e){console.error(e);init();alert("Login सफल है। Database data load होने में समस्या है: "+(e?.message||e))}}
-function openOffice(){document.getElementById("portal").classList.remove("show");document.getElementById("app").style.display="block";document.getElementById("personal").style.display="none";resetInactivityTimer()} function openPersonal(){document.getElementById("portal").classList.remove("show");document.getElementById("app").style.display="none";document.getElementById("personal").style.display="block"} function backToPortal(){document.getElementById("personal").style.display="none";document.getElementById("app").style.display="none";document.getElementById("portal").classList.add("show")}async function refresh(){let a=await window.salaryDb.from("employees").select("*").order("code");if(a.error)return alert(a.error.message);employees=a.data;let b=await window.salaryDb.from("salary_records").select("*");if(b.error)return alert(b.error.message);records=b.data}
-function init(){updateDash();renderEmployees();setupRecord();setupReport()}
-function showPage(id,b){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");if(id==="employees")renderEmployees();if(id==="records")setupRecord();if(id==="reports")setupReport();if(id==="backup")renderBackupList();updateDash()}
+function openOffice(){document.getElementById("portal").classList.remove("show");document.getElementById("app").style.display="block";document.getElementById("personal").style.display="none";resetInactivityTimer()} function openPersonal(){document.getElementById("portal").classList.remove("show");document.getElementById("app").style.display="none";document.getElementById("personal").style.display="block"} function backToPortal(){document.getElementById("personal").style.display="none";document.getElementById("app").style.display="none";document.getElementById("portal").classList.add("show")}async function refresh(){let a=await window.salaryDb.from("employees").select("*").order("code");if(a.error)return alert(a.error.message);employees=a.data;let b=await window.salaryDb.from("salary_records").select("*");if(b.error)return alert(b.error.message);records=b.data;let c=await window.salaryDb.from("fdr_records").select("*").order("maturity_date",{ascending:true,nullsFirst:false});if(c.error)return alert(c.error.message);fdrRecords=c.data||[]}
+function init(){updateDash();renderEmployees();setupRecord();setupReport();renderFdr()}
+function showPage(id,b){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");if(id==="employees")renderEmployees();if(id==="records")setupRecord();if(id==="reports")setupReport();if(id==="fdr")renderFdr();if(id==="backup")renderBackupList();updateDash()}
 function stats(e){let r=records.filter(x=>x.employee_id===e.id);let payable=r.reduce((s,x)=>s+Number(x.payable_amount||0),0),total=r.reduce((s,x)=>s+Number(x.amount||0),0);return{months:r.filter(x=>Number(x.payable_amount||0)>0||Number(x.amount||0)>0).length,payable,total,pending:payable-total}}
 function updateDash(){let t=records.reduce((a,x)=>{a.m+=Number(x.payable_amount||0)>0||Number(x.amount||0)>0?1:0;a.p+=Number(x.payable_amount||0);a.s+=Number(x.amount||0);return a},{m:0,p:0,s:0});cntEmp.textContent=employees.length;cntRec.textContent=t.m;sumPayable.textContent="₹"+t.p.toLocaleString("en-IN");sumRec.textContent="₹"+t.s.toLocaleString("en-IN");sumPending.textContent="₹"+(t.p-t.s).toLocaleString("en-IN");period.textContent=periodMonths().length+" माह"}
 function renderEmployees(){let q=(search.value||"").toLowerCase();empBody.innerHTML=employees.filter(e=>(e.code+" "+e.name).toLowerCase().includes(q)).map(e=>{let s=stats(e);return `<tr><td>${e.code}</td><td>${e.name}</td><td>${s.months}</td><td>₹${s.payable.toLocaleString("en-IN")}</td><td>₹${s.total.toLocaleString("en-IN")}</td><td>₹${s.pending.toLocaleString("en-IN")}</td><td><span class="link" onclick="openEmp('${e.id}')">खोलें</span></td></tr>`}).join("")}
@@ -219,8 +258,74 @@ function downloadBulkTemplate(){
   const ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,"Employees");XLSX.writeFile(wb,"employee-bulk-upload-template.xlsx");
 }
+
+// ================= FDR MANAGEMENT =================
+function fdrEsc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
+function fdrDisplayStatus(x){
+  if(x.status==="closed")return "closed";
+  if(x.status==="matured")return "matured";
+  if(x.maturity_date){
+    const d=new Date(x.maturity_date+"T23:59:59");
+    if(!Number.isNaN(d.getTime()) && d<new Date())return "matured";
+  }
+  return "active";
+}
+function fdrDate(v){if(!v)return "—";const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"-"+m[2]+"-"+m[1]:String(v)}
+function renderFdr(){
+  const body=document.getElementById("fdrBody");if(!body)return;
+  const q=(document.getElementById("fdrSearch")?.value||"").trim().toLowerCase();
+  const filter=document.getElementById("fdrFilter")?.value||"";
+  const rows=(fdrRecords||[]).filter(x=>{
+    const st=fdrDisplayStatus(x), hay=[x.fdr_number,x.head_or_mad,x.bank_name,x.branch,x.account_customer_no,x.remarks].join(" ").toLowerCase();
+    return (!q||hay.includes(q))&&(!filter||st===filter);
+  }).sort((a,b)=>{
+    const rank={active:0,matured:1,closed:2},ra=rank[fdrDisplayStatus(a)],rb=rank[fdrDisplayStatus(b)];
+    if(ra!==rb)return ra-rb;
+    return String(a.maturity_date||"9999-12-31").localeCompare(String(b.maturity_date||"9999-12-31"));
+  });
+  if(!rows.length){body.innerHTML='<tr><td colspan="10" class="muted">अभी कोई FDR दर्ज नहीं है।</td></tr>';return}
+  body.innerHTML=rows.map(x=>{
+    const st=fdrDisplayStatus(x), label=st==="active"?"Active":st==="matured"?"Matured":"Closed";
+    return '<tr><td>'+fdrEsc(x.fdr_number)+'</td><td><b>'+fdrEsc(x.head_or_mad)+'</b></td><td>'+fdrEsc(x.bank_name)+(x.branch?' / '+fdrEsc(x.branch):"")+'</td><td>₹'+Number(x.fdr_amount||0).toLocaleString("en-IN")+'</td><td>'+Number(x.interest_rate||0).toLocaleString("en-IN")+'%</td><td>'+fdrDate(x.start_date)+'</td><td>'+fdrDate(x.maturity_date)+'</td><td>₹'+Number(x.maturity_amount||0).toLocaleString("en-IN")+'</td><td>'+label+'</td><td><span class="link" onclick="editFdr(\''+x.id+'\')">Edit</span> &nbsp; <span class="link" onclick="deleteFdr(\''+x.id+'\')">Delete</span></td></tr>';
+  }).join("");
+}
+function newFdr(){
+  document.getElementById("fdrFormBox").style.display="block";
+  document.getElementById("fdrFormBox").open=true;
+  ["fdrId","fdrNumber","fdrHead","fdrBank","fdrBranch","fdrAccount","fdrAmount","fdrRate","fdrStart","fdrMaturity","fdrMaturityAmount","fdrNominee","fdrRemarks"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("fdrInterestType").value="";
+  document.getElementById("fdrStatus").value="active";
+  document.getElementById("fdrMsg").textContent="";
+}
+function cancelFdr(){document.getElementById("fdrFormBox").style.display="none";document.getElementById("fdrFormBox").open=false}
+function editFdr(id){
+  const x=fdrRecords.find(r=>r.id===id);if(!x)return;
+  newFdr();
+  document.getElementById("fdrId").value=x.id;document.getElementById("fdrNumber").value=x.fdr_number||"";document.getElementById("fdrHead").value=x.head_or_mad||"";document.getElementById("fdrBank").value=x.bank_name||"";document.getElementById("fdrBranch").value=x.branch||"";document.getElementById("fdrAccount").value=x.account_customer_no||"";document.getElementById("fdrAmount").value=x.fdr_amount??"";document.getElementById("fdrRate").value=x.interest_rate??"";document.getElementById("fdrInterestType").value=x.interest_type||"";document.getElementById("fdrStart").value=x.start_date||"";document.getElementById("fdrMaturity").value=x.maturity_date||"";document.getElementById("fdrMaturityAmount").value=x.maturity_amount??"";document.getElementById("fdrNominee").value=x.nominee||"";document.getElementById("fdrStatus").value=x.status||"active";document.getElementById("fdrRemarks").value=x.remarks||"";
+}
+async function saveFdr(){
+  const u=(await window.salaryDb.auth.getUser()).data.user;if(!u){alert("Login session समाप्त हो गई है।");return}
+  const id=document.getElementById("fdrId").value;
+  const payload={user_id:u.id,fdr_number:document.getElementById("fdrNumber").value.trim(),head_or_mad:document.getElementById("fdrHead").value.trim(),bank_name:document.getElementById("fdrBank").value.trim(),branch:document.getElementById("fdrBranch").value.trim()||null,account_customer_no:document.getElementById("fdrAccount").value.trim()||null,fdr_amount:Number(document.getElementById("fdrAmount").value||0),interest_rate:document.getElementById("fdrRate").value===""?null:Number(document.getElementById("fdrRate").value),interest_type:document.getElementById("fdrInterestType").value||null,start_date:document.getElementById("fdrStart").value||null,maturity_date:document.getElementById("fdrMaturity").value||null,maturity_amount:document.getElementById("fdrMaturityAmount").value===""?null:Number(document.getElementById("fdrMaturityAmount").value),nominee:document.getElementById("fdrNominee").value.trim()||null,status:document.getElementById("fdrStatus").value,remarks:document.getElementById("fdrRemarks").value.trim()||null};
+  const msgEl=document.getElementById("fdrMsg");
+  if(!payload.fdr_number||!payload.head_or_mad||!payload.bank_name){msgEl.textContent="FDR No., हेड / मद और Bank Name भरना आवश्यक है।";msgEl.className="error";return}
+  msgEl.textContent="सेव हो रहा है...";msgEl.className="muted";
+  const res=id?await window.salaryDb.from("fdr_records").update(payload).eq("id",id):await window.salaryDb.from("fdr_records").insert(payload);
+  if(res.error){msgEl.textContent="Error: "+res.error.message;msgEl.className="error";return}
+  const q=await window.salaryDb.from("fdr_records").select("*").order("maturity_date",{ascending:true,nullsFirst:false});if(q.error){msgEl.textContent=q.error.message;return}
+  fdrRecords=q.data||[];msgEl.textContent="✅ FDR सुरक्षित हो गई।";msgEl.className="ok";renderFdr();setTimeout(cancelFdr,500);
+}
+async function deleteFdr(id){
+  const x=fdrRecords.find(r=>r.id===id);if(!x)return;
+  if(!confirm("क्या आप FDR "+x.fdr_number+" ("+x.head_or_mad+") को हटाना चाहते हैं?"))return;
+  const {error}=await window.salaryDb.from("fdr_records").delete().eq("id",id);
+  if(error){alert(error.message);return}
+  fdrRecords=fdrRecords.filter(r=>r.id!==id);renderFdr();
+}
+// ================= END FDR MANAGEMENT =================
+
 async function getBackupSnapshot(){
-  const tables=["employees","salary_records","loan_accounts","loan_installments","loan_payments"];
+  const tables=["employees","salary_records","fdr_records","loan_accounts","loan_installments","loan_payments"];
   const out={schema_version:1,exported_at:new Date().toISOString(),tables:{}};
   for(const table of tables){
     const {data,error}=await window.salaryDb.from(table).select("*");
@@ -268,7 +373,7 @@ async function exportExcelBackup(){
   try{
     const snap=await getBackupSnapshot(),wb=XLSX.utils.book_new();
     const add=(name,rows)=>{const ws=XLSX.utils.json_to_sheet(rows||[]);XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31));};
-    add("Employees",snap.tables.employees);add("Salary Records",snap.tables.salary_records);add("Loan Accounts",snap.tables.loan_accounts);add("Loan Installments",snap.tables.loan_installments);add("Loan Payments",snap.tables.loan_payments);
+    add("Employees",snap.tables.employees);add("Salary Records",snap.tables.salary_records);add("FDR Records",snap.tables.fdr_records);add("Loan Accounts",snap.tables.loan_accounts);add("Loan Installments",snap.tables.loan_installments);add("Loan Payments",snap.tables.loan_payments);
     XLSX.writeFile(wb,"harshi-computer-full-backup-"+new Date().toISOString().slice(0,10)+".xlsx");
     document.getElementById("backupMsg").textContent="✅ Excel Backup डाउनलोड हो गया। इसमें सभी मुख्य Salary + Loan tables शामिल हैं।";
   }catch(e){document.getElementById("backupMsg").textContent="Excel Backup error: "+(e?.message||e);}
