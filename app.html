@@ -144,14 +144,23 @@ window.loginNow=async function(){
     <div><h2>🏦 Account / मदवार Ledger</h2><p class="muted">Excel के अनुसार प्रत्येक Head / मद का Ledger और Balance</p></div>
     <div class="toolbar">
       <select id="accountFY" onchange="loadAccountSummary()"></select>
+      <button class="btn primary" onclick="showNewAccountHead()">＋ नया Head / मद</button>
       <label class="btn">📥 Excel Import<input id="accountExcelFile" type="file" accept=".xlsx,.xls" style="display:none" onchange="importAccountExcel()"></label>
     </div>
   </div>
   <div id="accountMsg" class="muted"></div>
+  <div id="newAccountHeadBox" class="notice" style="display:none;margin:12px 0">
+    <b>नया Head / मद जोड़ें</b>
+    <div class="toolbar" style="margin-top:8px">
+      <input id="newAccountHeadName" placeholder="Head / मद का नाम" style="min-width:280px">
+      <button class="btn primary" onclick="saveNewAccountHead()">Save</button>
+      <button class="btn" onclick="hideNewAccountHead()">Cancel</button>
+    </div>
+  </div>
   <div id="accountSummaryCards" class="grid" style="grid-template-columns:repeat(4,1fr);margin:12px 0"></div>
   <div class="card" style="overflow:auto">
     <h3>📊 Main Summary — Head / मदवार</h3>
-    <table><thead><tr><th>क्र.</th><th>Head / मद</th><th>Opening Balance</th><th>Total Receipt</th><th>Total Payment</th><th>Closing Balance</th><th>Ledger</th></tr></thead><tbody id="accountHeadBody"></tbody></table>
+    <table><thead><tr><th>क्र.</th><th>Head / मद</th><th>Opening Balance</th><th>Total Receipt</th><th>Total Payment</th><th>Closing Balance</th><th>Ledger</th><th>Head Action</th></tr></thead><tbody id="accountHeadBody"></tbody></table>
   </div>
 </div>
 </section>
@@ -242,7 +251,7 @@ function goBackOne(){
 function backToPortal(){document.getElementById("personal").style.display="none";document.getElementById("app").style.display="none";document.getElementById("portal").classList.add("show")}async function refresh(){let a=await window.salaryDb.from("employees").select("*").order("code");if(a.error)return alert(a.error.message);employees=a.data;let b=await window.salaryDb.from("salary_records").select("*");if(b.error)return alert(b.error.message);records=b.data;let c=await window.salaryDb.from("fdr_records").select("*").order("maturity_date",{ascending:true,nullsFirst:false});if(c.error)return alert(c.error.message);fdrRecords=c.data||[]}
 async function loadAccountSummary(){
   const fy=document.getElementById("accountFY")?.value; if(!fy)return;
-  const q=await window.salaryDb.from("account_heads").select("*").eq("financial_year",fy).order("head_name");
+  const q=await window.salaryDb.from("account_heads").select("*").eq("financial_year",fy);
   if(q.error){document.getElementById("accountMsg").textContent="Account load error: "+q.error.message;return}
   const rows=q.data||[];
   const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -261,13 +270,67 @@ async function loadAccountSummary(){
   const rank=new Map(displayOrder.map((name,i)=>[normalizeHead(name),i]));
   Object.entries(aliases).forEach(([name,i])=>rank.set(normalizeHead(name),i));
   rows.sort((a,b)=>{
-    const ar=rank.get(normalizeHead(a.head_name)), br=rank.get(normalizeHead(b.head_name));
+    const ao=Number.isFinite(Number(a.display_order))?Number(a.display_order):999999;
+    const bo=Number.isFinite(Number(b.display_order))?Number(b.display_order):999999;
+    if(ao!==bo)return ao-bo;
+    const ar=rank.get(normalizeHead(a.head_name)),br=rank.get(normalizeHead(b.head_name));
     if(ar!==undefined&&br!==undefined)return ar-br;
     if(ar!==undefined)return -1;
     if(br!==undefined)return 1;
     return normalizeHead(a.head_name).localeCompare(normalizeHead(b.head_name),"hi");
   });
-  document.getElementById("accountHeadBody").innerHTML=rows.map((x,i)=>'<tr><td><b>'+(i+1)+'</b></td><td><b>'+fdrEsc(x.head_name)+'</b></td><td>'+money(x.opening_balance)+'</td><td>'+money(x.total_receipts)+'</td><td>'+money(x.total_payments)+'</td><td><b>'+money(x.closing_balance)+'</b></td><td><a class="btn" href="account_ledger.html?head='+encodeURIComponent(x.head_name)+'&fy='+encodeURIComponent(fy)+'&v=20261008-0022">View Ledger</a></td></tr>').join("");
+  document.getElementById("accountHeadBody").innerHTML=rows.map((x,i)=>{
+    const headJson=JSON.stringify(x.head_name), fyJson=JSON.stringify(fy);
+    return '<tr><td><b>'+(i+1)+'</b></td><td><b>'+fdrEsc(x.head_name)+'</b></td><td>'+money(x.opening_balance)+'</td><td>'+money(x.total_receipts)+'</td><td>'+money(x.total_payments)+'</td><td><b>'+money(x.closing_balance)+'</b></td><td><a class="btn" href="account_ledger.html?head='+encodeURIComponent(x.head_name)+'&fy='+encodeURIComponent(fy)+'&v=20261008-0022">View Ledger</a></td><td><button class="btn" onclick='renameAccountHead(${headJson},${fyJson})'>Rename</button> <button class="btn" onclick='deleteAccountHead(${headJson},${fyJson})'>Delete</button></td></tr>';
+  }).join("");
+}
+function showNewAccountHead(){
+  const box=document.getElementById("newAccountHeadBox"),input=document.getElementById("newAccountHeadName");
+  if(!box||!input)return;
+  box.style.display="block"; input.value=""; input.focus();
+}
+function hideNewAccountHead(){
+  const box=document.getElementById("newAccountHeadBox"); if(box)box.style.display="none";
+}
+async function saveNewAccountHead(){
+  const fy=document.getElementById("accountFY")?.value;
+  const input=document.getElementById("newAccountHeadName");
+  const name=(input?.value||"").trim();
+  if(!fy||!name){alert("Head / मद का नाम भरें।");return}
+  const dup=await window.salaryDb.from("account_heads").select("head_name").eq("financial_year",fy).ilike("head_name",name).maybeSingle();
+  if(dup.error){alert("Head जाँच नहीं हो सकी: "+dup.error.message);return}
+  if(dup.data){alert("यह Head / मद पहले से मौजूद है।");return}
+  const s=await window.salaryDb.auth.getSession(),uid=s.data.session?.user?.id;
+  if(!uid){alert("Login session नहीं मिला।");return}
+  const mx=await window.salaryDb.from("account_heads").select("display_order").eq("financial_year",fy).not("display_order","is",null).order("display_order",{ascending:false}).limit(1);
+  if(mx.error){alert("Serial order जाँच नहीं हो सकी: "+mx.error.message);return}
+  const next=(Number(mx.data?.[0]?.display_order)||0)+1;
+  const q=await window.salaryDb.from("account_heads").insert({user_id:uid,financial_year:fy,head_name:name,display_order:next,opening_balance:0,total_receipts:0,total_payments:0,closing_balance:0});
+  if(q.error){alert("नया Head save नहीं हुआ: "+q.error.message);return}
+  hideNewAccountHead(); document.getElementById("accountMsg").textContent="नया Head / मद सफलतापूर्वक जोड़ दिया गया।";
+  await loadAccountSummary();
+}
+async function renameAccountHead(oldName,fy){
+  const next=(prompt("नया Head / मद नाम दर्ज करें:",oldName)||"").trim();
+  if(!next||next===oldName)return;
+  const dup=await window.salaryDb.from("account_heads").select("head_name").eq("financial_year",fy).ilike("head_name",next).maybeSingle();
+  if(dup.error){alert("Head जाँच नहीं हो सकी: "+dup.error.message);return}
+  if(dup.data){alert("यह नाम पहले से मौजूद है।");return}
+  const tx=await window.salaryDb.from("account_transactions").update({head_name:next}).eq("financial_year",fy).eq("head_name",oldName);
+  if(tx.error){alert("Ledger Entries rename नहीं हो सकीं: "+tx.error.message);return}
+  const h=await window.salaryDb.from("account_heads").update({head_name:next}).eq("financial_year",fy).eq("head_name",oldName);
+  if(h.error){alert("Head rename नहीं हुआ: "+h.error.message);return}
+  document.getElementById("accountMsg").textContent="Head का नाम बदल दिया गया है। Ledger में भी नया नाम अपने आप दिखेगा.";
+  await loadAccountSummary();
+}
+async function deleteAccountHead(name,fy){
+  if(!confirm("क्या आप '"+name+"' Head / मद को हटाना चाहते हैं? इस Head की सभी Ledger Entries भी हट जाएंगी।"))return;
+  const tx=await window.salaryDb.from("account_transactions").delete().eq("financial_year",fy).eq("head_name",name);
+  if(tx.error){alert("Ledger Entries delete नहीं हुईं: "+tx.error.message);return}
+  const h=await window.salaryDb.from("account_heads").delete().eq("financial_year",fy).eq("head_name",name);
+  if(h.error){alert("Head delete नहीं हुआ: "+h.error.message);return}
+  document.getElementById("accountMsg").textContent="Head / मद और उसकी Ledger Entries हटा दी गई हैं.";
+  await loadAccountSummary();
 }
 async function setupAccount(){
   const s=document.getElementById("accountFY"); if(!s)return;
