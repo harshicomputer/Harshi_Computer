@@ -1,48 +1,242 @@
 <!doctype html>
-<html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Office Account Ledger — Harshi Computer</title>
+<html lang="hi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Account / मदवार Ledger — Harshi Computer</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*{box-sizing:border-box}body{margin:0;font-family:Arial,"Noto Sans Devanagari",sans-serif;background:#f3f6fa;color:#172033}
-.top{background:#123b73;color:#fff;padding:15px 22px;display:flex;justify-content:space-between;align-items:center;gap:12px}
-.top h1{margin:0;font-size:20px}.wrap{max-width:1400px;margin:20px auto;padding:0 16px}
-.card{background:#fff;border:1px solid #dce4ef;border-radius:12px;padding:18px;margin-bottom:14px}
-.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.btn{border:1px solid #d7dfeb;background:#fff;padding:9px 13px;border-radius:8px;cursor:pointer}.primary{background:#1857a8;color:#fff;border-color:#1857a8}
-.notice{padding:10px;border-radius:8px;background:#fff7ed;border:1px solid #fed7aa;color:#8a4b08}
-.ok{color:#16803c}.error{color:#b42318}.muted{color:#667085;font-size:13px}
-table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:10px;border-bottom:1px solid #edf1f6;text-align:left;font-size:14px;white-space:nowrap}th{background:#f7f9fc}
-input{padding:10px;border:1px solid #dce4ef;border-radius:8px;background:#fff;width:100%}
-.formgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.formgrid label{font-weight:bold}.formgrid input{margin-top:5px}
-.scroll{overflow:auto}@media(max-width:700px){.formgrid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}.top h1{font-size:17px}}
-</style></head><body>
-<header class="top"><h1>🏦 Harshi Computer — Office Account Ledger</h1><div class="toolbar">
-<button class="btn" onclick="goBack()">← Summary</button><button class="btn" onclick="signOut()">Logout</button></div></header>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,"Noto Sans Devanagari",sans-serif;background:#f3f6fa;color:#172033}
+.top{background:#123b73;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;position:sticky;top:0;z-index:20}
+.top h1{margin:0;font-size:19px}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid #d7dfeb;background:#fff;color:#172033;padding:9px 13px;border-radius:8px;cursor:pointer;text-decoration:none}
+.primary{background:#1857a8;color:#fff;border-color:#1857a8}
+.wrap{max-width:1500px;margin:16px auto;padding:0 14px}
+.layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px;align-items:start}
+.card{background:#fff;border:1px solid #dce4ef;border-radius:12px;padding:16px}
+.left{position:sticky;top:78px;max-height:calc(100vh - 94px);overflow:auto}
+.left h2{font-size:17px;margin:0 0 4px}
+.muted{color:#667085;font-size:13px}
+.fy{margin:12px 0;padding:9px;background:#f7f9fc;border-radius:8px}
+.head-list{margin-top:10px}
+.head-row{display:flex;justify-content:space-between;gap:8px;padding:10px 7px;border-bottom:1px solid #edf1f6;cursor:pointer;border-radius:7px}
+.head-row:hover{background:#f7f9fc}
+.head-row.active{background:#eaf2ff;font-weight:bold}
+.head-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.balance{font-weight:bold;white-space:nowrap}
+.right h2{margin:0}
+.notice{padding:10px;border-radius:8px;background:#fff7ed;border:1px solid #fed7aa;color:#8a4b08;margin:12px 0}
+.ok{color:#16803c}.error{color:#b42318}
+.form{background:#f8fafc;border:1px solid #e5eaf1;border-radius:10px;padding:13px;margin:12px 0}
+.formgrid{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px}
+label{font-weight:bold;font-size:13px}
+input{width:100%;margin-top:5px;padding:9px;border:1px solid #dce4ef;border-radius:7px;background:#fff}
+.scroll{overflow:auto;max-height:calc(100vh - 260px)}
+table{width:100%;border-collapse:collapse;background:#fff}
+th,td{padding:9px 10px;border-bottom:1px solid #edf1f6;text-align:left;font-size:13px;white-space:nowrap}
+th{background:#f7f9fc;position:sticky;top:0;z-index:2}
+.right-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.summary-line{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;font-size:14px}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.left{position:relative;top:auto;max-height:320px}.formgrid{grid-template-columns:repeat(2,1fr)}.scroll{max-height:none}}
+@media(max-width:600px){.formgrid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<header class="top">
+<h1>🏦 Harshi Computer — Account / मदवार Ledger</h1>
+<div class="toolbar">
+<a class="btn" href="app.html?open=officeAccount">← Summary</a>
+<button class="btn" onclick="signOut()">Logout</button>
+</div>
+</header>
+
 <main class="wrap">
-<div class="card"><h2 id="title">Ledger</h2><p id="sub" class="muted"></p><div id="top" class="notice"></div></div>
-<div id="form" class="card" style="display:none;background:#f8fafc"><h3 id="formTitle">Ledger Entry</h3>
-<div class="formgrid"><input id="id" type="hidden">
+<div class="layout">
+
+<aside class="card left">
+<h2>📊 सभी Head / मद</h2>
+<div class="muted">Left side पर सभी Head का Closing Balance हमेशा दिखाई देगा।</div>
+<div class="fy"><b>वित्तीय वर्ष:</b> <span id="fyLabel"></span></div>
+<div id="headList" class="head-list">लोड हो रहा है...</div>
+</aside>
+
+<section class="card right">
+<div class="right-head">
+<div>
+<h2 id="title">📒 Ledger</h2>
+<div id="sub" class="muted"></div>
+</div>
+<button class="btn primary" onclick="newEntry()">+ नई Entry</button>
+</div>
+
+<div id="top" class="notice"></div>
+
+<div id="form" class="form" style="display:none">
+<h3 id="formTitle" style="margin:0 0 10px">नई Ledger Entry</h3>
+<input id="id" type="hidden">
+<div class="formgrid">
 <label>Date<input id="date" type="date"></label>
 <label>Voucher<input id="voucher" placeholder="Voucher No."></label>
-<label>विवरण<input id="description" placeholder="आय / व्यय से संबंधित विवरण"></label>
+<label style="grid-column:span 1">विवरण<input id="description" placeholder="आय / व्यय से संबंधित विवरण"></label>
 <label>आय / Receipt ₹<input id="receipt" type="number" min="0" step="0.01"></label>
-<label>व्यय / Payment ₹<input id="payment" type="number" min="0" step="0.01"></label></div>
-<div class="toolbar" style="margin-top:12px"><button class="btn primary" onclick="saveEntry()">💾 Save Entry</button><button class="btn" onclick="cancelForm()">Cancel</button></div><p id="msg" class="muted"></p></div>
-<div class="card"><div class="toolbar" style="justify-content:space-between"><h3>📒 Detailed Ledger</h3><button class="btn primary" onclick="newEntry()">+ नई Entry</button></div>
-<div id="table" class="scroll"></div></div>
+<label>व्यय / Payment ₹<input id="payment" type="number" min="0" step="0.01"></label>
+</div>
+<div class="toolbar" style="margin-top:10px">
+<button class="btn primary" onclick="saveEntry()">💾 Save Entry</button>
+<button class="btn" onclick="cancelForm()">Cancel</button>
+<span id="msg" class="muted"></span>
+</div>
+</div>
+
+<div class="summary-line">
+<span><b>Opening:</b> <span id="opening">₹0.00</span></span>
+<span><b>Receipt:</b> <span id="receipts">₹0.00</span></span>
+<span><b>Payment:</b> <span id="payments">₹0.00</span></span>
+<span><b>Closing:</b> <span id="closing">₹0.00</span></span>
+</div>
+
+<div class="card" style="padding:0;margin-top:12px">
+<div class="scroll" id="table"></div>
+</div>
+</section>
+
+</div>
 </main>
+
 <script>
-const URL="https://khwzoolgjzghdixlclwu.supabase.co",KEY="sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P";const db=window.supabase.createClient(URL,KEY);
-const p=new URLSearchParams(location.search),head=p.get("head")||"",fy=p.get("fy")||"2025-26";let rows=[],timer;
+const URL="https://khwzoolgjzghdixlclwu.supabase.co";
+const KEY="sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P";
+const db=window.supabase.createClient(URL,KEY);
+const params=new URLSearchParams(location.search);
+const fy=params.get("fy")||"2025-26";
+let head=params.get("head")||"";
+let rows=[],heads=[],timer;
+
 const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
-const date=v=>{if(!v)return"—";const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"-"+m[2]+"-"+m[1]:v};
 const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
-async function init(){const s=await db.auth.getSession();if(!s.data.session){location.href="app.html";return}document.getElementById("title").textContent="📒 Ledger — "+head;document.getElementById("sub").textContent="वित्तीय वर्ष: "+fy+" | इस पूरे पेज से Ledger को आगे बढ़ाया और Edit किया जा सकता है।";await load()}
-async function load(){const q=await db.from("account_transactions").select("*").eq("financial_year",fy).eq("head_name",head).order("transaction_date",{ascending:true,nullsFirst:true}).order("source_row");if(q.error){document.getElementById("table").innerHTML="<p class=error>"+esc(q.error.message)+"</p>";return}rows=q.data||[];const h=await db.from("account_heads").select("*").eq("financial_year",fy).eq("head_name",head).maybeSingle();const opening=Number(h.data?.opening_balance||0);let bal=opening;document.getElementById("top").innerHTML="Opening Balance: <b>"+money(opening)+"</b> &nbsp; | &nbsp; Entries: <b>"+rows.length+"</b>";let html="<table><thead><tr><th>Date</th><th>Voucher</th><th>विवरण</th><th>Receipt / आय</th><th>Payment / व्यय</th><th>Balance</th><th>Action</th></tr></thead><tbody>";rows.forEach(x=>{bal+=Number(x.receipt_amount||0)-Number(x.payment_amount||0);html+="<tr><td>"+date(x.transaction_date)+"</td><td>"+esc(x.voucher_no||"—")+"</td><td>"+esc(x.description||"")+"</td><td>"+money(x.receipt_amount)+"</td><td>"+money(x.payment_amount)+"</td><td><b>"+money(bal)+"</b></td><td><button class=btn onclick=\"editEntry('"+x.id+"')\">Edit</button> <button class=btn onclick=\"deleteEntry('"+x.id+"')\">Delete</button></td></tr>"});html+="</tbody></table><p><b>Closing Balance: "+money(bal)+"</b></p>";if(!rows.length)html+="<div class=notice>इस Head में अभी कोई detailed Entry नहीं है। + नई Entry से शुरुआत करें।</div>";document.getElementById("table").innerHTML=html}
-function newEntry(){document.getElementById("form").style.display="block";document.getElementById("formTitle").textContent="➕ नई Ledger Entry";document.getElementById("id").value="";document.getElementById("date").value=new Date().toISOString().slice(0,10);document.getElementById("voucher").value="";document.getElementById("description").value="";document.getElementById("receipt").value="";document.getElementById("payment").value="";document.getElementById("msg").textContent=""}
-async function editEntry(id){const x=rows.find(r=>r.id===id);if(!x)return;newEntry();document.getElementById("formTitle").textContent="✏️ Ledger Entry Edit करें";document.getElementById("id").value=x.id;document.getElementById("date").value=x.transaction_date||"";document.getElementById("voucher").value=x.voucher_no||"";document.getElementById("description").value=x.description||"";document.getElementById("receipt").value=x.receipt_amount??"";document.getElementById("payment").value=x.payment_amount??"";window.scrollTo({top:0,behavior:"smooth"})}
+const fmtDate=v=>{if(!v)return"—";const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"-"+m[2]+"-"+m[1]:v};
+
+async function init(){
+ const s=await db.auth.getSession();
+ if(!s.data.session){location.href="app.html";return}
+ document.getElementById("fyLabel").textContent=fy;
+ await loadHeads();
+ if(!head && heads.length) head=heads[0].head_name;
+ await loadLedger();
+ resetTimer();
+}
+
+async function loadHeads(){
+ const q=await db.from("account_heads").select("head_name,opening_balance,total_receipts,total_payments,closing_balance").eq("financial_year",fy).order("head_name",{ascending:true});
+ if(q.error){document.getElementById("headList").innerHTML='<p class="error">'+esc(q.error.message)+'</p>';return}
+ heads=q.data||[];
+ document.getElementById("headList").innerHTML=heads.map(h=>
+  '<div class="head-row '+(h.head_name===head?'active':'')+'" onclick="selectHead('+JSON.stringify(h.head_name)+')">'+
+  '<span class="head-name">'+esc(h.head_name)+'</span><span class="balance">'+money(h.closing_balance)+'</span></div>'
+ ).join("");
+}
+
+async function selectHead(h){
+ head=h;
+ const u=new URL(location.href);u.searchParams.set("head",head);u.searchParams.set("fy",fy);
+ history.replaceState({}, "", u);
+ document.querySelectorAll(".head-row").forEach(x=>x.classList.remove("active"));
+ await loadLedger();
+}
+
+async function loadLedger(){
+ document.getElementById("title").textContent="📒 Ledger — "+head;
+ document.getElementById("sub").textContent="वित्तीय वर्ष: "+fy+" | Right side में इस Head का काम / Entry / Edit होगा।";
+ const hq=await db.from("account_heads").select("*").eq("financial_year",fy).eq("head_name",head).maybeSingle();
+ if(hq.error){document.getElementById("top").innerHTML='<span class="error">'+esc(hq.error.message)+'</span>';return}
+ const h=hq.data||{};
+ const q=await db.from("account_transactions").select("*").eq("financial_year",fy).eq("head_name",head).order("transaction_date",{ascending:true,nullsFirst:true}).order("source_row",{ascending:true,nullsFirst:true});
+ if(q.error){document.getElementById("table").innerHTML='<p class="error" style="padding:15px">'+esc(q.error.message)+'</p>';return}
+ rows=q.data||[];
+ const opening=Number(h.opening_balance||0);
+ let bal=opening,receipt=0,payment=0;
+ let html='<table><thead><tr><th>Date</th><th>Voucher</th><th>विवरण</th><th>आय / Receipt</th><th>व्यय / Payment</th><th>Balance</th><th>Action</th></tr></thead><tbody>';
+ for(const x of rows){
+  const r=Number(x.receipt_amount||0),p=Number(x.payment_amount||0);receipt+=r;payment+=p;bal+=r-p;
+  html+='<tr><td>'+fmtDate(x.transaction_date)+'</td><td>'+esc(x.voucher_no||"—")+'</td><td style="white-space:normal;min-width:260px">'+esc(x.description||"")+'</td><td>'+money(r)+'</td><td>'+money(p)+'</td><td><b>'+money(bal)+'</b></td><td><button class="btn" onclick="editEntry('+JSON.stringify(x.id)+')">Edit</button> <button class="btn" onclick="deleteEntry('+JSON.stringify(x.id)+')">Delete</button></td></tr>';
+ }
+ html+='</tbody></table>';
+ if(!rows.length)html+='<div class="notice" style="margin:12px">इस Head में अभी detailed Entry नहीं है। <b>+ नई Entry</b> से शुरुआत करें।</div>';
+ document.getElementById("table").innerHTML=html;
+ document.getElementById("opening").textContent=money(opening);
+ document.getElementById("receipts").textContent=money(receipt);
+ document.getElementById("payments").textContent=money(payment);
+ document.getElementById("closing").textContent=money(bal);
+ document.getElementById("top").innerHTML="Selected Head: <b>"+esc(head)+"</b> &nbsp; | &nbsp; Entries: <b>"+rows.length+"</b>";
+ await loadHeads();
+}
+
+function newEntry(){
+ document.getElementById("form").style.display="block";
+ document.getElementById("formTitle").textContent="➕ नई Ledger Entry";
+ document.getElementById("id").value="";
+ document.getElementById("date").value=new Date().toISOString().slice(0,10);
+ document.getElementById("voucher").value="";
+ document.getElementById("description").value="";
+ document.getElementById("receipt").value="";
+ document.getElementById("payment").value="";
+ document.getElementById("msg").textContent="";
+ document.getElementById("date").focus();
+}
+
+function editEntry(id){
+ const x=rows.find(r=>r.id===id);if(!x)return;
+ newEntry();
+ document.getElementById("formTitle").textContent="✏️ Ledger Entry Edit करें";
+ document.getElementById("id").value=x.id;
+ document.getElementById("date").value=x.transaction_date||"";
+ document.getElementById("voucher").value=x.voucher_no||"";
+ document.getElementById("description").value=x.description||"";
+ document.getElementById("receipt").value=x.receipt_amount??"";
+ document.getElementById("payment").value=x.payment_amount??"";
+}
+
 function cancelForm(){document.getElementById("form").style.display="none"}
-async function saveEntry(){const u=(await db.auth.getUser()).data.user;if(!u){location.href="app.html";return}const id=document.getElementById("id").value,datev=document.getElementById("date").value,v=document.getElementById("voucher").value.trim()||null,d=document.getElementById("description").value.trim()||null,r=Number(document.getElementById("receipt").value||0),pay=Number(document.getElementById("payment").value||0),msg=document.getElementById("msg");if(!datev){msg.textContent="Date आवश्यक है।";msg.className="error";return}if(r<0||pay<0||r===0&&pay===0||r>0&&pay>0){msg.textContent="एक Entry में केवल आय या व्यय की राशि रखें।";msg.className="error";return}msg.textContent="सेव हो रहा है...";let payload={financial_year:fy,head_name:head,transaction_date:datev,voucher_no:v,description:d,receipt_amount:r,payment_amount:pay};let q=id?await db.from("account_transactions").update(payload).eq("id",id):await db.from("account_transactions").insert({...payload,user_id:u.id,source_sheet:"Manual Ledger",source_row:null});if(q.error){msg.textContent=q.error.message;msg.className="error";return}await updateSummary();msg.textContent="✅ Entry सुरक्षित हो गई।";msg.className="ok";cancelForm();await load()}
-async function updateSummary(){const h=await db.from("account_heads").select("opening_balance").eq("financial_year",fy).eq("head_name",head).maybeSingle();const opening=Number(h.data?.opening_balance||0);const q=await db.from("account_transactions").select("receipt_amount,payment_amount").eq("financial_year",fy).eq("head_name",head);const tr=(q.data||[]).reduce((s,x)=>s+Number(x.receipt_amount||0),0),tp=(q.data||[]).reduce((s,x)=>s+Number(x.payment_amount||0),0);await db.from("account_heads").update({total_receipts:tr,total_payments:tp,closing_balance:opening+tr-tp}).eq("financial_year",fy).eq("head_name",head)}
-async function deleteEntry(id){if(!confirm("क्या यह Ledger Entry delete करनी है?"))return;const q=await db.from("account_transactions").delete().eq("id",id);if(q.error){alert(q.error.message);return}await updateSummary();await load()}
-function goBack(){location.href="app.html?open=officeAccount"}async function signOut(){await db.auth.signOut();location.href="app.html"}timer=setTimeout(()=>{db.auth.signOut();location.href="index.html"},600000);init();
-</script></body></html>
+
+async function saveEntry(){
+ const u=(await db.auth.getUser()).data.user;if(!u){location.href="app.html";return}
+ const id=document.getElementById("id").value;
+ const datev=document.getElementById("date").value;
+ const v=document.getElementById("voucher").value.trim()||null;
+ const d=document.getElementById("description").value.trim()||null;
+ const r=Number(document.getElementById("receipt").value||0);
+ const pay=Number(document.getElementById("payment").value||0);
+ const msg=document.getElementById("msg");
+ if(!datev){msg.textContent="Date आवश्यक है।";msg.className="error";return}
+ if(r<0||pay<0||((r===0)&&(pay===0))||(r>0&&pay>0)){msg.textContent="एक Entry में केवल आय या व्यय की राशि रखें।";msg.className="error";return}
+ msg.textContent="सेव हो रहा है...";msg.className="muted";
+ const payload={financial_year:fy,head_name:head,transaction_date:datev,voucher_no:v,description:d,receipt_amount:r,payment_amount:pay};
+ const q=id?await db.from("account_transactions").update(payload).eq("id",id):await db.from("account_transactions").insert({...payload,user_id:u.id,source_sheet:"Manual Ledger",source_row:null});
+ if(q.error){msg.textContent=q.error.message;msg.className="error";return}
+ await updateSummary();cancelForm();await loadLedger();
+}
+
+async function updateSummary(){
+ const h=await db.from("account_heads").select("opening_balance").eq("financial_year",fy).eq("head_name",head).maybeSingle();
+ const opening=Number(h.data?.opening_balance||0);
+ const q=await db.from("account_transactions").select("receipt_amount,payment_amount").eq("financial_year",fy).eq("head_name",head);
+ const data=q.data||[];
+ const tr=data.reduce((s,x)=>s+Number(x.receipt_amount||0),0);
+ const tp=data.reduce((s,x)=>s+Number(x.payment_amount||0),0);
+ await db.from("account_heads").update({total_receipts:tr,total_payments:tp,closing_balance:opening+tr-tp}).eq("financial_year",fy).eq("head_name",head);
+}
+
+async function deleteEntry(id){
+ if(!confirm("क्या यह Ledger Entry delete करनी है?"))return;
+ const q=await db.from("account_transactions").delete().eq("id",id);
+ if(q.error){alert(q.error.message);return}
+ await updateSummary();await loadLedger();
+}
+
+async function signOut(){await db.auth.signOut();location.href="app.html"}
+function resetTimer(){clearTimeout(timer);timer=setTimeout(async()=>{await db.auth.signOut();location.href="index.html"},600000)}
+["click","keydown","mousemove","scroll","touchstart"].forEach(e=>document.addEventListener(e,resetTimer,{passive:true}));
+init();
+</script>
+</body></html>
