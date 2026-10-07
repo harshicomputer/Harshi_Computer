@@ -38,6 +38,14 @@ th,td{padding:9px 10px;border-bottom:1px solid #edf1f6;text-align:left;font-size
 th{background:#f7f9fc;position:sticky;top:0;z-index:2}
 .right-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .summary-line{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;font-size:14px}
+.ledger-input{width:100%;min-width:90px;margin:0;padding:7px 8px;border:1px solid transparent;border-radius:6px;background:transparent;font:inherit}
+.ledger-input:hover,.ledger-input:focus{border-color:#b8c7dc;background:#fff;outline:none}
+.desc-input{min-width:220px}
+.amount-input{min-width:115px;text-align:right}
+.new-row td{background:#f8fbff}
+.new-row.active-new td{background:#eef6ff}
+.new-hint{color:#667085;font-size:12px;font-style:italic}
+@media(max-width:900px){.desc-input{min-width:180px}}
 @media(max-width:900px){.layout{grid-template-columns:1fr}.left{position:relative;top:auto;max-height:320px}.formgrid{grid-template-columns:repeat(2,1fr)}.scroll{max-height:none}}
 @media(max-width:600px){.formgrid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
 </style>
@@ -67,27 +75,9 @@ th{background:#f7f9fc;position:sticky;top:0;z-index:2}
 <h2 id="title">📒 Ledger</h2>
 <div id="sub" class="muted"></div>
 </div>
-<button class="btn primary" onclick="newEntry()">+ नई Entry</button>
 </div>
 
 <div id="top" class="notice"></div>
-
-<div id="form" class="form" style="display:none">
-<h3 id="formTitle" style="margin:0 0 10px">नई Ledger Entry</h3>
-<input id="id" type="hidden">
-<div class="formgrid">
-<label>Date<input id="date" type="date"></label>
-<label>Voucher<input id="voucher" placeholder="Voucher No."></label>
-<label style="grid-column:span 1">विवरण<input id="description" placeholder="आय / व्यय से संबंधित विवरण"></label>
-<label>आय / Receipt ₹<input id="receipt" type="number" min="0" step="0.01"></label>
-<label>व्यय / Payment ₹<input id="payment" type="number" min="0" step="0.01"></label>
-</div>
-<div class="toolbar" style="margin-top:10px">
-<button class="btn primary" onclick="saveEntry()">💾 Save Entry</button>
-<button class="btn" onclick="cancelForm()">Cancel</button>
-<span id="msg" class="muted"></span>
-</div>
-</div>
 
 <div class="summary-line">
 <span><b>Opening:</b> <span id="opening">₹0.00</span></span>
@@ -147,74 +137,103 @@ async function selectHead(h){
 
 async function loadLedger(){
  document.getElementById("title").textContent="📒 Ledger — "+head;
- document.getElementById("sub").textContent="वित्तीय वर्ष: "+fy+" | Right side में इस Head का काम / Entry / Edit होगा।";
+ document.getElementById("sub").textContent="वित्तीय वर्ष: "+fy+" | नीचे हर Entry सीधे इसी लाइन में Edit करें।";
  const hq=await db.from("account_heads").select("*").eq("financial_year",fy).eq("head_name",head).maybeSingle();
  if(hq.error){document.getElementById("top").innerHTML='<span class="error">'+esc(hq.error.message)+'</span>';return}
  const h=hq.data||{};
  const q=await db.from("account_transactions").select("*").eq("financial_year",fy).eq("head_name",head).order("transaction_date",{ascending:true,nullsFirst:true}).order("source_row",{ascending:true,nullsFirst:true});
  if(q.error){document.getElementById("table").innerHTML='<p class="error" style="padding:15px">'+esc(q.error.message)+'</p>';return}
  rows=q.data||[];
+ renderLedgerTable(h);
+ await loadHeads();
+}
+
+function renderLedgerTable(h){
  const opening=Number(h.opening_balance||0);
  let bal=opening,receipt=0,payment=0;
- let html='<table><thead><tr><th>Date</th><th>Voucher</th><th>विवरण</th><th>आय / Receipt</th><th>व्यय / Payment</th><th>Balance</th><th>Action</th></tr></thead><tbody>';
+ let html='<table><thead><tr><th>Date</th><th>Voucher</th><th>विवरण</th><th>आय / Receipt</th><th>व्यय / Payment</th><th>Balance</th></tr></thead><tbody>';
  for(const x of rows){
   const r=Number(x.receipt_amount||0),p=Number(x.payment_amount||0);receipt+=r;payment+=p;bal+=r-p;
-  html+='<tr><td>'+fmtDate(x.transaction_date)+'</td><td>'+esc(x.voucher_no||"—")+'</td><td style="white-space:normal;min-width:260px">'+esc(x.description||"")+'</td><td>'+money(r)+'</td><td>'+money(p)+'</td><td><b>'+money(bal)+'</b></td><td><button class="btn" onclick="editEntry('+JSON.stringify(x.id)+')">Edit</button> <button class="btn" onclick="deleteEntry('+JSON.stringify(x.id)+')">Delete</button></td></tr>';
+  html+='<tr data-row-id="'+esc(x.id)+'">'+
+    '<td><input class="ledger-input" type="date" value="'+esc(x.transaction_date||"")+'" data-id="'+esc(x.id)+'" data-field="transaction_date" onchange="queueRowSave(this)"></td>'+
+    '<td><input class="ledger-input" value="'+esc(x.voucher_no||"")+'" placeholder="Voucher" data-id="'+esc(x.id)+'" data-field="voucher_no" onchange="queueRowSave(this)"></td>'+
+    '<td><input class="ledger-input desc-input" value="'+esc(x.description||"")+'" placeholder="विवरण" data-id="'+esc(x.id)+'" data-field="description" onchange="queueRowSave(this)"></td>'+
+    '<td><input class="ledger-input amount-input" type="number" min="0" step="0.01" value="'+(x.receipt_amount??"")+'" data-id="'+esc(x.id)+'" data-field="receipt_amount" onchange="queueRowSave(this)"></td>'+
+    '<td><input class="ledger-input amount-input" type="number" min="0" step="0.01" value="'+(x.payment_amount??"")+'" data-id="'+esc(x.id)+'" data-field="payment_amount" onchange="queueRowSave(this)"></td>'+
+    '<td><b>'+money(bal)+'</b></td>'+
+    '</tr>';
  }
+ html+='<tr class="new-row">'+
+   '<td><input class="ledger-input" type="date" id="new_date" onfocus="activateNewRow()" onchange="maybeSaveNewRow()"></td>'+
+   '<td><input class="ledger-input" id="new_voucher" placeholder="Voucher" onfocus="activateNewRow()" onchange="maybeSaveNewRow()"></td>'+
+   '<td><input class="ledger-input desc-input" id="new_description" placeholder="विवरण" onfocus="activateNewRow()" onchange="maybeSaveNewRow()"></td>'+
+   '<td><input class="ledger-input amount-input" type="number" min="0" step="0.01" id="new_receipt" placeholder="0" onfocus="activateNewRow()" onchange="maybeSaveNewRow()"></td>'+
+   '<td><input class="ledger-input amount-input" type="number" min="0" step="0.01" id="new_payment" placeholder="0" onfocus="activateNewRow()" onchange="maybeSaveNewRow()"></td>'+
+   '<td class="new-hint">नई Entry</td>'+
+   '</tr>';
  html+='</tbody></table>';
- if(!rows.length)html+='<div class="notice" style="margin:12px">इस Head में अभी detailed Entry नहीं है। <b>+ नई Entry</b> से शुरुआत करें।</div>';
  document.getElementById("table").innerHTML=html;
  document.getElementById("opening").textContent=money(opening);
  document.getElementById("receipts").textContent=money(receipt);
  document.getElementById("payments").textContent=money(payment);
  document.getElementById("closing").textContent=money(bal);
- document.getElementById("top").innerHTML="Selected Head: <b>"+esc(head)+"</b> &nbsp; | &nbsp; Entries: <b>"+rows.length+"</b>";
- await loadHeads();
+ document.getElementById("top").innerHTML="Selected Head: <b>"+esc(head)+"</b> &nbsp; | &nbsp; Entries: <b>"+rows.length+"</b> &nbsp; | &nbsp; <span class='ok'>हर लाइन सीधे Edit हो सकती है</span>";
 }
 
-function newEntry(){
- document.getElementById("form").style.display="block";
- document.getElementById("formTitle").textContent="➕ नई Ledger Entry";
- document.getElementById("id").value="";
- document.getElementById("date").value=new Date().toISOString().slice(0,10);
- document.getElementById("voucher").value="";
- document.getElementById("description").value="";
- document.getElementById("receipt").value="";
- document.getElementById("payment").value="";
- document.getElementById("msg").textContent="";
- document.getElementById("date").focus();
+let rowSaveTimers={};
+function queueRowSave(el){
+ const id=el.dataset.id;
+ clearTimeout(rowSaveTimers[id]);
+ rowSaveTimers[id]=setTimeout(()=>saveExistingRow(id),350);
 }
 
-function editEntry(id){
- const x=rows.find(r=>r.id===id);if(!x)return;
- newEntry();
- document.getElementById("formTitle").textContent="✏️ Ledger Entry Edit करें";
- document.getElementById("id").value=x.id;
- document.getElementById("date").value=x.transaction_date||"";
- document.getElementById("voucher").value=x.voucher_no||"";
- document.getElementById("description").value=x.description||"";
- document.getElementById("receipt").value=x.receipt_amount??"";
- document.getElementById("payment").value=x.payment_amount??"";
+async function saveExistingRow(id){
+ const tr=document.querySelector('tr[data-row-id="'+CSS.escape(String(id))+'"]');
+ if(!tr)return;
+ const val=field=>tr.querySelector('[data-field="'+field+'"]')?.value??"";
+ const datev=val("transaction_date");
+ const r=Number(val("receipt_amount")||0), p=Number(val("payment_amount")||0);
+ if(!datev || ((r===0)&&(p===0)) || (r>0&&p>0))return;
+ const payload={
+  transaction_date:datev,
+  voucher_no:val("voucher_no").trim()||null,
+  description:val("description").trim()||null,
+  receipt_amount:r,
+  payment_amount:p
+ };
+ const q=await db.from("account_transactions").update(payload).eq("id",id);
+ if(q.error){alert(q.error.message);return}
+ await updateSummary();
+ await loadLedger();
 }
 
-function cancelForm(){document.getElementById("form").style.display="none"}
+let newRowActivated=false,newRowSaving=false;
+function activateNewRow(){
+ if(!newRowActivated){
+  newRowActivated=true;
+  document.querySelector(".new-row")?.classList.add("active-new");
+ }
+}
 
-async function saveEntry(){
+async function maybeSaveNewRow(){
+ if(newRowSaving)return;
+ const datev=document.getElementById("new_date")?.value||"";
+ const v=document.getElementById("new_voucher")?.value.trim()||null;
+ const d=document.getElementById("new_description")?.value.trim()||null;
+ const r=Number(document.getElementById("new_receipt")?.value||0);
+ const p=Number(document.getElementById("new_payment")?.value||0);
+ if(!datev || ((r===0)&&(p===0)) || (r>0&&p>0))return;
  const u=(await db.auth.getUser()).data.user;if(!u){location.href="app.html";return}
- const id=document.getElementById("id").value;
- const datev=document.getElementById("date").value;
- const v=document.getElementById("voucher").value.trim()||null;
- const d=document.getElementById("description").value.trim()||null;
- const r=Number(document.getElementById("receipt").value||0);
- const pay=Number(document.getElementById("payment").value||0);
- const msg=document.getElementById("msg");
- if(!datev){msg.textContent="Date आवश्यक है।";msg.className="error";return}
- if(r<0||pay<0||((r===0)&&(pay===0))||(r>0&&pay>0)){msg.textContent="एक Entry में केवल आय या व्यय की राशि रखें।";msg.className="error";return}
- msg.textContent="सेव हो रहा है...";msg.className="muted";
- const payload={financial_year:fy,head_name:head,transaction_date:datev,voucher_no:v,description:d,receipt_amount:r,payment_amount:pay};
- const q=id?await db.from("account_transactions").update(payload).eq("id",id):await db.from("account_transactions").insert({...payload,user_id:u.id,source_sheet:"Manual Ledger",source_row:null});
- if(q.error){msg.textContent=q.error.message;msg.className="error";return}
- await updateSummary();cancelForm();await loadLedger();
+ newRowSaving=true;
+ const q=await db.from("account_transactions").insert({
+  financial_year:fy,head_name:head,transaction_date:datev,voucher_no:v,description:d,
+  receipt_amount:r,payment_amount:p,user_id:u.id,source_sheet:"Manual Ledger",source_row:null
+ });
+ if(q.error){newRowSaving=false;alert(q.error.message);return}
+ await updateSummary();
+ newRowActivated=false;newRowSaving=false;
+ await loadLedger();
+ setTimeout(()=>document.getElementById("new_date")?.focus(),50);
 }
 
 async function updateSummary(){
