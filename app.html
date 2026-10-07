@@ -572,8 +572,6 @@ async function saveFdr(){
       msgEl.className="error"; return;
     }
   }
-  const msgEl=document.getElementById("fdrMsg");
-  if(!payload.fdr_number||!payload.head_or_mad||!payload.bank_name){msgEl.textContent="FDR No., हेड / मद और Bank Name भरना आवश्यक है।";msgEl.className="error";return}
   msgEl.textContent="सेव हो रहा है...";msgEl.className="muted";
   const selectedFile=document.getElementById("fdrDocument")?.files?.[0]||null;
   if(selectedFile){
