@@ -203,7 +203,9 @@ async function saveExistingRow(id){
  const val=field=>tr.querySelector('[data-field="'+field+'"]')?.value??"";
  const datev=val("transaction_date");
  const r=Number(val("receipt_amount")||0), p=Number(val("payment_amount")||0);
- if(!datev || ((r===0)&&(p===0)) || (r>0&&p>0))return;
+ // Existing row: both Receipt and Payment may be cleared to zero.
+ // Only prevent both sides from being positive at the same time.
+ if(!datev || (r>0&&p>0))return;
  const payload={
   transaction_date:datev,
   voucher_no:val("voucher_no").trim()||null,
