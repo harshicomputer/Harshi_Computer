@@ -277,8 +277,8 @@ async function openAccountLedger(head,fy){
   const opening=Number(h.data?.opening_balance||0), money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
   let bal=opening;
   const rows=q.data||[];
-  let html='<p class="notice">Opening Balance: <b>'+money(opening)+'</b></p><table><thead><tr><th>Date</th><th>Voucher</th><th>Receipt</th><th>Payment</th><th>Balance</th><th>विवरण</th></tr></thead><tbody>';
-  rows.forEach(x=>{bal+=Number(x.receipt_amount||0)-Number(x.payment_amount||0);html+='<tr><td>'+fdrDate(x.transaction_date)+'</td><td>'+fdrEsc(x.voucher_no||"—")+'</td><td>'+money(x.receipt_amount)+'</td><td>'+money(x.payment_amount)+'</td><td><b>'+money(bal)+'</b></td><td>'+fdrEsc(x.description||"")+'</td></tr>'});
+  let html='<p class="notice">Opening Balance: <b>'+money(opening)+'</b></p><table><thead><tr><th>Date</th><th>Voucher</th><th>विवरण</th><th>Receipt</th><th>Payment</th><th>Balance</th></tr></thead><tbody>';
+  rows.forEach(x=>{bal+=Number(x.receipt_amount||0)-Number(x.payment_amount||0);html+='<tr><td>'+fdrDate(x.transaction_date)+'</td><td>'+fdrEsc(x.voucher_no||"—")+'</td><td>'+fdrEsc(x.description||"")+'</td><td>'+money(x.receipt_amount)+'</td><td>'+money(x.payment_amount)+'</td><td><b>'+money(bal)+'</b></td></tr>'});
   html+='</tbody></table><p style="margin-top:10px"><b>Closing Balance: '+money(bal)+'</b></p>';
   if(!rows.length) html+='<p class="notice">इस Head का detailed Ledger अभी Excel Import से load करना बाकी है। Main Summary का balance source Excel के अनुसार सुरक्षित है।</p>';
   document.getElementById("accountLedgerTable").innerHTML=html;
