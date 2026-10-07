@@ -52,14 +52,14 @@ window.loginNow=async function(){
 <div id="personalDocumentsSection" class="placeholder-section"><div class="card"><h2>📁 Documents</h2><p class="muted">Personal Documents यहाँ सुरक्षित रखे जाएंगे।</p><div class="notice">यह विकल्प अभी से सिस्टम में जोड़ दिया गया है। अगला चरण document upload, category, search और secure scan copy management का होगा।</div></div></div>
 </div><div id="app" class="app"><header class="top"><h1>Harshi Computer — Office / Salary Record</h1><div><span id="who"></span> <button class="btn" onclick="signOut()">Logout</button></div></header>
 <nav id="officeModuleNav" style="display:none">
-<button onclick="openOffice()">🏢 Office Menu</button>
-<span id="salarySubNav" style="display:none">
-<button class="active" onclick="showPage('dash',this)">डैशबोर्ड</button>
-<button onclick="showPage('employees',this)">कर्मचारी</button>
-<button onclick="showPage('records',this)">मासिक रिकॉर्ड</button>
-<button onclick="showPage('reports',this)">रिपोर्ट</button>
-<button onclick="showPage('backup',this)">Backup / Export</button>
-</span>
+  <button onclick="openOffice()">🏢 Office</button>
+  <span id="salarySubNav" style="display:none">
+    <button class="active" onclick="openOfficeModule('dash')">डैशबोर्ड</button>
+    <button onclick="openOfficeModule('employees')">कर्मचारी</button>
+    <button onclick="openOfficeModule('records')">मासिक रिकॉर्ड</button>
+    <button onclick="openOfficeModule('reports')">रिपोर्ट</button>
+    <button onclick="openOfficeModule('backup')">Backup / Export</button>
+  </span>
 </nav>
 <main>
 <section id="officeMenu" class="page active">
@@ -166,7 +166,8 @@ function openOfficeModule(id){
   document.querySelectorAll("#app .page").forEach(x=>x.classList.remove("active"));
   document.getElementById(id).classList.add("active");
   document.getElementById("officeModuleNav").style.display="flex";
-  document.getElementById("salarySubNav").style.display=id==="dash"||id==="employees"||id==="records"||id==="reports"||id==="backup"?"inline":"none";
+  const isSalary=["dash","employees","records","reports","backup"].includes(id);
+  document.getElementById("salarySubNav").style.display=isSalary?"inline-flex":"none";
   resetInactivityTimer();
   if(id==="dash")updateDash();
   if(id==="employees")renderEmployees();
