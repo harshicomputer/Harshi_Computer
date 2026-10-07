@@ -9,9 +9,8 @@ window.loginNow=async function(){
   const email=(document.getElementById("email").value||"").trim().toLowerCase();
   const password=document.getElementById("password").value||"";
   if(!email||!password){msgEl.textContent="Email और Password दोनों भरें।";msgEl.className="error";return}
-  loginStarting=true;
-  try{await ensureSupabase()}catch(e){msgEl.textContent="Database connection तैयार नहीं हुई। कृपया कुछ सेकंड बाद फिर प्रयास करें।";msgEl.className="error";return}
-  btn.disabled=true;btn.textContent="Login हो रहा है...";msgEl.textContent="Login जाँच रहा है...";msgEl.className="ok";
+  if(!window.salaryDb){msgEl.textContent="Database connection तैयार नहीं हुई। कृपया Ctrl+F5 करके फिर प्रयास करें।";msgEl.className="error";return}
+  loginStarting=true;btn.disabled=true;btn.textContent="Login हो रहा है...";msgEl.textContent="Login जाँच रहा है...";msgEl.className="ok";
   try{
     const {data,error}=await window.salaryDb.auth.signInWithPassword({email,password});
     if(error)throw error;
@@ -179,29 +178,7 @@ window.loginNow=async function(){
 </main></div>
 <script>
 const SUPABASE_URL="https://khwzoolgjzghdixlclwu.supabase.co",SUPABASE_KEY="sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P";
-async function ensureSupabase(){
-  if(window.salaryDb)return window.salaryDb;
-  if(!window.supabase?.createClient){
-    try{
-      await new Promise((resolve,reject)=>{
-        const s=document.createElement("script");
-        s.src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js";
-        s.onload=resolve;s.onerror=()=>reject(new Error("unpkg load failed"));
-        document.head.appendChild(s);
-      });
-    }catch(e){}
-  }
-  if(!window.supabase?.createClient){
-    try{
-      const mod=await import("https://esm.sh/@supabase/supabase-js@2");
-      if(mod?.createClient)window.supabase=mod;
-    }catch(e){}
-  }
-  if(!window.supabase?.createClient)throw new Error("Supabase library load नहीं हुई।");
-  window.salaryDb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-  return window.salaryDb;
-}
-ensureSupabase().catch(()=>{});
+window.salaryDb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const M=["जनवरी","फरवरी","मार्च","अप्रैल","मई","जून","जुलाई","अगस्त","सितंबर","अक्टूबर","नवंबर","दिसंबर"];let employees=[],records=[],fdrRecords=[],current=0;
 const periodMonths=()=>{let n=new Date(),a=[];for(let y=2019;y<=n.getFullYear();y++){let to=y===n.getFullYear()?n.getMonth()+1:12;for(let m=1;m<=to;m++)a.push({y,m,key:y+"-"+String(m).padStart(2,"0")})}return a};
 const years=()=>[...new Set(periodMonths().map(x=>x.y))];
