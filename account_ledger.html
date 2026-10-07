@@ -49,6 +49,7 @@ th{background:#f7f9fc;position:sticky;top:0;z-index:2}
 @media(max-width:900px){.layout{grid-template-columns:1fr}.left{position:relative;top:auto;max-height:320px}.formgrid{grid-template-columns:repeat(2,1fr)}.scroll{max-height:none}}
 @media(max-width:600px){.formgrid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <header class="top">
@@ -95,20 +96,9 @@ th{background:#f7f9fc;position:sticky;top:0;z-index:2}
 </main>
 
 <script>
-const URL="https://khwzoolgjzghdixlclwu.supabase.co";
-const KEY="sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P";
+const SUPABASE_URL="https://khwzoolgjzghdixlclwu.supabase.co";
+const SUPABASE_KEY="sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P";
 let db;
-async function ensureSupabase(){
- if(window.supabase?.createClient)return;
- await new Promise((resolve,reject)=>{
-   const s=document.createElement("script");
-   s.src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-   s.onload=resolve;
-   s.onerror=()=>reject(new Error("Supabase library load नहीं हो सकी।"));
-   document.head.appendChild(s);
- });
- if(!window.supabase?.createClient)throw new Error("Supabase library उपलब्ध नहीं है।");
-}
 
 const params=new URLSearchParams(location.search);
 const fy=params.get("fy")||"2025-26";
@@ -121,8 +111,8 @@ const fmtDate=v=>{if(!v)return"—";const m=String(v).match(/^(\d{4})-(\d{2})-(\
 
 async function init(){
  try{
-  await ensureSupabase();
-  db=window.supabase.createClient(URL,KEY);
+  if(!window.supabase?.createClient)throw new Error("Supabase library load नहीं हुई।");
+  db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
  }catch(e){
   document.getElementById("headList").innerHTML='<p class="error">'+esc(e.message)+'</p>';
   document.getElementById("table").innerHTML='<p class="error" style="padding:15px">Ledger service load नहीं हो सकी। कृपया page refresh करें।</p>';
