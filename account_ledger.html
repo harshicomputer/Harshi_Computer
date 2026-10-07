@@ -130,7 +130,7 @@ async function init(){
 }
 
 async function loadHeads(){
- const q=await db.from("account_heads").select("head_name,opening_balance,total_receipts,total_payments,closing_balance").eq("financial_year",fy).order("head_name",{ascending:true});
+ const q=await db.from("account_heads").select("head_name,opening_balance,total_receipts,total_payments,closing_balance,display_order").eq("financial_year",fy).order("head_name",{ascending:true});
  if(q.error){document.getElementById("headList").innerHTML='<p class="error">'+esc(q.error.message)+'</p>';return}
  heads=q.data||[];
  const displayOrder=["राज्य वित्त","मूलभूत","सड़क मरम्मत","समेकित अनुदान","मुद्रांक","15 वाँ वित्त","चुंगी क्षतिपूर्ति","विशेष निधि","विधायक निधि","निर्वाचन","कायाकल्प","adho sarachna","Antesthi","आंगनवाड़ी","CM vivah yojna","Nikaynyidhi","ब्याज प्राप्त","नर्मदा नदी","New fire","Fish polur","Behna yojna"];
@@ -139,6 +139,9 @@ async function loadHeads(){
  const rank=new Map(displayOrder.map((name,i)=>[normalizeHead(name),i]));
  Object.entries(aliases).forEach(([name,i])=>rank.set(normalizeHead(name),i));
  heads.sort((a,b)=>{
+   const ao=Number.isFinite(Number(a.display_order))?Number(a.display_order):999999;
+   const bo=Number.isFinite(Number(b.display_order))?Number(b.display_order):999999;
+   if(ao!==bo)return ao-bo;
    const ar=rank.get(normalizeHead(a.head_name)), br=rank.get(normalizeHead(b.head_name));
    if(ar!==undefined&&br!==undefined)return ar-br;
    if(ar!==undefined)return -1;
