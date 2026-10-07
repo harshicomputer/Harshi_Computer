@@ -41,7 +41,7 @@ window.loginNow=async function(){
     <div class="portal-card"><div class="portal-icon">👤</div><h3>Personal / व्यक्तिगत</h3><p>Loan, Credit Card और Documents के व्यक्तिगत रिकॉर्ड।</p><button class="btn" onclick="openPersonal()">Personal खोलें</button></div>
   </div>
 </div><div id="personal" class="app">
-<header class="top"><h1>Harshi Computer — Personal / व्यक्तिगत</h1><div><button class="btn" onclick="backToPortal()">मुख्य चयन</button> <button class="btn" onclick="signOut()">Logout</button></div></header>
+<header class="top"><h1>Harshi Computer — Personal / व्यक्तिगत</h1><div><button class="btn" onclick="goBackOne()">← Back</button> <button class="btn" onclick="backToPortal()">मुख्य चयन</button> <button class="btn" onclick="signOut()">Logout</button></div></header>
 <nav id="personalNav">
 <button class="active" onclick="openPersonalSection('loan',this)">💳 Loan</button>
 <button onclick="openPersonalSection('creditCard',this)">💳 Credit Card</button>
@@ -182,6 +182,23 @@ function openOfficeModule(id){
   document.querySelectorAll("#personalNav button").forEach(x=>x.classList.remove("active"));
   if(b)b.classList.add("active");
   resetInactivityTimer();
+}
+function goBackOne(){
+  const personal=document.getElementById("personal");
+  if(personal && personal.style.display!=="none"){
+    const loan=document.getElementById("personalLoanSection"), cc=document.getElementById("personalCreditCardSection"), docs=document.getElementById("personalDocumentsSection");
+    const active=document.querySelector("#personalNav button.active");
+    if(docs?.classList.contains("show")){openPersonalSection("creditCard",document.querySelector("#personalNav button:nth-child(2)"));return}
+    if(cc?.classList.contains("show")){openPersonalSection("loan",document.querySelector("#personalNav button:nth-child(1)"));return}
+    backToPortal();return;
+  }
+  const app=document.getElementById("app");
+  if(app && app.style.display!=="none"){
+    const active=document.querySelector("#app .page.active");
+    if(active && active.id!=="officeMenu"){openOffice();return}
+    backToPortal();return;
+  }
+  backToPortal();
 }
 function backToPortal(){document.getElementById("personal").style.display="none";document.getElementById("app").style.display="none";document.getElementById("portal").classList.add("show")}async function refresh(){let a=await window.salaryDb.from("employees").select("*").order("code");if(a.error)return alert(a.error.message);employees=a.data;let b=await window.salaryDb.from("salary_records").select("*");if(b.error)return alert(b.error.message);records=b.data;let c=await window.salaryDb.from("fdr_records").select("*").order("maturity_date",{ascending:true,nullsFirst:false});if(c.error)return alert(c.error.message);fdrRecords=c.data||[]}
 function init(){updateDash();renderEmployees();setupRecord();setupReport();renderFdr()}
