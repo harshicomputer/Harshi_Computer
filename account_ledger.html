@@ -42,6 +42,8 @@ th{background:#f7f9fc;position:sticky;top:0;z-index:2}
 .ledger-input:hover,.ledger-input:focus{border-color:#b8c7dc;background:#fff;outline:none}
 .desc-input{min-width:220px}
 .amount-input{min-width:115px;text-align:right}
+.opening-input{width:125px;margin:0 0 0 4px;padding:4px 7px;border:1px solid #b8c7dc;border-radius:6px;background:#fff;font-weight:bold;text-align:right}
+.opening-input:focus{outline:2px solid #c7dcf8}
 .new-row td{background:#f8fbff}
 .new-row.active-new td{background:#eef6ff}
 .new-hint{color:#667085;font-size:12px;font-style:italic}
@@ -81,7 +83,7 @@ th{background:#f7f9fc;position:sticky;top:0;z-index:2}
 <div id="top" class="notice"></div>
 
 <div class="summary-line">
-<span><b>Opening:</b> <span id="opening">₹0.00</span></span>
+<span><b>Opening:</b> <input id="openingInput" class="opening-input" type="number" min="0" step="0.01" value="0" onchange="saveOpeningBalance()" title="Opening Balance यहाँ सीधे बदलें"></span>
 <span><b>Receipt:</b> <span id="receipts">₹0.00</span></span>
 <span><b>Payment:</b> <span id="payments">₹0.00</span></span>
 <span><b>Closing:</b> <span id="closing">₹0.00</span></span>
@@ -183,7 +185,7 @@ function renderLedgerTable(h){
    '</tr>';
  html+='</tbody></table>';
  document.getElementById("table").innerHTML=html;
- document.getElementById("opening").textContent=money(opening);
+ document.getElementById("openingInput").value=opening.toFixed(2);
  document.getElementById("receipts").textContent=money(receipt);
  document.getElementById("payments").textContent=money(payment);
  document.getElementById("closing").textContent=money(bal);
@@ -255,6 +257,16 @@ async function maybeSaveNewRow(el){
  if(q.error){newRowSaving=false;alert(q.error.message);return}
  await updateSummary();
  newRowSaving=false;
+ await loadLedger();
+}
+async function saveOpeningBalance(){
+ const input=document.getElementById("openingInput");
+ if(!input)return;
+ const opening=Math.max(0,Number(input.value||0));
+ input.value=opening.toFixed(2);
+ const q=await db.from("account_heads").update({opening_balance:opening}).eq("financial_year",fy).eq("head_name",head);
+ if(q.error){alert("Opening Balance save नहीं हुआ: "+q.error.message);return}
+ await updateSummary();
  await loadLedger();
 }
 async function updateSummary(){
