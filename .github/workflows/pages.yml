@@ -27,6 +27,11 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Prepare local browser SDKs
+        run: |
+          curl -fsSL https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js -o supabase.min.js
+          test -s supabase.min.js
+
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
