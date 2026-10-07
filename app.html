@@ -140,7 +140,27 @@ window.loginNow=async function(){
   <div class="scroll"><table><thead><tr><th>FDR No.</th><th>हेड / मद</th><th>Bank / Branch</th><th>FDR Amount</th><th>Interest</th><th>Start Date</th><th>Maturity Date</th><th>Maturity Amount</th><th>Status</th><th></th></tr></thead><tbody id="fdrBody"></tbody></table></div>
 </div>
 </section>
-<section id="officeAccount" class="page"><div class="card"><h2>🏦 Account / खाता</h2><p class="muted">Office के बैंक/खाता रिकॉर्ड के लिए यह भाग तैयार रखा गया है।</p><div class="notice">यह विकल्प अभी से मुख्य संरचना में जोड़ दिया गया है। अगला चरण Account details, transactions, balance, statement और document/scan copy management होगा।</div></div></section>
+<section id="officeAccount" class="page">
+<div class="card">
+  <div class="toolbar" style="justify-content:space-between">
+    <div><h2>🏦 Account / मदवार Ledger</h2><p class="muted">Excel के अनुसार प्रत्येक Head / मद का Ledger और Balance</p></div>
+    <div class="toolbar">
+      <select id="accountFY" onchange="loadAccountSummary()"></select>
+      <label class="btn">📥 Excel Import<input id="accountExcelFile" type="file" accept=".xlsx,.xls" style="display:none" onchange="importAccountExcel()"></label>
+    </div>
+  </div>
+  <div id="accountMsg" class="muted"></div>
+  <div id="accountSummaryCards" class="grid" style="grid-template-columns:repeat(4,1fr);margin:12px 0"></div>
+  <div class="card" style="overflow:auto">
+    <h3>📊 Main Summary — Head / मदवार</h3>
+    <table><thead><tr><th>Head / मद</th><th>Opening Balance</th><th>Total Receipt</th><th>Total Payment</th><th>Closing Balance</th><th>Ledger</th></tr></thead><tbody id="accountHeadBody"></tbody></table>
+  </div>
+</div>
+<div id="accountLedgerBox" class="card" style="display:none;margin-top:14px">
+  <div class="toolbar" style="justify-content:space-between"><h3 id="accountLedgerTitle">Ledger</h3><button class="btn" onclick="closeAccountLedger()">← Summary</button></div>
+  <div id="accountLedgerTable" style="overflow:auto"></div>
+</div>
+</section>
 <section id="reports" class="page"><div class="card"><h2>कर्मचारी रिपोर्ट</h2><div class="toolbar"><select id="reportEmp" onchange="renderReport()"></select><button class="btn primary" onclick="window.print()">Print / PDF</button></div><div id="reportBox"></div></div></section>
 <section id="backup" class="page"><div class="card"><h2>🔐 Data Security + Backup</h2>
 <p class="notice"><b>सुरक्षित व्यवस्था:</b> आपका डेटा Cloud Database में है। Backup में कर्मचारी, वेतन रिकॉर्ड, FDR और Personal Loan के रिकॉर्ड शामिल किए जाते हैं। Backup केवल Login किए हुए Admin के लिए उपलब्ध है।</p>
@@ -214,8 +234,76 @@ function goBackOne(){
   backToPortal();
 }
 function backToPortal(){document.getElementById("personal").style.display="none";document.getElementById("app").style.display="none";document.getElementById("portal").classList.add("show")}async function refresh(){let a=await window.salaryDb.from("employees").select("*").order("code");if(a.error)return alert(a.error.message);employees=a.data;let b=await window.salaryDb.from("salary_records").select("*");if(b.error)return alert(b.error.message);records=b.data;let c=await window.salaryDb.from("fdr_records").select("*").order("maturity_date",{ascending:true,nullsFirst:false});if(c.error)return alert(c.error.message);fdrRecords=c.data||[]}
-function init(){updateDash();renderEmployees();setupRecord();setupReport();setupFdrFinancialYears();renderFdr()}
-function showPage(id,b){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");if(id==="employees")renderEmployees();if(id==="records")setupRecord();if(id==="reports")setupReport();if(id==="fdr")renderFdr();if(id==="backup")renderBackupList();updateDash()}
+async function loadAccountSummary(){
+  const fy=document.getElementById("accountFY")?.value; if(!fy)return;
+  const q=await window.salaryDb.from("account_heads").select("*").eq("financial_year",fy).order("head_name");
+  if(q.error){document.getElementById("accountMsg").textContent="Account load error: "+q.error.message;return}
+  const rows=q.data||[];
+  const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const totalReceipt=rows.reduce((s,x)=>s+Number(x.total_receipts||0),0);
+  const totalPayment=rows.reduce((s,x)=>s+Number(x.total_payments||0),0);
+  const totalBalance=rows.reduce((s,x)=>s+Number(x.closing_balance||0),0);
+  const opening=rows.reduce((s,x)=>s+Number(x.opening_balance||0),0);
+  document.getElementById("accountSummaryCards").innerHTML=
+    '<div class="card"><div class="muted">कुल Head / मद</div><div class="stat">'+rows.length+'</div></div>'+
+    '<div class="card"><div class="muted">कुल Opening</div><div class="stat">'+money(opening)+'</div></div>'+
+    '<div class="card"><div class="muted">कुल Receipt</div><div class="stat">'+money(totalReceipt)+'</div></div>'+
+    '<div class="card"><div class="muted">कुल Closing Balance</div><div class="stat">'+money(totalBalance)+'</div><div class="muted">Payment: '+money(totalPayment)+'</div></div>';
+  document.getElementById("accountHeadBody").innerHTML=rows.map(x=>'<tr><td><b>'+fdrEsc(x.head_name)+'</b></td><td>'+money(x.opening_balance)+'</td><td>'+money(x.total_receipts)+'</td><td>'+money(x.total_payments)+'</td><td><b>'+money(x.closing_balance)+'</b></td><td><button class="btn" onclick="openAccountLedger(\''+x.head_name.replace(/'/g,"\\'")+'\',\''+fy+'\')">View Ledger</button></td></tr>').join("");
+}
+async function setupAccount(){
+  const s=document.getElementById("accountFY"); if(!s)return;
+  const q=await window.salaryDb.from("account_heads").select("financial_year").order("financial_year",{ascending:false});
+  if(q.error)return;
+  const years=[...new Set((q.data||[]).map(x=>x.financial_year))];
+  if(!years.length){s.innerHTML='<option>2025-26</option>';return}
+  s.innerHTML=years.map(y=>'<option value="'+y+'">'+y+'</option>').join("");
+  s.value=years[0]; loadAccountSummary();
+}
+async function openAccountLedger(head,fy){
+  document.getElementById("accountLedgerBox").style.display="block";
+  document.getElementById("accountLedgerTitle").textContent="📒 Ledger — "+head+" ("+fy+")";
+  const q=await window.salaryDb.from("account_transactions").select("*").eq("financial_year",fy).eq("head_name",head).order("transaction_date",{ascending:true,nullsFirst:true}).order("source_row");
+  if(q.error){document.getElementById("accountLedgerTable").innerHTML='<p class="error">'+q.error.message+'</p>';return}
+  const h=await window.salaryDb.from("account_heads").select("*").eq("financial_year",fy).eq("head_name",head).maybeSingle();
+  const opening=Number(h.data?.opening_balance||0), money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  let bal=opening;
+  const rows=q.data||[];
+  let html='<p class="notice">Opening Balance: <b>'+money(opening)+'</b></p><table><thead><tr><th>Date</th><th>Voucher</th><th>Receipt</th><th>Payment</th><th>Balance</th><th>विवरण</th></tr></thead><tbody>';
+  rows.forEach(x=>{bal+=Number(x.receipt_amount||0)-Number(x.payment_amount||0);html+='<tr><td>'+fdrDate(x.transaction_date)+'</td><td>'+fdrEsc(x.voucher_no||"—")+'</td><td>'+money(x.receipt_amount)+'</td><td>'+money(x.payment_amount)+'</td><td><b>'+money(bal)+'</b></td><td>'+fdrEsc(x.description||"")+'</td></tr>'});
+  html+='</tbody></table><p style="margin-top:10px"><b>Closing Balance: '+money(bal)+'</b></p>';
+  if(!rows.length) html+='<p class="notice">इस Head का detailed Ledger अभी Excel Import से load करना बाकी है। Main Summary का balance source Excel के अनुसार सुरक्षित है।</p>';
+  document.getElementById("accountLedgerTable").innerHTML=html;
+}
+function closeAccountLedger(){document.getElementById("accountLedgerBox").style.display="none";}
+async function importAccountExcel(){
+  const file=document.getElementById("accountExcelFile")?.files?.[0]; if(!file)return;
+  const msg=document.getElementById("accountMsg"); msg.textContent="Excel पढ़ी जा रही है...";
+  const buf=await file.arrayBuffer(), book=XLSX.read(buf,{type:"array",cellDates:true});
+  const fy="2025-26"; let heads=0, tx=0;
+  for(const ws of book.SheetNames){
+    if(ws==="मदवार बकाया ") continue;
+    const rows=XLSX.utils.sheet_to_json(book.Sheets[ws],{header:1,raw:true,defval:null});
+    const opening=Number(rows[2]?.[2]||0);
+    let receipt=0,payment=0;
+    for(let i=3;i<rows.length;i++){
+      const r=rows[i]||[]; const rec=Number(r[2]||0), pay=Number(r[5]||0);
+      const cFormula=(r[2]===undefined);
+      if(!rec&&!pay)continue;
+      receipt+=rec;payment+=pay;
+      let d=r[1]||r[4]||null;
+      if(typeof d==="string"&&/^\d{2}-\d{2}-\d{4}$/.test(d)){const p=d.split("-");d=p[2]+"-"+p[1]+"-"+p[0]}
+      const ins=await window.salaryDb.from("account_transactions").insert({financial_year:fy,head_name:ws,transaction_date:d,voucher_no:r[3]?String(r[3]):null,receipt_amount:rec,payment_amount:pay,description:r[6]?String(r[6]):null,source_sheet:ws,source_row:i+1});
+      if(!ins.error)tx++;
+    }
+    const up=await window.salaryDb.from("account_heads").upsert({financial_year:fy,head_name:ws,opening_balance:opening,total_receipts:receipt,total_payments:payment,closing_balance:opening+receipt-payment,user_id:(window.currentSession?.user?.id)}, {onConflict:"user_id,financial_year,head_name"});
+    if(!up.error)heads++;
+  }
+  msg.textContent="✅ Excel Import पूरा: "+heads+" Head और "+tx+" Ledger entries process हुईं।";
+  await setupAccount();
+}
+function init(){updateDash();renderEmployees();setupRecord();setupReport();setupFdrFinancialYears();renderFdr();setupAccount()}
+function showPage(id,b){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");if(id==="employees")renderEmployees();if(id==="records")setupRecord();if(id==="reports")setupReport();if(id==="fdr")renderFdr();if(id==="officeAccount")setupAccount();if(id==="backup")renderBackupList();updateDash()}
 function stats(e){let r=records.filter(x=>x.employee_id===e.id);let payable=r.reduce((s,x)=>s+Number(x.payable_amount||0),0),total=r.reduce((s,x)=>s+Number(x.amount||0),0);return{months:r.filter(x=>Number(x.payable_amount||0)>0||Number(x.amount||0)>0).length,payable,total,pending:payable-total}}
 function updateDash(){let t=records.reduce((a,x)=>{a.m+=Number(x.payable_amount||0)>0||Number(x.amount||0)>0?1:0;a.p+=Number(x.payable_amount||0);a.s+=Number(x.amount||0);return a},{m:0,p:0,s:0});cntEmp.textContent=employees.length;cntRec.textContent=t.m;sumPayable.textContent="₹"+t.p.toLocaleString("en-IN");sumRec.textContent="₹"+t.s.toLocaleString("en-IN");sumPending.textContent="₹"+(t.p-t.s).toLocaleString("en-IN");period.textContent=periodMonths().length+" माह"}
 function renderEmployees(){let q=(search.value||"").toLowerCase();empBody.innerHTML=employees.filter(e=>(e.code+" "+e.name).toLowerCase().includes(q)).map(e=>{let s=stats(e);return `<tr><td>${e.code}</td><td>${e.name}</td><td>${s.months}</td><td>₹${s.payable.toLocaleString("en-IN")}</td><td>₹${s.total.toLocaleString("en-IN")}</td><td>₹${s.pending.toLocaleString("en-IN")}</td><td><span class="link" onclick="openEmp('${e.id}')">खोलें</span></td></tr>`}).join("")}
