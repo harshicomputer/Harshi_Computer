@@ -154,8 +154,33 @@ window.loginNow=async function(){
     <table><thead><tr><th>Head / मद</th><th>Opening Balance</th><th>Total Receipt</th><th>Total Payment</th><th>Closing Balance</th><th>Ledger</th></tr></thead><tbody id="accountHeadBody"></tbody></table>
   </div>
 </div>
-<div id="accountLedgerBox" class="card" style="display:none;margin-top:14px">
-  <div class="toolbar" style="justify-content:space-between"><h3 id="accountLedgerTitle">Ledger</h3><button class="btn" onclick="closeAccountLedger()">← Summary</button></div>
+</section>
+<section id="accountLedgerPage" class="page">
+<div class="card">
+  <div class="toolbar" style="justify-content:space-between">
+    <div><h2 id="accountLedgerTitle">📒 Ledger</h2><p id="accountLedgerSub" class="muted"></p></div>
+    <div class="toolbar">
+      <button class="btn" onclick="closeAccountLedger()">← Summary</button>
+      <button class="btn primary" onclick="newAccountTransaction()">+ नई Entry</button>
+    </div>
+  </div>
+  <div id="accountLedgerTop" class="notice" style="margin-bottom:12px"></div>
+  <div id="accountTransactionForm" class="card" style="display:none;background:#f8fafc;margin-bottom:14px">
+    <h3 id="accountTransactionFormTitle">✏️ Ledger Entry</h3>
+    <div class="grid" style="grid-template-columns:repeat(3,1fr)">
+      <input id="accountTxId" type="hidden">
+      <label>Date<input id="accountTxDate" type="date"></label>
+      <label>Voucher<input id="accountTxVoucher" placeholder="Voucher No."></label>
+      <label>विवरण<input id="accountTxDescription" placeholder="आय / व्यय का विवरण"></label>
+      <label>आय / Receipt ₹<input id="accountTxReceipt" type="number" min="0" step="0.01" placeholder="0"></label>
+      <label>व्यय / Payment ₹<input id="accountTxPayment" type="number" min="0" step="0.01" placeholder="0"></label>
+    </div>
+    <div class="toolbar" style="margin-top:12px">
+      <button class="btn primary" onclick="saveAccountTransaction()">💾 Save Entry</button>
+      <button class="btn" onclick="cancelAccountTransaction()">Cancel</button>
+    </div>
+    <p id="accountTxMsg" class="muted"></p>
+  </div>
   <div id="accountLedgerTable" style="overflow:auto"></div>
 </div>
 </section>
@@ -269,21 +294,116 @@ async function setupAccount(){
   s.value=years[0]; loadAccountSummary();
 }
 async function openAccountLedger(head,fy){
-  document.getElementById("accountLedgerBox").style.display="block";
-  document.getElementById("accountLedgerTitle").textContent="📒 Ledger — "+head+" ("+fy+")";
+  currentAccountHead=head; currentAccountFY=fy;
+  document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));
+  document.getElementById("accountLedgerPage").classList.add("active");
+  document.querySelectorAll("#officeModuleNav button").forEach(x=>x.classList.remove("active"));
+  document.getElementById("accountLedgerTitle").textContent="📒 Ledger — "+head;
+  document.getElementById("accountLedgerSub").textContent="वित्तीय वर्ष: "+fy+" | इस पेज पर Ledger को आगे बढ़ाया, बदला और नई Entry जोड़ी जा सकती है।";
+  cancelAccountTransaction();
+  await renderAccountLedger();
+}
+let currentAccountHead="",currentAccountFY="";
+async function renderAccountLedger(){
+  const head=currentAccountHead,fy=currentAccountFY;
+  if(!head||!fy)return;
   const q=await window.salaryDb.from("account_transactions").select("*").eq("financial_year",fy).eq("head_name",head).order("transaction_date",{ascending:true,nullsFirst:true}).order("source_row");
-  if(q.error){document.getElementById("accountLedgerTable").innerHTML='<p class="error">'+q.error.message+'</p>';return}
+  if(q.error){document.getElementById("accountLedgerTable").innerHTML='<p class="error">'+fdrEsc(q.error.message)+'</p>';return}
   const h=await window.salaryDb.from("account_heads").select("*").eq("financial_year",fy).eq("head_name",head).maybeSingle();
-  const opening=Number(h.data?.opening_balance||0), money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
-  let bal=opening;
-  const rows=q.data||[];
-  let html='<p class="notice">Opening Balance: <b>'+money(opening)+'</b></p><table><thead><tr><th>Date</th><th>Voucher</th><th>विवरण</th><th>Receipt</th><th>Payment</th><th>Balance</th></tr></thead><tbody>';
-  rows.forEach(x=>{bal+=Number(x.receipt_amount||0)-Number(x.payment_amount||0);html+='<tr><td>'+fdrDate(x.transaction_date)+'</td><td>'+fdrEsc(x.voucher_no||"—")+'</td><td>'+fdrEsc(x.description||"")+'</td><td>'+money(x.receipt_amount)+'</td><td>'+money(x.payment_amount)+'</td><td><b>'+money(bal)+'</b></td></tr>'});
+  const opening=Number(h.data?.opening_balance||0),money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  let bal=opening; const rows=q.data||[];
+  document.getElementById("accountLedgerTop").innerHTML="Opening Balance: <b>"+money(opening)+"</b> &nbsp; | &nbsp; Total Entries: <b>"+rows.length+"</b>";
+  let html='<table><thead><tr><th>Date</th><th>Voucher</th><th>विवरण</th><th>Receipt</th><th>Payment</th><th>Balance</th><th>Action</th></tr></thead><tbody>';
+  rows.forEach(x=>{
+    bal+=Number(x.receipt_amount||0)-Number(x.payment_amount||0);
+    html+='<tr><td>'+fdrDate(x.transaction_date)+'</td><td>'+fdrEsc(x.voucher_no||"—")+'</td><td>'+fdrEsc(x.description||"")+'</td><td>'+money(x.receipt_amount)+'</td><td>'+money(x.payment_amount)+'</td><td><b>'+money(bal)+'</b></td><td><button class="btn" onclick="editAccountTransaction(\''+x.id+'\')">Edit</button> <button class="btn" onclick="deleteAccountTransaction(\''+x.id+'\')">Delete</button></td></tr>';
+  });
   html+='</tbody></table><p style="margin-top:10px"><b>Closing Balance: '+money(bal)+'</b></p>';
-  if(!rows.length) html+='<p class="notice">इस Head का detailed Ledger अभी Excel Import से load करना बाकी है। Main Summary का balance source Excel के अनुसार सुरक्षित है।</p>';
+  if(!rows.length) html+='<p class="notice">इस Head में अभी कोई detailed Entry नहीं है। ऊपर <b>+ नई Entry</b> से आय/व्यय की Entry जोड़ सकते हैं।</p>';
   document.getElementById("accountLedgerTable").innerHTML=html;
 }
-function closeAccountLedger(){document.getElementById("accountLedgerBox").style.display="none";}
+function newAccountTransaction(){
+  document.getElementById("accountTransactionForm").style.display="block";
+  document.getElementById("accountTransactionFormTitle").textContent="➕ नई Ledger Entry";
+  document.getElementById("accountTxId").value="";
+  document.getElementById("accountTxDate").value=new Date().toISOString().slice(0,10);
+  document.getElementById("accountTxVoucher").value="";
+  document.getElementById("accountTxDescription").value="";
+  document.getElementById("accountTxReceipt").value="";
+  document.getElementById("accountTxPayment").value="";
+  document.getElementById("accountTxMsg").textContent="";
+}
+async function editAccountTransaction(id){
+  const q=await window.salaryDb.from("account_transactions").select("*").eq("id",id).single();
+  if(q.error){alert(q.error.message);return}
+  const x=q.data;
+  document.getElementById("accountTransactionForm").style.display="block";
+  document.getElementById("accountTransactionFormTitle").textContent="✏️ Ledger Entry Edit करें";
+  document.getElementById("accountTxId").value=x.id;
+  document.getElementById("accountTxDate").value=x.transaction_date||"";
+  document.getElementById("accountTxVoucher").value=x.voucher_no||"";
+  document.getElementById("accountTxDescription").value=x.description||"";
+  document.getElementById("accountTxReceipt").value=x.receipt_amount??"";
+  document.getElementById("accountTxPayment").value=x.payment_amount??"";
+  document.getElementById("accountTxMsg").textContent="मौजूदा Entry edit mode में खुली है।";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function cancelAccountTransaction(){
+  const box=document.getElementById("accountTransactionForm"); if(!box)return;
+  box.style.display="none";
+  document.getElementById("accountTxMsg").textContent="";
+}
+async function saveAccountTransaction(){
+  const u=(await window.salaryDb.auth.getUser()).data.user;
+  if(!u){alert("Login session समाप्त हो गई है।");return}
+  const id=document.getElementById("accountTxId").value;
+  const date=document.getElementById("accountTxDate").value||null;
+  const voucher=document.getElementById("accountTxVoucher").value.trim()||null;
+  const description=document.getElementById("accountTxDescription").value.trim()||null;
+  const receipt=Number(document.getElementById("accountTxReceipt").value||0);
+  const payment=Number(document.getElementById("accountTxPayment").value||0);
+  const msg=document.getElementById("accountTxMsg");
+  if(!date){msg.textContent="Date भरना आवश्यक है।";msg.className="error";return}
+  if(receipt<0||payment<0){msg.textContent="Receipt और Payment राशि 0 या उससे अधिक होनी चाहिए।";msg.className="error";return}
+  if(receipt===0&&payment===0){msg.textContent="Receipt या Payment में राशि दर्ज करें।";msg.className="error";return}
+  if(receipt>0&&payment>0){msg.textContent="एक Entry में केवल आय (Receipt) या व्यय (Payment) रखें।";msg.className="error";return}
+  msg.textContent="सेव हो रहा है...";msg.className="muted";
+  const payload={financial_year:currentAccountFY,head_name:currentAccountHead,transaction_date:date,voucher_no:voucher,description,receipt_amount:receipt,payment_amount:payment};
+  let res;
+  if(id) res=await window.salaryDb.from("account_transactions").update(payload).eq("id",id).select("*").single();
+  else res=await window.salaryDb.from("account_transactions").insert({...payload,user_id:u.id,source_sheet:"Manual Ledger",source_row:null}).select("*").single();
+  if(res.error){msg.textContent="Save error: "+res.error.message;msg.className="error";return}
+  const h=await window.salaryDb.from("account_heads").select("opening_balance").eq("financial_year",currentAccountFY).eq("head_name",currentAccountHead).maybeSingle();
+  const opening=Number(h.data?.opening_balance||0);
+  const totals=await window.salaryDb.from("account_transactions").select("receipt_amount,payment_amount").eq("financial_year",currentAccountFY).eq("head_name",currentAccountHead);
+  if(totals.error){msg.textContent="Entry saved, लेकिन summary update नहीं हो सका: "+totals.error.message;msg.className="error";return}
+  const totalReceipt=(totals.data||[]).reduce((s,x)=>s+Number(x.receipt_amount||0),0);
+  const totalPayment=(totals.data||[]).reduce((s,x)=>s+Number(x.payment_amount||0),0);
+  const hu=await window.salaryDb.from("account_heads").update({total_receipts:totalReceipt,total_payments:totalPayment,closing_balance:opening+totalReceipt-totalPayment}).eq("financial_year",currentAccountFY).eq("head_name",currentAccountHead);
+  if(hu.error){msg.textContent="Entry saved, लेकिन summary balance update नहीं हुआ: "+hu.error.message;msg.className="error";return}
+  msg.textContent="✅ Entry सुरक्षित हो गई।";msg.className="ok";
+  await renderAccountLedger();setTimeout(cancelAccountTransaction,500);
+}
+async function deleteAccountTransaction(id){
+  const q=await window.salaryDb.from("account_transactions").select("voucher_no,description").eq("id",id).single();
+  if(q.error){alert(q.error.message);return}
+  if(!confirm("क्या यह Ledger Entry delete करनी है?"))return;
+  const d=await window.salaryDb.from("account_transactions").delete().eq("id",id);
+  if(d.error){alert(d.error.message);return}
+  const h=await window.salaryDb.from("account_heads").select("opening_balance").eq("financial_year",currentAccountFY).eq("head_name",currentAccountHead).maybeSingle();
+  const opening=Number(h.data?.opening_balance||0);
+  const totals=await window.salaryDb.from("account_transactions").select("receipt_amount,payment_amount").eq("financial_year",currentAccountFY).eq("head_name",currentAccountHead);
+  const totalReceipt=(totals.data||[]).reduce((s,x)=>s+Number(x.receipt_amount||0),0);
+  const totalPayment=(totals.data||[]).reduce((s,x)=>s+Number(x.payment_amount||0),0);
+  await window.salaryDb.from("account_heads").update({total_receipts:totalReceipt,total_payments:totalPayment,closing_balance:opening+totalReceipt-totalPayment}).eq("financial_year",currentAccountFY).eq("head_name",currentAccountHead);
+  await renderAccountLedger();
+}
+function closeAccountLedger(){
+  cancelAccountTransaction();
+  document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));
+  document.getElementById("officeAccount").classList.add("active");
+  loadAccountSummary();
+}
 async function importAccountExcel(){
   const file=document.getElementById("accountExcelFile")?.files?.[0];
   if(!file)return;
