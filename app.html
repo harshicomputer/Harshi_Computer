@@ -9,16 +9,14 @@ window.loginNow=async function(){
   const email=(document.getElementById("email").value||"").trim().toLowerCase();
   const password=document.getElementById("password").value||"";
   if(!email||!password){msgEl.textContent="Email और Password दोनों भरें।";msgEl.className="error";return}
-  if(!window.salaryDb){msgEl.textContent="Database connection तैयार नहीं हुई।";msgEl.className="error";return}
+  if(!window.salaryDb){msgEl.textContent="Database connection तैयार नहीं हुई। कृपया Ctrl+F5 करके फिर प्रयास करें।";msgEl.className="error";return}
   loginStarting=true;btn.disabled=true;btn.textContent="Login हो रहा है...";msgEl.textContent="Login जाँच रहा है...";msgEl.className="ok";
   try{
-    const authPromise=window.salaryDb.auth.signInWithPassword({email,password});
-    const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error("Login server से response नहीं मिला। 15 सेकंड बाद फिर प्रयास करें।")),15000));
-    const {data,error}=await Promise.race([authPromise,timeout]);
+    const {data,error}=await window.salaryDb.auth.signInWithPassword({email,password});
     if(error)throw error;
     if(!data?.session)throw new Error("Login हुआ लेकिन session नहीं मिला।");
     msgEl.textContent="Login सफल — Dashboard खोला जा रहा है...";msgEl.className="ok";
-    await start(data.session);
+    start(data.session);
   }catch(e){
     const x=String(e?.message||e);
     msgEl.textContent=x.toLowerCase().includes("invalid login credentials")?"Email या Password गलत है।":x;
@@ -183,7 +181,17 @@ async function signIn(){let email=document.getElementById("email").value.trim().
 async function signUp(){msg("नया Account बनाना बंद है। Admin द्वारा दिए गए Login credentials का उपयोग करें।")}
 async function signOut(){await window.salaryDb.auth.signOut()}
 window.salaryDb.auth.onAuthStateChange((e,s)=>{if(s&&!loginStarting){setTimeout(()=>start(s),0)}else if(!s){document.getElementById("app").style.display="none";document.getElementById("personal").style.display="none";document.getElementById("portal").classList.remove("show");document.getElementById("login").style.display="grid"}})
-async function start(s){document.getElementById("login").style.display="none";document.getElementById("portal").classList.add("show");document.getElementById("app").style.display="none";document.getElementById("personal").style.display="none";window.currentSession=s;try{await Promise.race([refresh(),new Promise((_,rej)=>setTimeout(()=>rej(new Error("Database response timeout")),10000))]);init()}catch(e){console.error(e);init();alert("Login सफल है। Database data load होने में समस्या है: "+(e?.message||e))}}
+function start(s){
+  document.getElementById("login").style.display="none";
+  document.getElementById("portal").classList.add("show");
+  document.getElementById("app").style.display="none";
+  document.getElementById("personal").style.display="none";
+  window.currentSession=s;
+  try{init()}catch(e){console.error("Initial UI error:",e)}
+  refresh().then(()=>{try{init()}catch(e){console.error("UI refresh error:",e)}}).catch(e=>{
+    console.error("Background database refresh error:",e);
+  });
+}
 function openOffice(){
   document.getElementById("portal").classList.remove("show");
   document.getElementById("app").style.display="block";
@@ -552,7 +560,10 @@ async function saveFdr(){
   const id=document.getElementById("fdrId").value;const parentId=document.getElementById("fdrParentId").value||null;
   const num=id=>document.getElementById(id).value===""?null:Number(document.getElementById(id).value);
   const txt=id=>document.getElementById(id).value.trim()||null;
-  const payload={user_id:u.id,replaced_fdr_id:parentId,  if(!id){
+  const msgEl=document.getElementById("fdrMsg");
+  const payload={user_id:u.id,replaced_fdr_id:parentId,fdr_number:txt("fdrNumber"),head_or_mad:txt("fdrHead"),depositor_name:txt("fdrDepositor"),bank_name:txt("fdrBank"),branch:txt("fdrBranch"),account_customer_no:txt("fdrAccount"),customer_id:txt("fdrCustomerId"),cif_no:txt("fdrCif"),pan_no:txt("fdrPan"),deposit_type:txt("fdrDepositType"),deposit_period:txt("fdrPeriod"),fdr_amount:Number(document.getElementById("fdrAmount").value||0),interest_rate:num("fdrRate"),annualised_yield:num("fdrYield"),total_interest:num("fdrTotalInterest"),interest_type:txt("fdrInterestType"),mode_of_operation:txt("fdrMode"),start_date:document.getElementById("fdrStart").value||null,maturity_date:document.getElementById("fdrMaturity").value||null,maturity_amount:num("fdrMaturityAmount"),interest_paid_to_account:txt("fdrInterestPaidTo"),nominee:txt("fdrNominee"),nomination_status:txt("fdrNominationStatus"),status:document.getElementById("fdrStatus").value,remarks:txt("fdrRemarks")};
+  if(!payload.fdr_number||!payload.head_or_mad||!payload.bank_name){msgEl.textContent="FDR No., हेड / मद और Bank Name भरना आवश्यक है।";msgEl.className="error";return}
+  if(!id){
     const duplicateNumber=payload.fdr_number?fdrRecords.find(x=>String(x.fdr_number||"").trim().toLowerCase()===String(payload.fdr_number).trim().toLowerCase()):null;
     const duplicateAccount=payload.account_customer_no?fdrRecords.find(x=>String(x.account_customer_no||"").trim().toLowerCase()===String(payload.account_customer_no).trim().toLowerCase() && String(x.bank_name||"").trim().toLowerCase()===String(payload.bank_name||"").trim().toLowerCase()):null;
     if(duplicateNumber||duplicateAccount){
@@ -561,7 +572,6 @@ async function saveFdr(){
       msgEl.className="error"; return;
     }
   }
-fdr_number:txt("fdrNumber"),head_or_mad:txt("fdrHead"),depositor_name:txt("fdrDepositor"),bank_name:txt("fdrBank"),branch:txt("fdrBranch"),account_customer_no:txt("fdrAccount"),customer_id:txt("fdrCustomerId"),cif_no:txt("fdrCif"),pan_no:txt("fdrPan"),deposit_type:txt("fdrDepositType"),deposit_period:txt("fdrPeriod"),fdr_amount:Number(document.getElementById("fdrAmount").value||0),interest_rate:num("fdrRate"),annualised_yield:num("fdrYield"),total_interest:num("fdrTotalInterest"),interest_type:txt("fdrInterestType"),mode_of_operation:txt("fdrMode"),start_date:document.getElementById("fdrStart").value||null,maturity_date:document.getElementById("fdrMaturity").value||null,maturity_amount:num("fdrMaturityAmount"),interest_paid_to_account:txt("fdrInterestPaidTo"),nominee:txt("fdrNominee"),nomination_status:txt("fdrNominationStatus"),status:document.getElementById("fdrStatus").value,remarks:txt("fdrRemarks")};
   const msgEl=document.getElementById("fdrMsg");
   if(!payload.fdr_number||!payload.head_or_mad||!payload.bank_name){msgEl.textContent="FDR No., हेड / मद और Bank Name भरना आवश्यक है।";msgEl.className="error";return}
   msgEl.textContent="सेव हो रहा है...";msgEl.className="muted";
