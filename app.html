@@ -80,6 +80,12 @@ window.loginNow=async function(){
     <button class="btn primary" onclick="newFdr()">+ नई FDR</button>
   </div>
   <div class="notice" style="margin-bottom:12px"><b>हेड / मद</b> अनिवार्य है। अलग-अलग बैंक के FDR Advice में मिलने वाली जानकारी जैसे Customer ID, CIF, PAN, Deposit Type, Deposit Period, Total Interest, Annualised Yield, Mode of Operation, Nomination और Interest किस खाते में जाता है—इन सभी को भी सुरक्षित रखा जा सकता है। जो जानकारी किसी FDR में उपलब्ध न हो, उसे खाली छोड़ा जा सकता है।</div>
+  <div id="fdrTotals" class="grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
+    <div class="card"><div class="muted">कुल FDR</div><div class="stat" id="fdrTotalCount">0</div><div class="muted" id="fdrTotalAmount">₹0</div></div>
+    <div class="card"><div class="muted">🟢 Active FDR</div><div class="stat" id="fdrActiveCount">0</div><div class="muted" id="fdrActiveAmount">₹0</div></div>
+    <div class="card"><div class="muted">🟠 Matured FDR</div><div class="stat" id="fdrMaturedCount">0</div><div class="muted" id="fdrMaturedAmount">₹0</div></div>
+    <div class="card"><div class="muted">🔴 Closed FDR</div><div class="stat" id="fdrClosedCount">0</div><div class="muted" id="fdrClosedAmount">₹0</div></div>
+  </div>
   <details id="fdrFormBox" class="card" style="display:none;margin-bottom:14px;background:#f8fafc">
     <summary class="link">FDR विवरण</summary>
     <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:12px">
@@ -374,6 +380,15 @@ function fdrDisplayStatus(x){
 function fdrDate(v){if(!v)return "—";const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"-"+m[2]+"-"+m[1]:String(v)}
 function renderFdr(){
   const body=document.getElementById("fdrBody");if(!body)return;
+  const all=fdrRecords||[];
+  const stats={active:{count:0,amount:0},matured:{count:0,amount:0},closed:{count:0,amount:0}};
+  all.forEach(x=>{const st=fdrDisplayStatus(x);if(stats[st]){stats[st].count++;stats[st].amount+=Number(x.fdr_amount||0)}});
+  const fmt=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v};
+  set("fdrTotalCount",all.length);set("fdrTotalAmount",fmt(all.reduce((s,x)=>s+Number(x.fdr_amount||0),0)));
+  set("fdrActiveCount",stats.active.count);set("fdrActiveAmount",fmt(stats.active.amount));
+  set("fdrMaturedCount",stats.matured.count);set("fdrMaturedAmount",fmt(stats.matured.amount));
+  set("fdrClosedCount",stats.closed.count);set("fdrClosedAmount",fmt(stats.closed.amount));
   const q=(document.getElementById("fdrSearch")?.value||"").trim().toLowerCase();
   const filter=document.getElementById("fdrFilter")?.value||"";
   const rows=(fdrRecords||[]).filter(x=>{
