@@ -44,25 +44,36 @@ window.loginNow=async function(){
     <div><h2 style="margin:0">🏦 FDR Management</h2><div class="muted">Fixed Deposit की पूरी जानकारी सुरक्षित रखें</div></div>
     <button class="btn primary" onclick="newFdr()">+ नई FDR</button>
   </div>
-  <div class="notice" style="margin-bottom:12px"><b>हेड / मद</b> में स्पष्ट रूप से लिखें कि FDR किस उद्देश्य/मद की है, जैसे <b>Security Deposit, Earnest Money, कर्मचारी सुरक्षा निधि, GST/Tax, अन्य</b>। यही जानकारी सूची में भी दिखाई देगी।</div>
+  <div class="notice" style="margin-bottom:12px"><b>हेड / मद</b> अनिवार्य है। अलग-अलग बैंक के FDR Advice में मिलने वाली जानकारी जैसे Customer ID, CIF, PAN, Deposit Type, Deposit Period, Total Interest, Annualised Yield, Mode of Operation, Nomination और Interest किस खाते में जाता है—इन सभी को भी सुरक्षित रखा जा सकता है। जो जानकारी किसी FDR में उपलब्ध न हो, उसे खाली छोड़ा जा सकता है।</div>
   <details id="fdrFormBox" class="card" style="display:none;margin-bottom:14px;background:#f8fafc">
     <summary class="link">FDR विवरण</summary>
     <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:12px">
       <input id="fdrId" type="hidden">
       <label>FDR No.<input id="fdrNumber" placeholder="FDR नंबर"></label>
-      <label>हेड / मद *<input id="fdrHead" placeholder="जैसे Security Deposit / Earnest Money"></label>
+      <label>हेड / मद *<input id="fdrHead" placeholder="जैसे राज्य वित्त आयोग / Security Deposit"></label>
+      <label>Depositor Name<input id="fdrDepositor" placeholder="जमा धारक / संस्था का नाम"></label>
       <label>Bank Name *<input id="fdrBank" placeholder="बैंक का नाम"></label>
       <label>Branch<input id="fdrBranch" placeholder="शाखा"></label>
-      <label>Account / Customer No.<input id="fdrAccount" placeholder="खाता / ग्राहक नंबर"></label>
+      <label>Account No.<input id="fdrAccount" placeholder="खाता नंबर"></label>
+      <label>Customer ID<input id="fdrCustomerId" placeholder="Customer ID"></label>
+      <label>CIF No.<input id="fdrCif" placeholder="CIF नंबर"></label>
+      <label>PAN<input id="fdrPan" placeholder="PAN"></label>
+      <label>Deposit / FDR Type<input id="fdrDepositType" placeholder="जैसे LBD / TDR / STDR"></label>
+      <label>Deposit Period<input id="fdrPeriod" placeholder="जैसे 1 Year / 450 Days"></label>
       <label>FDR Amount ₹<input id="fdrAmount" type="number" min="0" step="0.01" placeholder="0"></label>
       <label>Interest Rate %<input id="fdrRate" type="number" min="0" step="0.01" placeholder="0"></label>
+      <label>Annualised Yield %<input id="fdrYield" type="number" min="0" step="0.01" placeholder="0"></label>
+      <label>Total Interest ₹<input id="fdrTotalInterest" type="number" min="0" step="0.01" placeholder="0"></label>
       <label>Interest Type
         <select id="fdrInterestType"><option value="">चुनें</option><option>Fixed</option><option>Floating</option><option>Cumulative</option><option>Non-Cumulative</option><option>Other</option></select>
       </label>
-      <label>Start Date<input id="fdrStart" type="date"></label>
+      <label>Mode of Operation<input id="fdrMode" placeholder="जैसे Letter of Authority"></label>
+      <label>Start / Deposit Date<input id="fdrStart" type="date"></label>
       <label>Maturity Date<input id="fdrMaturity" type="date"></label>
       <label>Maturity Amount ₹<input id="fdrMaturityAmount" type="number" min="0" step="0.01" placeholder="0"></label>
+      <label>Interest Paid To A/c<input id="fdrInterestPaidTo" placeholder="खाते में / नहीं"></label>
       <label>Nominee<input id="fdrNominee" placeholder="नाम"></label>
+      <label>Nomination Status<input id="fdrNominationStatus" placeholder="Reqd / No / Registered"></label>
       <label>Status
         <select id="fdrStatus"><option value="active">Active</option><option value="matured">Matured</option><option value="closed">Closed</option></select>
       </label>
@@ -276,7 +287,7 @@ function renderFdr(){
   const q=(document.getElementById("fdrSearch")?.value||"").trim().toLowerCase();
   const filter=document.getElementById("fdrFilter")?.value||"";
   const rows=(fdrRecords||[]).filter(x=>{
-    const st=fdrDisplayStatus(x), hay=[x.fdr_number,x.head_or_mad,x.bank_name,x.branch,x.account_customer_no,x.remarks].join(" ").toLowerCase();
+    const st=fdrDisplayStatus(x), hay=[x.fdr_number,x.head_or_mad,x.depositor_name,x.bank_name,x.branch,x.account_customer_no,x.customer_id,x.cif_no,x.pan_no,x.deposit_type,x.deposit_period,x.remarks].join(" ").toLowerCase();
     return (!q||hay.includes(q))&&(!filter||st===filter);
   }).sort((a,b)=>{
     const rank={active:0,matured:1,closed:2},ra=rank[fdrDisplayStatus(a)],rb=rank[fdrDisplayStatus(b)];
@@ -292,7 +303,7 @@ function renderFdr(){
 function newFdr(){
   document.getElementById("fdrFormBox").style.display="block";
   document.getElementById("fdrFormBox").open=true;
-  ["fdrId","fdrNumber","fdrHead","fdrBank","fdrBranch","fdrAccount","fdrAmount","fdrRate","fdrStart","fdrMaturity","fdrMaturityAmount","fdrNominee","fdrRemarks"].forEach(id=>document.getElementById(id).value="");
+  ["fdrId","fdrNumber","fdrHead","fdrDepositor","fdrBank","fdrBranch","fdrAccount","fdrCustomerId","fdrCif","fdrPan","fdrDepositType","fdrPeriod","fdrAmount","fdrRate","fdrYield","fdrTotalInterest","fdrMode","fdrStart","fdrMaturity","fdrMaturityAmount","fdrInterestPaidTo","fdrNominee","fdrNominationStatus","fdrRemarks"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("fdrInterestType").value="";
   document.getElementById("fdrStatus").value="active";
   document.getElementById("fdrMsg").textContent="";
@@ -301,12 +312,14 @@ function cancelFdr(){document.getElementById("fdrFormBox").style.display="none";
 function editFdr(id){
   const x=fdrRecords.find(r=>r.id===id);if(!x)return;
   newFdr();
-  document.getElementById("fdrId").value=x.id;document.getElementById("fdrNumber").value=x.fdr_number||"";document.getElementById("fdrHead").value=x.head_or_mad||"";document.getElementById("fdrBank").value=x.bank_name||"";document.getElementById("fdrBranch").value=x.branch||"";document.getElementById("fdrAccount").value=x.account_customer_no||"";document.getElementById("fdrAmount").value=x.fdr_amount??"";document.getElementById("fdrRate").value=x.interest_rate??"";document.getElementById("fdrInterestType").value=x.interest_type||"";document.getElementById("fdrStart").value=x.start_date||"";document.getElementById("fdrMaturity").value=x.maturity_date||"";document.getElementById("fdrMaturityAmount").value=x.maturity_amount??"";document.getElementById("fdrNominee").value=x.nominee||"";document.getElementById("fdrStatus").value=x.status||"active";document.getElementById("fdrRemarks").value=x.remarks||"";
+  document.getElementById("fdrId").value=x.id;document.getElementById("fdrNumber").value=x.fdr_number||"";document.getElementById("fdrHead").value=x.head_or_mad||"";document.getElementById("fdrDepositor").value=x.depositor_name||"";document.getElementById("fdrBank").value=x.bank_name||"";document.getElementById("fdrBranch").value=x.branch||"";document.getElementById("fdrAccount").value=x.account_customer_no||"";document.getElementById("fdrCustomerId").value=x.customer_id||"";document.getElementById("fdrCif").value=x.cif_no||"";document.getElementById("fdrPan").value=x.pan_no||"";document.getElementById("fdrDepositType").value=x.deposit_type||"";document.getElementById("fdrPeriod").value=x.deposit_period||"";document.getElementById("fdrAmount").value=x.fdr_amount??"";document.getElementById("fdrRate").value=x.interest_rate??"";document.getElementById("fdrYield").value=x.annualised_yield??"";document.getElementById("fdrTotalInterest").value=x.total_interest??"";document.getElementById("fdrInterestType").value=x.interest_type||"";document.getElementById("fdrMode").value=x.mode_of_operation||"";document.getElementById("fdrStart").value=x.start_date||"";document.getElementById("fdrMaturity").value=x.maturity_date||"";document.getElementById("fdrMaturityAmount").value=x.maturity_amount??"";document.getElementById("fdrInterestPaidTo").value=x.interest_paid_to_account||"";document.getElementById("fdrNominee").value=x.nominee||"";document.getElementById("fdrNominationStatus").value=x.nomination_status||"";document.getElementById("fdrStatus").value=x.status||"active";document.getElementById("fdrRemarks").value=x.remarks||"";
 }
 async function saveFdr(){
   const u=(await window.salaryDb.auth.getUser()).data.user;if(!u){alert("Login session समाप्त हो गई है।");return}
   const id=document.getElementById("fdrId").value;
-  const payload={user_id:u.id,fdr_number:document.getElementById("fdrNumber").value.trim(),head_or_mad:document.getElementById("fdrHead").value.trim(),bank_name:document.getElementById("fdrBank").value.trim(),branch:document.getElementById("fdrBranch").value.trim()||null,account_customer_no:document.getElementById("fdrAccount").value.trim()||null,fdr_amount:Number(document.getElementById("fdrAmount").value||0),interest_rate:document.getElementById("fdrRate").value===""?null:Number(document.getElementById("fdrRate").value),interest_type:document.getElementById("fdrInterestType").value||null,start_date:document.getElementById("fdrStart").value||null,maturity_date:document.getElementById("fdrMaturity").value||null,maturity_amount:document.getElementById("fdrMaturityAmount").value===""?null:Number(document.getElementById("fdrMaturityAmount").value),nominee:document.getElementById("fdrNominee").value.trim()||null,status:document.getElementById("fdrStatus").value,remarks:document.getElementById("fdrRemarks").value.trim()||null};
+  const num=id=>document.getElementById(id).value===""?null:Number(document.getElementById(id).value);
+  const txt=id=>document.getElementById(id).value.trim()||null;
+  const payload={user_id:u.id,fdr_number:txt("fdrNumber"),head_or_mad:txt("fdrHead"),depositor_name:txt("fdrDepositor"),bank_name:txt("fdrBank"),branch:txt("fdrBranch"),account_customer_no:txt("fdrAccount"),customer_id:txt("fdrCustomerId"),cif_no:txt("fdrCif"),pan_no:txt("fdrPan"),deposit_type:txt("fdrDepositType"),deposit_period:txt("fdrPeriod"),fdr_amount:Number(document.getElementById("fdrAmount").value||0),interest_rate:num("fdrRate"),annualised_yield:num("fdrYield"),total_interest:num("fdrTotalInterest"),interest_type:txt("fdrInterestType"),mode_of_operation:txt("fdrMode"),start_date:document.getElementById("fdrStart").value||null,maturity_date:document.getElementById("fdrMaturity").value||null,maturity_amount:num("fdrMaturityAmount"),interest_paid_to_account:txt("fdrInterestPaidTo"),nominee:txt("fdrNominee"),nomination_status:txt("fdrNominationStatus"),status:document.getElementById("fdrStatus").value,remarks:txt("fdrRemarks")};
   const msgEl=document.getElementById("fdrMsg");
   if(!payload.fdr_number||!payload.head_or_mad||!payload.bank_name){msgEl.textContent="FDR No., हेड / मद और Bank Name भरना आवश्यक है।";msgEl.className="error";return}
   msgEl.textContent="सेव हो रहा है...";msgEl.className="muted";
