@@ -74,11 +74,16 @@ window.loginNow=async function(){
       <label>Interest Paid To A/c<input id="fdrInterestPaidTo" placeholder="खाते में / नहीं"></label>
       <label>Nominee<input id="fdrNominee" placeholder="नाम"></label>
       <label>Nomination Status<input id="fdrNominationStatus" placeholder="Reqd / No / Registered"></label>
+      <label>Original FDR Scan / PDF
+        <input id="fdrDocument" type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="fdrFilePicked()">
+        <small class="muted">PDF/JPG/PNG — सुरक्षित private storage में</small>
+      </label>
       <label>Status
         <select id="fdrStatus"><option value="active">Active</option><option value="matured">Matured</option><option value="closed">Closed</option></select>
       </label>
     </div>
     <label>Remarks<textarea id="fdrRemarks" rows="2" style="width:100%;padding:10px;border:1px solid #dce4ef;border-radius:8px;margin-top:10px" placeholder="अन्य जानकारी"></textarea></label>
+    <div id="fdrDocumentInfo" class="muted" style="margin-top:8px"></div>
     <div class="toolbar" style="margin-top:12px"><button class="btn primary" onclick="saveFdr()">Save FDR</button><button class="btn" onclick="cancelFdr()">Cancel</button><span id="fdrMsg" class="muted"></span></div>
   </details>
   <div class="toolbar">
@@ -297,8 +302,14 @@ function renderFdr(){
   if(!rows.length){body.innerHTML='<tr><td colspan="10" class="muted">अभी कोई FDR दर्ज नहीं है।</td></tr>';return}
   body.innerHTML=rows.map(x=>{
     const st=fdrDisplayStatus(x), label=st==="active"?"Active":st==="matured"?"Matured":"Closed";
-    return '<tr><td>'+fdrEsc(x.fdr_number)+'</td><td><b>'+fdrEsc(x.head_or_mad)+'</b></td><td>'+fdrEsc(x.bank_name)+(x.branch?' / '+fdrEsc(x.branch):"")+'</td><td>₹'+Number(x.fdr_amount||0).toLocaleString("en-IN")+'</td><td>'+Number(x.interest_rate||0).toLocaleString("en-IN")+'%</td><td>'+fdrDate(x.start_date)+'</td><td>'+fdrDate(x.maturity_date)+'</td><td>₹'+Number(x.maturity_amount||0).toLocaleString("en-IN")+'</td><td>'+label+'</td><td><span class="link" onclick="editFdr(\''+x.id+'\')">Edit</span> &nbsp; <span class="link" onclick="deleteFdr(\''+x.id+'\')">Delete</span></td></tr>';
+    return '<tr><td>'+fdrEsc(x.fdr_number)+'</td><td><b>'+fdrEsc(x.head_or_mad)+'</b></td><td>'+fdrEsc(x.bank_name)+(x.branch?' / '+fdrEsc(x.branch):"")+'</td><td>₹'+Number(x.fdr_amount||0).toLocaleString("en-IN")+'</td><td>'+Number(x.interest_rate||0).toLocaleString("en-IN")+'%</td><td>'+fdrDate(x.start_date)+'</td><td>'+fdrDate(x.maturity_date)+'</td><td>₹'+Number(x.maturity_amount||0).toLocaleString("en-IN")+'</td><td>'+label+'</td><td><span class="link" onclick="editFdr(\''+x.id+'\')">Edit</span> &nbsp; <span class="link" onclick="deleteFdr(\''+x.id+'\')">Delete</span>'+(x.document_path?' &nbsp; <span class="link" onclick="viewFdrDocument(\''+x.id+'\')">📎 Scan</span>':'')+'</td></tr>';
   }).join("");
+}
+function fdrFilePicked(){
+  const f=document.getElementById("fdrDocument")?.files?.[0],el=document.getElementById("fdrDocumentInfo");
+  if(!f){if(el)el.textContent="";return}
+  if(f.size>15*1024*1024){document.getElementById("fdrDocument").value="";if(el)el.textContent="❌ File 15 MB से बड़ी है।";return}
+  if(el)el.textContent="📎 चुनी गई कॉपी: "+f.name+" ("+Math.round(f.size/1024)+" KB)";
 }
 function newFdr(){
   document.getElementById("fdrFormBox").style.display="block";
@@ -306,13 +317,15 @@ function newFdr(){
   ["fdrId","fdrNumber","fdrHead","fdrDepositor","fdrBank","fdrBranch","fdrAccount","fdrCustomerId","fdrCif","fdrPan","fdrDepositType","fdrPeriod","fdrAmount","fdrRate","fdrYield","fdrTotalInterest","fdrMode","fdrStart","fdrMaturity","fdrMaturityAmount","fdrInterestPaidTo","fdrNominee","fdrNominationStatus","fdrRemarks"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("fdrInterestType").value="";
   document.getElementById("fdrStatus").value="active";
+  document.getElementById("fdrDocument").value="";
+  document.getElementById("fdrDocumentInfo").textContent="";
   document.getElementById("fdrMsg").textContent="";
 }
 function cancelFdr(){document.getElementById("fdrFormBox").style.display="none";document.getElementById("fdrFormBox").open=false}
 function editFdr(id){
   const x=fdrRecords.find(r=>r.id===id);if(!x)return;
   newFdr();
-  document.getElementById("fdrId").value=x.id;document.getElementById("fdrNumber").value=x.fdr_number||"";document.getElementById("fdrHead").value=x.head_or_mad||"";document.getElementById("fdrDepositor").value=x.depositor_name||"";document.getElementById("fdrBank").value=x.bank_name||"";document.getElementById("fdrBranch").value=x.branch||"";document.getElementById("fdrAccount").value=x.account_customer_no||"";document.getElementById("fdrCustomerId").value=x.customer_id||"";document.getElementById("fdrCif").value=x.cif_no||"";document.getElementById("fdrPan").value=x.pan_no||"";document.getElementById("fdrDepositType").value=x.deposit_type||"";document.getElementById("fdrPeriod").value=x.deposit_period||"";document.getElementById("fdrAmount").value=x.fdr_amount??"";document.getElementById("fdrRate").value=x.interest_rate??"";document.getElementById("fdrYield").value=x.annualised_yield??"";document.getElementById("fdrTotalInterest").value=x.total_interest??"";document.getElementById("fdrInterestType").value=x.interest_type||"";document.getElementById("fdrMode").value=x.mode_of_operation||"";document.getElementById("fdrStart").value=x.start_date||"";document.getElementById("fdrMaturity").value=x.maturity_date||"";document.getElementById("fdrMaturityAmount").value=x.maturity_amount??"";document.getElementById("fdrInterestPaidTo").value=x.interest_paid_to_account||"";document.getElementById("fdrNominee").value=x.nominee||"";document.getElementById("fdrNominationStatus").value=x.nomination_status||"";document.getElementById("fdrStatus").value=x.status||"active";document.getElementById("fdrRemarks").value=x.remarks||"";
+  document.getElementById("fdrId").value=x.id;document.getElementById("fdrNumber").value=x.fdr_number||"";document.getElementById("fdrHead").value=x.head_or_mad||"";document.getElementById("fdrDepositor").value=x.depositor_name||"";document.getElementById("fdrBank").value=x.bank_name||"";document.getElementById("fdrBranch").value=x.branch||"";document.getElementById("fdrAccount").value=x.account_customer_no||"";document.getElementById("fdrCustomerId").value=x.customer_id||"";document.getElementById("fdrCif").value=x.cif_no||"";document.getElementById("fdrPan").value=x.pan_no||"";document.getElementById("fdrDepositType").value=x.deposit_type||"";document.getElementById("fdrPeriod").value=x.deposit_period||"";document.getElementById("fdrAmount").value=x.fdr_amount??"";document.getElementById("fdrRate").value=x.interest_rate??"";document.getElementById("fdrYield").value=x.annualised_yield??"";document.getElementById("fdrTotalInterest").value=x.total_interest??"";document.getElementById("fdrInterestType").value=x.interest_type||"";document.getElementById("fdrMode").value=x.mode_of_operation||"";document.getElementById("fdrStart").value=x.start_date||"";document.getElementById("fdrMaturity").value=x.maturity_date||"";document.getElementById("fdrMaturityAmount").value=x.maturity_amount??"";document.getElementById("fdrInterestPaidTo").value=x.interest_paid_to_account||"";document.getElementById("fdrNominee").value=x.nominee||"";document.getElementById("fdrNominationStatus").value=x.nomination_status||"";document.getElementById("fdrStatus").value=x.status||"active";document.getElementById("fdrDocument").value="";document.getElementById("fdrDocumentInfo").textContent=x.document_path?"📎 इस FDR की scan copy पहले से सुरक्षित है। नई file चुनने पर replace होगी।":"";document.getElementById("fdrRemarks").value=x.remarks||"";
 }
 async function saveFdr(){
   const u=(await window.salaryDb.auth.getUser()).data.user;if(!u){alert("Login session समाप्त हो गई है।");return}
@@ -323,10 +336,47 @@ async function saveFdr(){
   const msgEl=document.getElementById("fdrMsg");
   if(!payload.fdr_number||!payload.head_or_mad||!payload.bank_name){msgEl.textContent="FDR No., हेड / मद और Bank Name भरना आवश्यक है।";msgEl.className="error";return}
   msgEl.textContent="सेव हो रहा है...";msgEl.className="muted";
-  const res=id?await window.salaryDb.from("fdr_records").update(payload).eq("id",id):await window.salaryDb.from("fdr_records").insert(payload);
-  if(res.error){msgEl.textContent="Error: "+res.error.message;msgEl.className="error";return}
+  const selectedFile=document.getElementById("fdrDocument")?.files?.[0]||null;
+  if(selectedFile){
+    const okTypes=["application/pdf","image/jpeg","image/png"];
+    if(!okTypes.includes(selectedFile.type)){msgEl.textContent="केवल PDF, JPG या PNG file स्वीकार है।";msgEl.className="error";return}
+    if(selectedFile.size>15*1024*1024){msgEl.textContent="File 15 MB से बड़ी है।";msgEl.className="error";return}
+  }
+  msgEl.textContent=selectedFile?"FDR सेव करके scan copy upload की जा रही है...":"सेव हो रहा है...";msgEl.className="muted";
+  let row=null;
+  if(id){
+    const res=await window.salaryDb.from("fdr_records").update(payload).eq("id",id).select("*").single();
+    if(res.error){msgEl.textContent="Error: "+res.error.message;msgEl.className="error";return}
+    row=res.data;
+  }else{
+    const res=await window.salaryDb.from("fdr_records").insert(payload).select("*").single();
+    if(res.error){msgEl.textContent="Error: "+res.error.message;msgEl.className="error";return}
+    row=res.data;
+  }
+  if(selectedFile){
+    const ext=(selectedFile.name.split(".").pop()||"bin").toLowerCase().replace(/[^a-z0-9]/g,"");
+    const path=u.id+"/"+row.id+"."+ext;
+    const oldPath=row.document_path;
+    const up=await window.salaryDb.storage.from("fdr-documents").upload(path,selectedFile,{upsert:true,contentType:selectedFile.type});
+    if(up.error){msgEl.textContent="FDR सेव हो गई, लेकिन scan copy upload नहीं हुई: "+up.error.message;msgEl.className="error";return}
+    const upd=await window.salaryDb.from("fdr_records").update({document_path:path}).eq("id",row.id);
+    if(upd.error){msgEl.textContent="FDR सेव हो गई, लेकिन document link save नहीं हुआ: "+upd.error.message;msgEl.className="error";return}
+    if(oldPath && oldPath!==path) await window.salaryDb.storage.from("fdr-documents").remove([oldPath]);
+  }
   const q=await window.salaryDb.from("fdr_records").select("*").order("maturity_date",{ascending:true,nullsFirst:false});if(q.error){msgEl.textContent=q.error.message;return}
-  fdrRecords=q.data||[];msgEl.textContent="✅ FDR सुरक्षित हो गई।";msgEl.className="ok";renderFdr();setTimeout(cancelFdr,500);
+  fdrRecords=q.data||[];msgEl.textContent=selectedFile?"✅ FDR और scan copy दोनों सुरक्षित हो गए।":"✅ FDR सुरक्षित हो गई।";msgEl.className="ok";renderFdr();setTimeout(cancelFdr,700);
+}
+async function viewFdrDocument(id){
+  const x=fdrRecords.find(r=>r.id===id);
+  if(!x?.document_path){alert("इस FDR की scan copy उपलब्ध नहीं है।");return}
+  const {data,error}=await window.salaryDb.storage.from("fdr-documents").createSignedUrl(x.document_path,600);
+  if(error||!data?.signedUrl){alert("Scan copy खोलने में समस्या: "+(error?.message||"URL नहीं मिला"));return}
+  window.open(data.signedUrl,"_blank","noopener,noreferrer");
+}
+async function replaceFdrDocument(id){
+  const x=fdrRecords.find(r=>r.id===id);if(!x)return;
+  editFdr(id);
+  document.getElementById("fdrDocumentInfo").textContent="नई scan copy चुनें और Save FDR दबाएँ। पुरानी copy replace हो जाएगी।";
 }
 async function deleteFdr(id){
   const x=fdrRecords.find(r=>r.id===id);if(!x)return;
