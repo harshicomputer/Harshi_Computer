@@ -33,9 +33,9 @@ window.loginNow=async function(){
 .module-back{display:inline-block;margin-bottom:12px}
 .placeholder-section{display:none;padding:20px;max-width:1100px;margin:auto}.placeholder-section.show{display:block}
 .portal{display:none;min-height:100vh;background:linear-gradient(135deg,#eef5ff,#f8fbff);padding:40px 20px}.portal.show{display:block}.portal-head{text-align:center;margin-bottom:28px}.portal-head h2{margin:0;color:#123b73;font-size:30px}.portal-head p{color:#667085}.portal-grid{max-width:900px;margin:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:22px}.portal-card{background:#fff;border:1px solid #dce4ef;border-radius:18px;padding:30px;text-align:center;box-shadow:0 12px 35px #123b7312}.portal-icon{font-size:48px}.portal-card h3{margin:12px 0 6px;color:#123b73}.portal-card p{color:#667085;min-height:42px}.portal-card .btn{min-width:180px}@media(max-width:650px){.portal-grid{grid-template-columns:1fr}.portal{padding:25px 14px}}</style></head><body>
-<div id="login" class="login"><div class="box"><h2>Dynamic Salary Record</h2><p class="muted">जनवरी 2019 से वर्तमान माह तक</p><input id="email" type="email" autocomplete="email" placeholder="Email"><input id="password" type="password" autocomplete="current-password" placeholder="Password"><button id="loginBtn" class="btn primary" style="width:100%;margin-top:8px" onclick="window.loginNow()">Login</button><p class="muted" style="margin:8px 0 0">Login के लिए आपका Email और Password इस्तेमाल होगा।</p><p id="authMsg" class="error"></p></div></div>
+<div id="login" class="login"><div class="box"><h2>Dynamic Salary Record</h2><p class="muted">जनवरी 2019 से वर्तमान माह तक</p><input id="email" type="email" autocomplete="email" placeholder="Email"><input id="password" type="password" autocomplete="current-password" placeholder="Password"><button id="loginBtn" class="btn primary" style="width:100%;margin-top:8px" onclick="window.loginNow()">Login</button><p class="muted" style="margin:8px 0 0">Login के लिए आपका Email और Password इस्तेमाल होगा।</p><p id="authMsg" class="error"></p><button class="btn" style="width:100%;margin-top:8px" onclick="goHome()">← Home</button></div></div>
 <div id="portal" class="portal">
-  <div class="portal-head"><h2>Harshi Computer Online Management System</h2><p>कृपया अपना कार्य क्षेत्र चुनें</p></div>
+  <div class="portal-head"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><h2>Harshi Computer Online Management System</h2><p>कृपया अपना कार्य क्षेत्र चुनें</p></div><button class="btn" onclick="goHome()">← Back</button></div></div>
   <div class="portal-grid">
     <div class="portal-card"><div class="portal-icon">🏢</div><h3>Office / ऑफिस</h3><p>वेतन, FDR और कार्यालय के अन्य वित्तीय रिकॉर्ड।</p><button class="btn primary" onclick="openOffice()">Office खोलें</button></div>
     <div class="portal-card"><div class="portal-icon">👤</div><h3>Personal / व्यक्तिगत</h3><p>Loan, Credit Card और Documents के व्यक्तिगत रिकॉर्ड।</p><button class="btn" onclick="openPersonal()">Personal खोलें</button></div>
@@ -50,7 +50,7 @@ window.loginNow=async function(){
 <div id="personalLoanSection"><iframe src="loan_management_demo.html?v=20261006-1635" style="width:100%;height:calc(100vh - 120px);border:0;background:#f5f7fb"></iframe></div>
 <div id="personalCreditCardSection" class="placeholder-section"><div class="card"><h2>💳 Credit Card</h2><p class="muted">Credit Card Management यहाँ विकसित किया जाएगा।</p><div class="notice">यह विकल्प अभी से सिस्टम में जोड़ दिया गया है। अगला चरण Credit Card की पूरी जानकारी, payment, outstanding और statement management का होगा।</div></div></div>
 <div id="personalDocumentsSection" class="placeholder-section"><div class="card"><h2>📁 Documents</h2><p class="muted">Personal Documents यहाँ सुरक्षित रखे जाएंगे।</p><div class="notice">यह विकल्प अभी से सिस्टम में जोड़ दिया गया है। अगला चरण document upload, category, search और secure scan copy management का होगा।</div></div></div>
-</div><div id="app" class="app"><header class="top"><h1>Harshi Computer — Office / Salary Record</h1><div><span id="who"></span> <button class="btn" onclick="signOut()">Logout</button></div></header>
+</div><div id="app" class="app"><header class="top"><h1>Harshi Computer — Office / Salary Record</h1><div><button class="btn" onclick="goBackOne()">← Back</button> <span id="who"></span> <button class="btn" onclick="signOut()">Logout</button></div></header>
 <nav id="officeModuleNav" style="display:none">
   <button onclick="openOffice()">🏢 Office</button>
   <span id="salarySubNav" style="display:none">
@@ -183,6 +183,7 @@ function openOfficeModule(id){
   if(b)b.classList.add("active");
   resetInactivityTimer();
 }
+function goHome(){ window.location.href="index.html"; }
 function goBackOne(){
   const personal=document.getElementById("personal");
   if(personal && personal.style.display!=="none"){
