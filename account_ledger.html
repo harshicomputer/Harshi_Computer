@@ -134,13 +134,16 @@ async function loadHeads(){
  if(q.error){document.getElementById("headList").innerHTML='<p class="error">'+esc(q.error.message)+'</p>';return}
  heads=q.data||[];
  const displayOrder=["राज्य वित्त","मनरेगा","सड़क मरम्मत","समेकित अनुदान","मुद्रांक","15 वाँ वित्त","चुंगी क्षतिपूर्ति","विशेष निधि","विधायक निधि","निर्वाचन","कायाकल्प","adho sarachna","Antesthi","आंगनवाड़ी","CM vivah yojna","Nikaynyidhi","ब्याज प्राप्त","नर्मदा नदी","New fire","Fish polur","Behna yojna"];
- const rank=new Map(displayOrder.map((name,i)=>[name.toLowerCase(),i]));
+ const normalizeHead=v=>String(v||"").toLowerCase().replace(/[\s\u200b\u200c\u200d._\-\/]+/g,"").replace(/ाँ/g,"ां");
+ const aliases={"राज्यवित्त":0,"मनरेगा":1,"सड़कमरम्मत":2,"समेकितअनुदान":3,"मुद्रांक":4,"15वांवित्त":5,"15वाँवित्त":5,"चुंगीक्षतिपूर्ति":6,"विशेषनिधि":7,"विधायिकनिधि":8,"विधायकनिधि":8,"निर्वाचन":9,"कायाकल्प":10,"adhosarachna":11,"antesthi":12,"आंगनवाड़ी":13,"cmvivahyojna":14,"nikaynyidhi":15,"ब्याजप्राप्त":16,"नर्मदानदी":17,"newfire":18,"fishpolur":19,"behnayojna":20};
+ const rank=new Map(displayOrder.map((name,i)=>[normalizeHead(name),i]));
+ Object.entries(aliases).forEach(([name,i])=>rank.set(normalizeHead(name),i));
  heads.sort((a,b)=>{
-   const ar=rank.get(String(a.head_name||"").toLowerCase()), br=rank.get(String(b.head_name||"").toLowerCase());
+   const ar=rank.get(normalizeHead(a.head_name)), br=rank.get(normalizeHead(b.head_name));
    if(ar!==undefined&&br!==undefined)return ar-br;
    if(ar!==undefined)return -1;
    if(br!==undefined)return 1;
-   return String(a.head_name||"").localeCompare(String(b.head_name||""),"hi");
+   return normalizeHead(a.head_name).localeCompare(normalizeHead(b.head_name),"hi");
  });
  document.getElementById("headList").innerHTML=heads.map((h,i)=>
   '<div class="head-row '+(h.head_name===head?'active':'')+'" onclick="selectHead('+JSON.stringify(h.head_name)+')">'+
