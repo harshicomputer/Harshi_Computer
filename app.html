@@ -376,10 +376,9 @@ function downloadBulkTemplate(){
 function fdrEsc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
 function fdrDisplayStatus(x){
   if(x.status==="closed")return "closed";
-  if(x.status==="matured")return "matured";
   if(x.maturity_date){
     const d=new Date(x.maturity_date+"T23:59:59");
-    if(!Number.isNaN(d.getTime()) && d<new Date())return "matured";
+    if(!Number.isNaN(d.getTime()) && d<=new Date())return "matured";
   }
   return "active";
 }
