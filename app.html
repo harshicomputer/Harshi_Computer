@@ -282,7 +282,7 @@ async function loadAccountSummary(){
     '<div class="card"><div class="muted">कुल Opening</div><div class="stat">'+money(opening)+'</div></div>'+
     '<div class="card"><div class="muted">कुल Receipt</div><div class="stat">'+money(totalReceipt)+'</div></div>'+
     '<div class="card"><div class="muted">कुल Closing Balance</div><div class="stat">'+money(totalBalance)+'</div><div class="muted">Payment: '+money(totalPayment)+'</div></div>';
-  document.getElementById("accountHeadBody").innerHTML=rows.map(x=>'<tr><td><b>'+fdrEsc(x.head_name)+'</b></td><td>'+money(x.opening_balance)+'</td><td>'+money(x.total_receipts)+'</td><td>'+money(x.total_payments)+'</td><td><b>'+money(x.closing_balance)+'</b></td><td><button class="btn" onclick="openAccountLedger(\''+x.head_name.replace(/'/g,"\\'")+'\',\''+fy+'\')">View Ledger</button></td></tr>').join("");
+  document.getElementById("accountHeadBody").innerHTML=rows.map(x=>'<tr><td><b>'+fdrEsc(x.head_name)+'</b></td><td>'+money(x.opening_balance)+'</td><td>'+money(x.total_receipts)+'</td><td>'+money(x.total_payments)+'</td><td><b>'+money(x.closing_balance)+'</b></td><td><button class="btn" onclick="openAccountLedgerPage(\''+x.head_name.replace(/'/g,"\\'")+'\',\''+fy+'\')">View Ledger</button></td></tr>').join("");
 }
 async function setupAccount(){
   const s=document.getElementById("accountFY"); if(!s)return;
@@ -304,6 +304,7 @@ async function openAccountLedger(head,fy){
   await renderAccountLedger();
 }
 let currentAccountHead="",currentAccountFY="";
+function openAccountLedgerPage(head,fy){window.location.href="account_ledger.html?head="+encodeURIComponent(head)+"&fy="+encodeURIComponent(fy);}
 async function renderAccountLedger(){
   const head=currentAccountHead,fy=currentAccountFY;
   if(!head||!fy)return;
