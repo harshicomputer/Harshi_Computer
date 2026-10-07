@@ -23,7 +23,7 @@ body{margin:0;font-family:Arial,"Noto Sans Devanagari",sans-serif;background:#f3
 .head-row{display:flex;justify-content:space-between;gap:8px;padding:10px 7px;border-bottom:1px solid #edf1f6;cursor:pointer;border-radius:7px}
 .head-row:hover{background:#f7f9fc}
 .head-row.active{background:#eaf2ff;font-weight:bold}
-.head-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.head-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.serial{display:inline-block;min-width:25px}
 .balance{font-weight:bold;white-space:nowrap}
 .right h2{margin:0}
 .notice{padding:10px;border-radius:8px;background:#fff7ed;border:1px solid #fed7aa;color:#8a4b08;margin:12px 0}
@@ -133,9 +133,18 @@ async function loadHeads(){
  const q=await db.from("account_heads").select("head_name,opening_balance,total_receipts,total_payments,closing_balance").eq("financial_year",fy).order("head_name",{ascending:true});
  if(q.error){document.getElementById("headList").innerHTML='<p class="error">'+esc(q.error.message)+'</p>';return}
  heads=q.data||[];
- document.getElementById("headList").innerHTML=heads.map(h=>
+ const displayOrder=["राज्य वित्त","मनरेगा","सड़क मरम्मत","समेकित अनुदान","मुद्रांक","15 वाँ वित्त","चुंगी क्षतिपूर्ति","विशेष निधि","विधायक निधि","निर्वाचन","कायाकल्प","adho sarachna","Antesthi","आंगनवाड़ी","CM vivah yojna","Nikaynyidhi","ब्याज प्राप्त","नर्मदा नदी","New fire","Fish polur","Behna yojna"];
+ const rank=new Map(displayOrder.map((name,i)=>[name.toLowerCase(),i]));
+ heads.sort((a,b)=>{
+   const ar=rank.get(String(a.head_name||"").toLowerCase()), br=rank.get(String(b.head_name||"").toLowerCase());
+   if(ar!==undefined&&br!==undefined)return ar-br;
+   if(ar!==undefined)return -1;
+   if(br!==undefined)return 1;
+   return String(a.head_name||"").localeCompare(String(b.head_name||""),"hi");
+ });
+ document.getElementById("headList").innerHTML=heads.map((h,i)=>
   '<div class="head-row '+(h.head_name===head?'active':'')+'" onclick="selectHead('+JSON.stringify(h.head_name)+')">'+
-  '<span class="head-name">'+esc(h.head_name)+'</span><span class="balance">'+money(h.closing_balance)+'</span></div>'
+  '<span class="head-name"><b class="serial">'+(i+1)+'.</b> '+esc(h.head_name)+'</span><span class="balance">'+money(h.closing_balance)+'</span></div>'
  ).join("");
 }
 
