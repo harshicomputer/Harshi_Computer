@@ -80,6 +80,15 @@ window.loginNow=async function(){
     <button class="btn primary" onclick="newFdr()">+ नई FDR</button>
   </div>
   <div class="notice" style="margin-bottom:12px"><b>हेड / मद</b> अनिवार्य है। अलग-अलग बैंक के FDR Advice में मिलने वाली जानकारी जैसे Customer ID, CIF, PAN, Deposit Type, Deposit Period, Total Interest, Annualised Yield, Mode of Operation, Nomination और Interest किस खाते में जाता है—इन सभी को भी सुरक्षित रखा जा सकता है। जो जानकारी किसी FDR में उपलब्ध न हो, उसे खाली छोड़ा जा सकता है।</div>
+  <div class="toolbar" style="margin-bottom:12px;justify-content:flex-start">
+    <label style="display:flex;align-items:center;gap:8px"><b>वित्तीय वर्ष:</b>
+      <select id="fdrFinancialYear" onchange="renderFdr()">
+        <option value="2025-26">2025-26</option>
+        <option value="2026-27" selected>2026-27 (Current)</option>
+      </select>
+    </label>
+    <span id="fdrFyNote" class="muted">Current FY में पिछले FY की Active FDR भी अपने-आप दिखाई जाएंगी।</span>
+  </div>
   <div id="fdrTotals" class="grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
     <div class="card"><div class="muted">कुल FDR</div><div class="stat" id="fdrTotalCount">0</div><div class="muted" id="fdrTotalAmount">₹0</div></div>
     <div class="card"><div class="muted">🟢 Active FDR</div><div class="stat" id="fdrActiveCount">0</div><div class="muted" id="fdrActiveAmount">₹0</div></div>
@@ -381,17 +390,31 @@ function fdrDate(v){if(!v)return "—";const m=String(v).match(/^(\d{4})-(\d{2})
 function renderFdr(){
   const body=document.getElementById("fdrBody");if(!body)return;
   const all=fdrRecords||[];
+  const fy=document.getElementById("fdrFinancialYear")?.value||"2026-27";
+  const [fyStartYear,fyEndShort]=fy.split("-").map(Number), fyEndYear=fyStartYear+1;
+  const fyStart=fyStartYear+"-04-01", fyEnd=fyEndYear+"-03-31";
+  const inSelectedFY=x=>{
+    const start=String(x.start_date||"").slice(0,10), maturity=String(x.maturity_date||"").slice(0,10), status=fdrDisplayStatus(x);
+    if(!start)return false;
+    // FDRs active before the selected FY and still active are carried forward automatically.
+    if(status==="active" && start<=fyEnd && !maturity||status==="active" && start<=fyEnd && maturity>=fyStart)return true;
+    // For historical/current FY, show FDRs whose active period overlaps the FY.
+    if(start<=fyEnd && (!maturity || maturity>=fyStart))return true;
+    return false;
+  };
+  const fyRecords=all.filter(inSelectedFY);
   const stats={active:{count:0,amount:0},matured:{count:0,amount:0},closed:{count:0,amount:0}};
-  all.forEach(x=>{const st=fdrDisplayStatus(x);if(stats[st]){stats[st].count++;stats[st].amount+=Number(x.fdr_amount||0)}});
+  fyRecords.forEach(x=>{const st=fdrDisplayStatus(x);if(stats[st]){stats[st].count++;stats[st].amount+=Number(x.fdr_amount||0)}});
   const fmt=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v};
-  set("fdrTotalCount",all.length);set("fdrTotalAmount",fmt(all.reduce((s,x)=>s+Number(x.fdr_amount||0),0)));
+  set("fdrTotalCount",fyRecords.length);set("fdrTotalAmount",fmt(fyRecords.reduce((s,x)=>s+Number(x.fdr_amount||0),0)));
+  set("fdrFyNote",fy==="2026-27"?"2026-27 Current FY: पिछले FY की Active FDR अपने-आप शामिल हैं।":"2025-26: इस FY में रहने वाली FDR दिखाई जा रही हैं।");
   set("fdrActiveCount",stats.active.count);set("fdrActiveAmount",fmt(stats.active.amount));
   set("fdrMaturedCount",stats.matured.count);set("fdrMaturedAmount",fmt(stats.matured.amount));
   set("fdrClosedCount",stats.closed.count);set("fdrClosedAmount",fmt(stats.closed.amount));
   const q=(document.getElementById("fdrSearch")?.value||"").trim().toLowerCase();
   const filter=document.getElementById("fdrFilter")?.value||"";
-  const rows=(fdrRecords||[]).filter(x=>{
+  const rows=fyRecords.filter(x=>{
     const st=fdrDisplayStatus(x), hay=[x.fdr_number,x.head_or_mad,x.depositor_name,x.bank_name,x.branch,x.account_customer_no,x.customer_id,x.cif_no,x.pan_no,x.deposit_type,x.deposit_period,x.remarks].join(" ").toLowerCase();
     return (!q||hay.includes(q))&&(!filter||st===filter);
   }).sort((a,b)=>{
