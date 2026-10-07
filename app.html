@@ -255,15 +255,9 @@ async function loadAccountSummary(){
     '<div class="card"><div class="muted">कुल Opening</div><div class="stat">'+money(opening)+'</div></div>'+
     '<div class="card"><div class="muted">कुल Receipt</div><div class="stat">'+money(totalReceipt)+'</div></div>'+
     '<div class="card"><div class="muted">कुल Closing Balance</div><div class="stat">'+money(totalBalance)+'</div><div class="muted">Payment: '+money(totalPayment)+'</div></div>';
-  const displayOrder=["राज्य वित्त","मनरेगा","सड़क मरम्मत","समेकित अनुदान","मुद्रांक","15 वाँ वित्त","चुंगी क्षतिपूर्ति","विशेष निधि","विधायक निधि","निर्वाचन","कायाकल्प","adho sarachna","Antesthi","आंगनवाड़ी","CM vivah yojna","Nikaynyidhi","ब्याज प्राप्त","नर्मदा नदी","New fire","Fish polur","Behna yojna"];
-  const normalizeHead=v=>String(v||"").toLowerCase().replace(/[\s\u200b\u200c\u200d._\-\/]+/g,"").replace(/ाँ/g,"ां");
-  const aliases={
-    "राज्यवित्त":0,"मनरेगा":1,"सड़कमरम्मत":2,"समेकितअनुदान":3,"मुद्रांक":4,
-    "15वांवित्त":5,"15वाँवित्त":5,"चुंगीक्षतिपूर्ति":6,"विशेषनिधि":7,"विधायिकनिधि":8,
-    "विधायकनिधि":8,"निर्वाचन":9,"कायाकल्प":10,"adhosarachna":11,"antesthi":12,
-    "आंगनवाड़ी":13,"cmvivahyojna":14,"nikaynyidhi":15,"ब्याजप्राप्त":16,"नर्मदानदी":17,
-    "newfire":18,"fishpolur":19,"behnayojna":20
-  };
+  const displayOrder=["राज्य वित्त","मूलभूत","सड़क मरम्मत","समेकित अनुदान","मुद्रांक","15 वाँ वित्त","चुंगी क्षतिपूर्ति","विशेष निधि","विधायक निधि","निर्वाचन","कायाकल्प","adho sarachna","Antesthi","आंगनवाड़ी","CM vivah yojna","Nikaynyidhi","ब्याज प्राप्त","नर्मदा नदी","New fire","Fish polur","Behna yojna"];
+  const normalizeHead=v=>String(v||"").normalize("NFC").toLowerCase().replace(/[\s\u200b\u200c\u200d._\-\/]+/g,"");
+  const aliases={"राज्यवित्त":0,"राज्‍यवित्‍त":0,"मूलभूत":1,"सड़कमरम्मत":2,"सड़कमरम्‍मत":2,"समेकितअनुदान":3,"मुद्रांक":4,"15वांवित्त":5,"15वांवित्‍त":5,"15वाँवित्त":5,"15वाँवित्‍त":5,"चुंगीक्षतिपूर्ति":6,"चुगींक्षतिपूर्ति":6,"विशेषनिधि":7,"विशेशनिधि":7,"विधायकनिधि":8,"विधायिकनिधि":8,"निर्वाचन":9,"कायाकल्प":10,"कायाकल्‍प":10,"adhosarachna":11,"antesthi":12,"आंगनवाड़ी":13,"cmvivahyojna":14,"nikaynyidhi":15,"nikaynidhi":15,"ब्याजप्राप्त":16,"ब्‍याजप्राप्‍त":16,"नर्मदानदी":17,"newfire":18,"fishpolur":19,"behnayojna":20};
   const rank=new Map(displayOrder.map((name,i)=>[normalizeHead(name),i]));
   Object.entries(aliases).forEach(([name,i])=>rank.set(normalizeHead(name),i));
   rows.sort((a,b)=>{
