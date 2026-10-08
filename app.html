@@ -3,23 +3,49 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harshi Computer — Salary Record</title>
 <script src="./supabase.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script><script src="https://unpkg.com/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
+const SUPABASE_URL="https://khwzoolgjzghdixlclwu.supabase.co",SUPABASE_KEY="sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P";
 let loginStarting=false;
+window.salaryDbReady=(async()=>{
+  function load(src){
+    return new Promise((resolve,reject)=>{
+      const s=document.createElement("script");s.src=src;s.onload=resolve;s.onerror=()=>reject(new Error("Supabase library load नहीं हुई।"));document.head.appendChild(s);
+    });
+  }
+  try{
+    if(!window.supabase?.createClient){
+      try{await load("./supabase.min.js")}catch(e){}
+    }
+    if(!window.supabase?.createClient){
+      try{await load("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js")}catch(e){}
+    }
+    if(!window.supabase?.createClient){
+      try{await load("https://unpkg.com/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js")}catch(e){}
+    }
+    if(!window.supabase?.createClient) throw new Error("Supabase library load नहीं हुई।");
+    if(!window.salaryDb) window.salaryDb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    return window.salaryDb;
+  }catch(e){
+    console.error("Supabase initialization failed:",e);
+    throw e;
+  }
+})();
 window.loginNow=async function(){
   const msgEl=document.getElementById("authMsg"),btn=document.getElementById("loginBtn");
   const email=(document.getElementById("email").value||"").trim().toLowerCase();
   const password=document.getElementById("password").value||"";
   if(!email||!password){msgEl.textContent="Email और Password दोनों भरें।";msgEl.className="error";return}
-  if(!window.salaryDb){msgEl.textContent="Database connection तैयार नहीं हुई। कृपया Ctrl+F5 करके फिर प्रयास करें।";msgEl.className="error";return}
-  loginStarting=true;btn.disabled=true;btn.textContent="Login हो रहा है...";msgEl.textContent="Login जाँच रहा है...";msgEl.className="ok";
+  loginStarting=true;btn.disabled=true;btn.textContent="Login हो रहा है...";msgEl.textContent="Database connection जाँच रहा है...";msgEl.className="ok";
   try{
-    const {data,error}=await window.salaryDb.auth.signInWithPassword({email,password});
+    const db=await window.salaryDbReady;
+    msgEl.textContent="Login जाँच रहा है...";
+    const {data,error}=await db.auth.signInWithPassword({email,password});
     if(error)throw error;
     if(!data?.session)throw new Error("Login हुआ लेकिन session नहीं मिला।");
     msgEl.textContent="Login सफल — Dashboard खोला जा रहा है...";msgEl.className="ok";
     start(data.session);
   }catch(e){
     const x=String(e?.message||e);
-    msgEl.textContent=x.toLowerCase().includes("invalid login credentials")?"Email या Password गलत है।":x;
+    msgEl.textContent=x.toLowerCase().includes("invalid login credentials")?"Email या Password गलत है।":x.toLowerCase().includes("email not confirmed")?"Email confirmation बाकी है।":x;
     msgEl.className="error";
   }finally{
     loginStarting=false;btn.disabled=false;btn.textContent="Login";
@@ -177,16 +203,15 @@ window.loginNow=async function(){
 </div></section>
 </main></div>
 <script>
-const SUPABASE_URL="https://khwzoolgjzghdixlclwu.supabase.co",SUPABASE_KEY="sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P";
-window.salaryDb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let employees=[],records=[],fdrRecords=[],current=0;
 const M=["जनवरी","फरवरी","मार्च","अप्रैल","मई","जून","जुलाई","अगस्त","सितंबर","अक्टूबर","नवंबर","दिसंबर"];let employees=[],records=[],fdrRecords=[],current=0;
 const periodMonths=()=>{let n=new Date(),a=[];for(let y=2019;y<=n.getFullYear();y++){let to=y===n.getFullYear()?n.getMonth()+1:12;for(let m=1;m<=to;m++)a.push({y,m,key:y+"-"+String(m).padStart(2,"0")})}return a};
 const years=()=>[...new Set(periodMonths().map(x=>x.y))];
 function msg(x,ok=false){let el=document.getElementById("authMsg");el.textContent=x;el.className=ok?"ok":"error"}
-async function signIn(){let email=document.getElementById("email").value.trim().toLowerCase(),password=document.getElementById("password").value,btn=document.getElementById("loginBtn");if(!email||!password)return msg("Email और Password दोनों भरें।");if(!window.supabase)return msg("Supabase library load नहीं हुई। कृपया Ctrl+F5 करके फिर प्रयास करें।");if(!window.salaryDb)return msg("Database connection तैयार नहीं हुई। कृपया 10 सेकंड बाद फिर प्रयास करें।");btn.disabled=true;btn.textContent="Login हो रहा है...";msg("Login जाँच रहा है...",true);try{let{error}=await window.salaryDb.auth.signInWithPassword({email,password});if(error){let x=error.message.toLowerCase();msg(x.includes("invalid login credentials")?"Email या Password गलत है।":x.includes("email not confirmed")?"Email confirmation बाकी है। Supabase Auth में Confirm Email बंद करें या email से confirmation link खोलें।":error.message)}}catch(e){msg("Login में तकनीकी समस्या: "+(e?.message||e))}finally{btn.disabled=false;btn.textContent="Login"}}
+async function signIn(){let email=document.getElementById("email").value.trim().toLowerCase(),password=document.getElementById("password").value,btn=document.getElementById("loginBtn");if(!email||!password)return msg("Email और Password दोनों भरें।");btn.disabled=true;btn.textContent="Login हो रहा है...";msg("Database connection जाँच रहा है...",true);try{const db=await window.salaryDbReady;let{error}=await db.auth.signInWithPassword({email,password});if(error){let x=error.message.toLowerCase();msg(x.includes("invalid login credentials")?"Email या Password गलत है।":x.includes("email not confirmed")?"Email confirmation बाकी है。":error.message)}}catch(e){msg("Login में तकनीकी समस्या: "+(e?.message||e))}finally{btn.disabled=false;btn.textContent="Login"}}
 async function signUp(){msg("नया Account बनाना बंद है। Admin द्वारा दिए गए Login credentials का उपयोग करें।")}
 async function signOut(){await window.salaryDb.auth.signOut()}
-window.salaryDb.auth.onAuthStateChange((e,s)=>{if(s&&!loginStarting){setTimeout(()=>start(s),0)}else if(!s){document.getElementById("app").style.display="none";document.getElementById("personal").style.display="none";document.getElementById("portal").classList.remove("show");document.getElementById("login").style.display="grid"}})
+window.salaryDbReady.then(db=>db.auth.onAuthStateChange((e,s)=>{if(s&&!loginStarting){setTimeout(()=>start(s),0)}else if(!s){document.getElementById("app").style.display="none";document.getElementById("personal").style.display="none";document.getElementById("portal").classList.remove("show");document.getElementById("login").style.display="grid"}})).catch(e=>{console.error(e);const m=document.getElementById("authMsg");if(m){m.textContent="Database connection शुरू नहीं हो सकी। कृपया थोड़ी देर बाद फिर प्रयास करें।";m.className="error"}})
 function start(s){
   document.getElementById("login").style.display="none";
   document.getElementById("portal").classList.add("show");
