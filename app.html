@@ -203,7 +203,6 @@ window.loginNow=async function(){
 </div></section>
 </main></div>
 <script>
-let employees=[],records=[],fdrRecords=[],current=0;
 const M=["जनवरी","फरवरी","मार्च","अप्रैल","मई","जून","जुलाई","अगस्त","सितंबर","अक्टूबर","नवंबर","दिसंबर"];let employees=[],records=[],fdrRecords=[],current=0;
 const periodMonths=()=>{let n=new Date(),a=[];for(let y=2019;y<=n.getFullYear();y++){let to=y===n.getFullYear()?n.getMonth()+1:12;for(let m=1;m<=to;m++)a.push({y,m,key:y+"-"+String(m).padStart(2,"0")})}return a};
 const years=()=>[...new Set(periodMonths().map(x=>x.y))];
