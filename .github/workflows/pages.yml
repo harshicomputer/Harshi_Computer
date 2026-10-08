@@ -42,9 +42,24 @@ jobs:
               pathlib.Path(f"/tmp/app-script-{i}.js").write_text(code,encoding="utf-8")
           print(f"Found {len(blocks)} inline script blocks")
           PY
+          : > /tmp/syntax-errors.txt
+          failed=0
           for f in /tmp/app-script-*.js; do
-            node --check "$f"
+            if ! node --check "$f" >> /tmp/syntax-errors.txt 2>&1; then
+              echo "SYNTAX ERROR IN $f" >> /tmp/syntax-errors.txt
+              failed=1
+            fi
           done
+          cat /tmp/syntax-errors.txt
+          exit $failed
+
+      - name: Upload JavaScript validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: javascript-validation-report
+          path: /tmp/syntax-errors.txt
+          if-no-files-found: ignore
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
