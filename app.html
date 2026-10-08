@@ -306,7 +306,7 @@ async function loadAccountSummary(){
   });
   document.getElementById("accountHeadBody").innerHTML=rows.map((x,i)=>{
     const headJson=JSON.stringify(x.head_name), fyJson=JSON.stringify(fy);
-    return '<tr><td><b>'+(i+1)+'</b></td><td><b>'+fdrEsc(x.head_name)+'</b></td><td>'+money(x.opening_balance)+'</td><td>'+money(x.total_receipts)+'</td><td>'+money(x.total_payments)+'</td><td><b>'+money(x.closing_balance)+'</b></td><td><a class="btn" href="account_ledger.html?head='+encodeURIComponent(x.head_name)+'&fy='+encodeURIComponent(fy)+'&v=20261008-0022">View Ledger</a></td><td><button class="btn" onclick='renameAccountHead(${headJson},${fyJson})'>Rename</button> <button class="btn" onclick='deleteAccountHead(${headJson},${fyJson})'>Delete</button></td></tr>';
+    return '<tr><td><b>'+(i+1)+'</b></td><td><b>'+fdrEsc(x.head_name)+'</b></td><td>'+money(x.opening_balance)+'</td><td>'+money(x.total_receipts)+'</td><td>'+money(x.total_payments)+'</td><td><b>'+money(x.closing_balance)+'</b></td><td><a class="btn" href="account_ledger.html?head='+encodeURIComponent(x.head_name)+'&fy='+encodeURIComponent(fy)+'&v=20261008-0022">View Ledger</a></td><td><button class="btn" onclick=\'renameAccountHead(${headJson},${fyJson})\'>Rename</button> <button class="btn" onclick=\'deleteAccountHead(${headJson},${fyJson})\'>Delete</button></td></tr>';
   }).join("");
 }
 function showNewAccountHead(){
