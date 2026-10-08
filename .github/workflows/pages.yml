@@ -32,6 +32,20 @@ jobs:
           curl -fsSL https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js -o supabase.min.js
           test -s supabase.min.js
 
+      - name: Validate app JavaScript
+        run: |
+          python3 - <<'PY'
+          import re, pathlib
+          html=pathlib.Path("app.html").read_text(encoding="utf-8")
+          blocks=re.findall(r"<script(?:\s[^>]*)?>(.*?)</script>", html, re.S|re.I)
+          for i,code in enumerate(blocks,1):
+              pathlib.Path(f"/tmp/app-script-{i}.js").write_text(code,encoding="utf-8")
+          print(f"Found {len(blocks)} inline script blocks")
+          PY
+          for f in /tmp/app-script-*.js; do
+            node --check "$f"
+          done
+
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
