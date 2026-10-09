@@ -192,10 +192,11 @@ window.loginNow=async function(){
 </section>
 <section id="reports" class="page"><div class="card"><h2>कर्मचारी रिपोर्ट</h2><div class="toolbar"><select id="reportEmp" onchange="renderReport()"></select><button class="btn primary" onclick="window.print()">Print / PDF</button></div><div id="reportBox"></div></div></section>
 <section id="backup" class="page"><div class="card"><h2>🔐 Data Security + Backup</h2>
-<p class="notice"><b>सुरक्षित व्यवस्था:</b> आपका डेटा Cloud Database में है। Backup में कर्मचारी, वेतन रिकॉर्ड, FDR और Personal Loan के रिकॉर्ड शामिल किए जाते हैं। Backup केवल Login किए हुए Admin के लिए उपलब्ध है।</p>
+<p class="notice"><b>Full Site Backup:</b> एक क्लिक में सभी मुख्य application data tables (कर्मचारी, वेतन, FDR, Loan, Office Ledger और Bank) का Cloud Backup बनाया जाएगा और JSON व Excel फाइलें डाउनलोड होंगी। Backup केवल Login किए हुए Admin के लिए उपलब्ध है। Auth passwords/API secrets इसमें शामिल नहीं होते।</p>
 <div class="toolbar" style="margin-top:14px">
-<button class="btn primary" onclick="createCloudBackup()">☁️ Cloud Backup बनाएं</button>
-<button class="btn" onclick="downloadBackup()">⬇️ Full JSON Backup</button>
+<button class="btn primary" onclick="createFullSiteBackup()">☁️ एक क्लिक में पूरा Site Backup</button>
+<button class="btn" onclick="createCloudBackup()">☁️ केवल Cloud Backup</button>
+<button class="btn" onclick="downloadBackup()">⬇️ JSON Backup</button>
 <button class="btn" onclick="exportExcelBackup()">📊 Excel Backup</button>
 </div>
 <div id="backupMsg" class="muted" style="margin-top:10px"></div>
@@ -885,12 +886,14 @@ async function deleteFdr(id){
 // ================= END FDR MANAGEMENT =================
 
 async function getBackupSnapshot(){
-  const tables=["employees","salary_records","fdr_records","loan_accounts","loan_installments","loan_payments","loans","account_heads","account_transactions","bank_accounts","bank_transactions"];
-  const out={schema_version:1,exported_at:new Date().toISOString(),tables:{}};
+  // Application data tables. system_backups is deliberately excluded to avoid recursively embedding old backups.
+  const tables=["employees","salary_records","fdr_records","loan_accounts","loan_installments","loan_payments","loans","account_heads","account_transactions","bank_accounts","bank_transactions","app_admins"];
+  const out={product:"Harshi Computer Online Management System",backup_type:"full_application_data",schema_version:2,exported_at:new Date().toISOString(),included_tables:tables,excluded_tables:["system_backups (backup history; excluded to prevent recursive backups)","Supabase Auth credentials/passwords and project secrets (not exportable from this client backup)"],tables:{},row_counts:{}};
   for(const table of tables){
     const {data,error}=await window.salaryDb.from(table).select("*");
     if(error)throw new Error(table+": "+error.message);
     out.tables[table]=data||[];
+    out.row_counts[table]=(data||[]).length;
   }
   return out;
 }
@@ -902,8 +905,25 @@ async function downloadBackup(){
   try{
     const snap=await getBackupSnapshot();
     saveJsonFile(snap,"harshi-computer-full-backup-"+new Date().toISOString().slice(0,10)+".json");
-    document.getElementById("backupMsg").textContent="Full JSON Backup डाउनलोड हो गया। इसमें Salary + Employee + Loan records शामिल हैं।";
+    document.getElementById("backupMsg").textContent="JSON Backup डाउनलोड हो गया। इसमें सभी उपलब्ध मुख्य application tables शामिल हैं।";
   }catch(e){document.getElementById("backupMsg").textContent="Backup error: "+(e?.message||e);}
+}
+async function createFullSiteBackup(){
+  const msgEl=document.getElementById("backupMsg");msgEl.textContent="पूरा Site Backup बनाया जा रहा है—कृपया पेज बंद न करें...";
+  try{
+    const u=(await window.salaryDb.auth.getUser()).data.user;
+    if(!u)throw new Error("Login session समाप्त हो गई है।");
+    const snap=await getBackupSnapshot();
+    const {error}=await window.salaryDb.from("system_backups").insert({user_id:u.id,label:"Full Site Backup",exported_at:snap.exported_at,snapshot:snap});
+    if(error)throw error;
+    saveJsonFile(snap,"harshi-computer-full-site-backup-"+new Date().toISOString().slice(0,10)+".json");
+    const wb=XLSX.utils.book_new();
+    const add=(name,rows)=>{const ws=XLSX.utils.json_to_sheet(rows||[]);XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31));};
+    add("Employees",snap.tables.employees);add("Salary Records",snap.tables.salary_records);add("FDR Records",snap.tables.fdr_records);add("Loan Accounts",snap.tables.loan_accounts);add("Loan Installments",snap.tables.loan_installments);add("Loan Payments",snap.tables.loan_payments);add("Loans",snap.tables.loans);add("Account Heads",snap.tables.account_heads);add("Account Transactions",snap.tables.account_transactions);add("Bank Accounts",snap.tables.bank_accounts);add("Bank Transactions",snap.tables.bank_transactions);add("App Admins",snap.tables.app_admins);add("Backup Info",[{product:snap.product,backup_type:snap.backup_type,schema_version:snap.schema_version,exported_at:snap.exported_at,included_tables:snap.included_tables.join(", "),excluded_tables:snap.excluded_tables.join("; "),row_counts:JSON.stringify(snap.row_counts)}]);
+    XLSX.writeFile(wb,"harshi-computer-full-site-backup-"+new Date().toISOString().slice(0,10)+".xlsx");
+    msgEl.textContent="✅ Full Site Backup सफल: Cloud में सुरक्षित, JSON और Excel डाउनलोड शुरू। कुल "+snap.included_tables.length+" tables शामिल। यदि डाउनलोड रोके जाएँ तो ब्राउज़र में multiple downloads Allow करें।";
+    await renderBackupList();
+  }catch(e){msgEl.textContent="Full Site Backup error: "+(e?.message||e);}
 }
 async function createCloudBackup(){
   const msgEl=document.getElementById("backupMsg");msgEl.textContent="Cloud Backup बनाया जा रहा है...";
@@ -933,9 +953,9 @@ async function exportExcelBackup(){
   try{
     const snap=await getBackupSnapshot(),wb=XLSX.utils.book_new();
     const add=(name,rows)=>{const ws=XLSX.utils.json_to_sheet(rows||[]);XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31));};
-    add("Employees",snap.tables.employees);add("Salary Records",snap.tables.salary_records);add("FDR Records",snap.tables.fdr_records);add("Loan Accounts",snap.tables.loan_accounts);add("Loan Installments",snap.tables.loan_installments);add("Loan Payments",snap.tables.loan_payments);add("Loans",snap.tables.loans);add("Account Heads",snap.tables.account_heads);add("Account Transactions",snap.tables.account_transactions);add("Bank Accounts",snap.tables.bank_accounts);add("Bank Transactions",snap.tables.bank_transactions);
-    XLSX.writeFile(wb,"harshi-computer-full-backup-"+new Date().toISOString().slice(0,10)+".xlsx");
-    document.getElementById("backupMsg").textContent="✅ Excel Backup डाउनलोड हो गया। इसमें सभी मुख्य Salary + Loan tables शामिल हैं।";
+    add("Employees",snap.tables.employees);add("Salary Records",snap.tables.salary_records);add("FDR Records",snap.tables.fdr_records);add("Loan Accounts",snap.tables.loan_accounts);add("Loan Installments",snap.tables.loan_installments);add("Loan Payments",snap.tables.loan_payments);add("Loans",snap.tables.loans);add("Account Heads",snap.tables.account_heads);add("Account Transactions",snap.tables.account_transactions);add("Bank Accounts",snap.tables.bank_accounts);add("Bank Transactions",snap.tables.bank_transactions);add("App Admins",snap.tables.app_admins);add("Backup Info",[{product:snap.product,backup_type:snap.backup_type,schema_version:snap.schema_version,exported_at:snap.exported_at,included_tables:snap.included_tables.join(", "),excluded_tables:snap.excluded_tables.join("; "),row_counts:JSON.stringify(snap.row_counts)}]);
+    XLSX.writeFile(wb,"harshi-computer-full-site-backup-"+new Date().toISOString().slice(0,10)+".xlsx");
+    document.getElementById("backupMsg").textContent="✅ Excel Backup डाउनलोड हो गया। सभी मुख्य application tables और Backup Info शामिल हैं।";
   }catch(e){document.getElementById("backupMsg").textContent="Excel Backup error: "+(e?.message||e);}
 }
 async function exportCSV(){
