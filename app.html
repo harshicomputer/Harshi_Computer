@@ -91,7 +91,7 @@ window.loginNow=async function(){
   <div class="portal-grid">
     <div class="portal-card"><div class="portal-icon">💰</div><h3>Salary</h3><p>कर्मचारी और वेतन के सभी रिकॉर्ड</p><button class="btn primary" onclick="openOfficeModule('dash')">Salary खोलें</button></div>
     <div class="portal-card"><div class="portal-icon">🏦</div><h3>FDR</h3><p>FDR की जानकारी, Renewal और Scan Copy</p><button class="btn primary" onclick="openOfficeModule('fdr')">FDR खोलें</button></div>
-    <div class="portal-card"><div class="portal-icon">🏦</div><h3>Account</h3><p>Office Bank Account और उसके रिकॉर्ड</p><button class="btn primary" onclick="openOfficeModule('officeAccount')">Account खोलें</button></div>
+    <div class="portal-card"><div class="portal-icon">🏦</div><h3>Account</h3><p>Office Bank Account और उसके रिकॉर्ड</p><button class="btn primary" onclick="window.location.href='account_menu.html'">Account खोलें</button></div>
   </div>
   <div style="text-align:center;margin-top:20px"><button class="btn" onclick="backToPortal()">← मुख्य चयन</button></div>
 </section><section id="dash" class="page"><div class="grid"><div class="card"><div class="muted">कुल कर्मचारी</div><div class="stat" id="cntEmp">0</div></div><div class="card"><div class="muted">अवधि</div><div class="stat" id="period">0 माह</div></div><div class="card"><div class="muted">दर्ज महीने</div><div class="stat" id="cntRec">0</div></div><div class="card"><div class="muted">भुगतान योग्य</div><div class="stat" id="sumPayable">₹0</div></div><div class="card"><div class="muted">भुगतान की गई राशि</div><div class="stat" id="sumRec">₹0</div></div><div class="card"><div class="muted">कुल लंबित राशि</div><div class="stat" id="sumPending">₹0</div></div></div><div class="card" style="margin-top:14px"><h3>सिस्टम स्थिति</h3><p class="ok">● Cloud Database connected</p><p class="ok">● Login protected</p><p class="ok">● Backup / Export available</p></div></section>
@@ -167,7 +167,7 @@ window.loginNow=async function(){
 <section id="officeAccount" class="page">
 <div class="card">
   <div class="toolbar" style="justify-content:space-between">
-    <div><h2>🏦 Account / मदवार Ledger</h2><p class="muted">Excel के अनुसार प्रत्येक Head / मद का Ledger और Balance</p></div>
+    <div><h2>🏦 अनुदान / ANUDAN Ledger</h2><p class="muted">अनुदान की प्रत्येक मद का Ledger और Balance</p></div>
     <div class="toolbar">
       <select id="accountFY" onchange="loadAccountSummary()"></select>
       <button class="btn primary" onclick="showNewAccountHead()">＋ नया Head / मद</button>
