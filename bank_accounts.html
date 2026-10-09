@@ -41,5 +41,16 @@ $("txnBody").innerHTML=txns.map(t=>{const b=banks.find(x=>x.id===t.bank_account_
 $("txnFY").addEventListener("change",async()=>{const {data}=await db.from("account_heads").select("financial_year,head_name,display_order").eq("financial_year",$("txnFY").value).order("display_order");heads=data||[];$("txnHead").innerHTML='<option value="">Head चुनें (वैकल्पिक)</option>'+heads.map(h=>'<option value="'+esc(h.head_name)+'">'+esc(h.head_name)+'</option>').join("")});
 $("accountForm").addEventListener("submit",async e=>{e.preventDefault();if(!db)return;const {data:sessionData}=await db.auth.getSession();const user=sessionData.session?.user;if(!user){note("पहले Login करें।",true);return}const obj={user_id:user.id,bank_name:$("bankName").value.trim(),branch_name:$("branchName").value.trim()||null,account_name:$("accountName").value.trim()||null,account_number_masked:$("accountNumber").value.trim()||null,ifsc_code:$("ifscCode").value.trim()||null,purpose:$("accountPurpose").value.trim()||null,account_type:$("accountType").value,opening_balance:Number($("openingBalance").value),opening_date:$("openingDate").value};const {error}=await db.from("bank_accounts").insert(obj);if(error){note("बैंक खाता सेव नहीं हुआ: "+error.message,true);return}$("accountForm").reset();$("openingBalance").value="0";$("openingDate").value=$("txnDate").value;note("बैंक खाता सेव हो गया।");await loadAll()});
 $("txnForm").addEventListener("submit",async e=>{e.preventDefault();if(!db)return;const {data:sessionData}=await db.auth.getSession();const user=sessionData.session?.user;if(!user){note("पहले Login करें।",true);return}const date=$("txnDate").value;const obj={user_id:user.id,bank_account_id:$("txnBank").value,financial_year:$("txnFY").value,transaction_date:date,transaction_type:$("txnType").value,head_name:$("txnHead").value||null,voucher_no:$("voucherNo").value.trim()||null,utr_no:$("utrNo").value.trim()||null,description:$("txnDesc").value.trim(),amount:Number($("txnAmount").value)};if(!obj.bank_account_id){note("बैंक खाता चुनें।",true);return}if(obj.financial_year!==fyForDate(date)){if(!confirm("चुना गया वित्तीय वर्ष तारीख से मेल नहीं खाता। फिर भी सेव करें?"))return}const {error}=await db.from("bank_transactions").insert(obj);if(error){note("लेन-देन सेव नहीं हुआ: "+error.message,true);return}$("txnForm").reset();$("txnDate").value=date;$("txnFY").value=fyForDate(date);await loadAll();note("लेन-देन सेव हो गया।")});
+let securityIdleTimer;
+function resetSecurityIdleTimer(){
+  clearTimeout(securityIdleTimer);
+  securityIdleTimer=setTimeout(async()=>{
+    try{if(db)await db.auth.signOut({scope:"local"});}catch(e){}
+    location.href="index.html";
+  },600000);
+}
+["mousemove","mousedown","keydown","scroll","touchstart","click"].forEach(evt=>window.addEventListener(evt,resetSecurityIdleTimer,{passive:true}));
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")resetSecurityIdleTimer();});
+resetSecurityIdleTimer();
 init();
 </script></body></html>
