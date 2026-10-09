@@ -13,7 +13,7 @@ body{margin:0;min-height:100vh;font-family:Arial,"Noto Sans Devanagari",sans-ser
 .wrap{max-width:1120px;margin:38px auto;padding:0 22px 42px}
 .crumb{font-size:13px;color:var(--muted);margin-bottom:18px}.crumb b{color:var(--blue)}
 .intro{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:24px}.intro h2{font-size:clamp(25px,3vw,34px);margin:0;color:var(--navy)}.intro p{margin:9px 0 0;color:var(--muted);line-height:1.6}.pill{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid #d5e4fb;background:#fff;border-radius:999px;color:#235a9f;font-size:12px;font-weight:700;white-space:nowrap}
-.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
 .card{position:relative;overflow:hidden;background:#fff;border:1px solid var(--line);border-radius:20px;padding:25px;min-height:250px;box-shadow:0 12px 35px #123b730d;display:flex;flex-direction:column;align-items:flex-start;transition:transform .2s,box-shadow .2s,border-color .2s}
 .card:before{content:"";position:absolute;right:-38px;top:-52px;width:150px;height:150px;border-radius:50%;background:var(--pale)}
 .card:hover{transform:translateY(-4px);box-shadow:0 18px 42px #123b7318;border-color:#b6cdef}
@@ -21,7 +21,7 @@ body{margin:0;min-height:100vh;font-family:Arial,"Noto Sans Devanagari",sans-ser
 .card h3{position:relative;margin:20px 0 8px;color:var(--navy);font-size:22px}.card p{position:relative;color:var(--muted);line-height:1.65;font-size:14px;margin:0 0 22px;max-width:470px}.card .btn{margin-top:auto;background:var(--blue);border-color:var(--blue);color:#fff;padding:11px 16px}.card .btn .arrow{font-size:18px;transition:transform .2s}.card:hover .arrow{transform:translateX(4px)}
 .info{display:flex;align-items:center;gap:10px;margin-top:22px;padding:14px 16px;border-radius:12px;background:#ffffffb8;border:1px solid #e0e9f6;color:var(--muted);font-size:13px;line-height:1.55}.info span{font-size:18px}
 footer{text-align:center;color:#8793a5;font-size:12px;padding:18px}
-@media(max-width:680px){.top{padding:14px 16px;align-items:flex-start}.brand h1{font-size:16px}.brand-icon{width:40px;height:40px}.top .btn{font-size:12px;padding:9px}.wrap{margin:25px auto;padding:0 15px 30px}.intro{display:block}.pill{margin-top:15px}.cards{grid-template-columns:1fr;gap:14px}.card{min-height:230px;padding:21px}.card h3{font-size:20px}}
+@media(max-width:900px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}\n@media(max-width:680px){.top{padding:14px 16px;align-items:flex-start}.brand h1{font-size:16px}.brand-icon{width:40px;height:40px}.top .btn{font-size:12px;padding:9px}.wrap{margin:25px auto;padding:0 15px 30px}.intro{display:block}.pill{margin-top:15px}.cards{grid-template-columns:1fr;gap:14px}.card{min-height:230px;padding:21px}.card h3{font-size:20px}}
 </style>
 </head>
 <body>
@@ -47,6 +47,12 @@ footer{text-align:center;color:#8793a5;font-size:12px;padding:18px}
       <h3>आय-व्यय <span style="font-size:15px;font-weight:500;color:#667085">(Income &amp; Expense)</span></h3>
       <p>आय और व्यय के रिकॉर्ड के लिए अलग कार्यक्षेत्र। आगे इसमें तारीख, विवरण, राशि, कुल हिसाब और रिपोर्ट की सुविधाएँ विकसित होंगी।</p>
       <a class="btn" href="income_expense.html" style="background:#168052;border-color:#168052">आय-व्यय खोलें <span class="arrow">→</span></a>
+    </article>
+    <article class="card">
+      <div class="card-top"><div class="ico" style="background:#fff4df">🏦</div><span class="num">OPTION 03</span></div>
+      <h3>Bank Account Management</h3>
+      <p>10–12 बैंक खातों का अलग-अलग Opening Balance, जमा, भुगतान और Closing Balance रखें। मौजूदा Head / मद चुनकर लेन-देन को अनुदान Ledger से जोड़ें।</p>
+      <a class="btn" href="bank_accounts.html" style="background:#b86b12;border-color:#b86b12">बैंक हिसाब खोलें <span class="arrow">→</span></a>
     </article>
   </section>
   <div class="info"><span>💡</span><div><b>आसान नेविगेशन:</b> किसी विकल्प पर क्लिक करके उसका पेज खोलें। ऊपर दिए गए Office बटन से वापस जा सकते हैं।</div></div>
