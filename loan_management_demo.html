@@ -208,5 +208,16 @@ document.getElementById("paymentForm").addEventListener("submit",async e=>{
   msg.className="success";msg.textContent=newOutstanding<=0?"Payment सेव हो गया और Loan स्वतः Closed हो गया।":"Payment सेव हो गया।";
   await refresh();setTimeout(closePayment,500)
 })
+let securityIdleTimer;
+function resetSecurityIdleTimer(){
+  clearTimeout(securityIdleTimer);
+  securityIdleTimer=setTimeout(async()=>{
+    try{if(db)await db.auth.signOut({scope:"local"});}catch(e){}
+    location.href="index.html";
+  },600000);
+}
+["mousemove","mousedown","keydown","scroll","touchstart","click"].forEach(evt=>window.addEventListener(evt,resetSecurityIdleTimer,{passive:true}));
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")resetSecurityIdleTimer();});
+resetSecurityIdleTimer();
 init().catch(e=>{console.error(e);document.body.insertAdjacentHTML("afterbegin",'<div style="background:#fee2e2;color:#991b1b;padding:10px;text-align:center">Loan data load नहीं हो पाया: '+esc(e.message)+'</div>')});
 </script></body></html>
