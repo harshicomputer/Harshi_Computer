@@ -885,7 +885,7 @@ async function deleteFdr(id){
 // ================= END FDR MANAGEMENT =================
 
 async function getBackupSnapshot(){
-  const tables=["employees","salary_records","fdr_records","loan_accounts","loan_installments","loan_payments"];
+  const tables=["employees","salary_records","fdr_records","loan_accounts","loan_installments","loan_payments","loans","account_heads","account_transactions","bank_accounts","bank_transactions"];
   const out={schema_version:1,exported_at:new Date().toISOString(),tables:{}};
   for(const table of tables){
     const {data,error}=await window.salaryDb.from(table).select("*");
@@ -933,7 +933,7 @@ async function exportExcelBackup(){
   try{
     const snap=await getBackupSnapshot(),wb=XLSX.utils.book_new();
     const add=(name,rows)=>{const ws=XLSX.utils.json_to_sheet(rows||[]);XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31));};
-    add("Employees",snap.tables.employees);add("Salary Records",snap.tables.salary_records);add("FDR Records",snap.tables.fdr_records);add("Loan Accounts",snap.tables.loan_accounts);add("Loan Installments",snap.tables.loan_installments);add("Loan Payments",snap.tables.loan_payments);
+    add("Employees",snap.tables.employees);add("Salary Records",snap.tables.salary_records);add("FDR Records",snap.tables.fdr_records);add("Loan Accounts",snap.tables.loan_accounts);add("Loan Installments",snap.tables.loan_installments);add("Loan Payments",snap.tables.loan_payments);add("Loans",snap.tables.loans);add("Account Heads",snap.tables.account_heads);add("Account Transactions",snap.tables.account_transactions);add("Bank Accounts",snap.tables.bank_accounts);add("Bank Transactions",snap.tables.bank_transactions);
     XLSX.writeFile(wb,"harshi-computer-full-backup-"+new Date().toISOString().slice(0,10)+".xlsx");
     document.getElementById("backupMsg").textContent="✅ Excel Backup डाउनलोड हो गया। इसमें सभी मुख्य Salary + Loan tables शामिल हैं।";
   }catch(e){document.getElementById("backupMsg").textContent="Excel Backup error: "+(e?.message||e);}
