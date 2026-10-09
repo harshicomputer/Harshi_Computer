@@ -2,24 +2,55 @@
 <html lang="hi">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OFFICE - ACCOUNT | Harshi Computer</title>
+<title>Account | Harshi Computer Online Management System</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#fff;color:#111;font-family:Arial,"Noto Sans Devanagari",sans-serif}
-.wrap{max-width:850px;margin:42px auto;padding:0 24px}
-h2{font-size:20px;margin:0 0 20px;font-weight:700}
-.options{margin-left:160px;display:grid;gap:12px}
-a{font-size:16px;font-weight:700;color:#111;text-decoration:none}
-a:hover{text-decoration:underline;color:#1857a8}
-@media(max-width:600px){.wrap{margin:28px auto;padding:0 16px}.options{margin-left:0}}
+:root{--navy:#123b73;--blue:#1857a8;--pale:#edf4ff;--ink:#172033;--muted:#667085;--line:#dce4ef}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:Arial,"Noto Sans Devanagari",sans-serif;color:var(--ink);background:linear-gradient(145deg,#edf4ff 0%,#f7f9fc 52%,#eaf2ff 100%)}
+.top{background:linear-gradient(110deg,#103365,#1c5aa7);color:#fff;padding:18px max(22px,calc((100% - 1120px)/2));display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:0 6px 22px #123b7320}
+.brand{display:flex;align-items:center;gap:13px}.brand-icon{width:46px;height:46px;border-radius:13px;background:#ffffff20;display:grid;place-items:center;font-size:25px}.brand h1{font-size:20px;margin:0}.brand p{font-size:12px;color:#dceaff;margin:4px 0 0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #d7dfeb;border-radius:10px;padding:10px 14px;background:#fff;color:var(--ink);font-weight:700;text-decoration:none;cursor:pointer;transition:transform .18s,box-shadow .18s}.btn:hover{transform:translateY(-1px);box-shadow:0 5px 14px #001b3d18}.top .btn{background:#ffffff12;color:#fff;border-color:#ffffff45}
+.wrap{max-width:1120px;margin:38px auto;padding:0 22px 42px}
+.crumb{font-size:13px;color:var(--muted);margin-bottom:18px}.crumb b{color:var(--blue)}
+.intro{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:24px}.intro h2{font-size:clamp(25px,3vw,34px);margin:0;color:var(--navy)}.intro p{margin:9px 0 0;color:var(--muted);line-height:1.6}.pill{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid #d5e4fb;background:#fff;border-radius:999px;color:#235a9f;font-size:12px;font-weight:700;white-space:nowrap}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.card{position:relative;overflow:hidden;background:#fff;border:1px solid var(--line);border-radius:20px;padding:25px;min-height:250px;box-shadow:0 12px 35px #123b730d;display:flex;flex-direction:column;align-items:flex-start;transition:transform .2s,box-shadow .2s,border-color .2s}
+.card:before{content:"";position:absolute;right:-38px;top:-52px;width:150px;height:150px;border-radius:50%;background:var(--pale)}
+.card:hover{transform:translateY(-4px);box-shadow:0 18px 42px #123b7318;border-color:#b6cdef}
+.card-top{position:relative;display:flex;align-items:center;justify-content:space-between;width:100%;gap:12px}.ico{width:58px;height:58px;border-radius:17px;display:grid;place-items:center;background:var(--pale);font-size:29px}.num{color:#9aabc2;font-weight:800;font-size:14px}
+.card h3{position:relative;margin:20px 0 8px;color:var(--navy);font-size:22px}.card p{position:relative;color:var(--muted);line-height:1.65;font-size:14px;margin:0 0 22px;max-width:470px}.card .btn{margin-top:auto;background:var(--blue);border-color:var(--blue);color:#fff;padding:11px 16px}.card .btn .arrow{font-size:18px;transition:transform .2s}.card:hover .arrow{transform:translateX(4px)}
+.info{display:flex;align-items:center;gap:10px;margin-top:22px;padding:14px 16px;border-radius:12px;background:#ffffffb8;border:1px solid #e0e9f6;color:var(--muted);font-size:13px;line-height:1.55}.info span{font-size:18px}
+footer{text-align:center;color:#8793a5;font-size:12px;padding:18px}
+@media(max-width:680px){.top{padding:14px 16px;align-items:flex-start}.brand h1{font-size:16px}.brand-icon{width:40px;height:40px}.top .btn{font-size:12px;padding:9px}.wrap{margin:25px auto;padding:0 15px 30px}.intro{display:block}.pill{margin-top:15px}.cards{grid-template-columns:1fr;gap:14px}.card{min-height:230px;padding:21px}.card h3{font-size:20px}}
 </style>
 </head>
 <body>
+<header class="top">
+  <div class="brand"><div class="brand-icon">🏢</div><div><h1>Harshi Computer</h1><p>Online Management System</p></div></div>
+  <a class="btn" href="app.html?open=officeAccount">← Office</a>
+</header>
 <main class="wrap">
-<h2>OFFICE- &nbsp; ACCOUNT-</h2>
-<div class="options">
-<a href="app.html?open=officeAccount">1. अनुदान (मदवार Ledger)</a>
-<a href="income_expense.html">2. आय-व्यय (Income Exp)</a>
-</div>
+  <div class="crumb">Office <span> / </span> <b>Account</b></div>
+  <section class="intro">
+    <div><h2>Account Management</h2><p>अपने कार्यालय के वित्तीय रिकॉर्ड के लिए एक विकल्प चुनें।</p></div>
+    <div class="pill">🔒 सुरक्षित कार्यालय क्षेत्र</div>
+  </section>
+  <section class="cards">
+    <article class="card">
+      <div class="card-top"><div class="ico">🏛️</div><span class="num">OPTION 01</span></div>
+      <h3>अनुदान <span style="font-size:15px;font-weight:500;color:#667085">(मदवार Ledger)</span></h3>
+      <p>अनुदान की प्रत्येक मद का Opening Balance, आय/प्राप्ति, व्यय/भुगतान और Closing Balance देखें। मौजूदा Ledger रिकॉर्ड यहीं मिलेंगे।</p>
+      <a class="btn" href="app.html?open=officeAccount">अनुदान खोलें <span class="arrow">→</span></a>
+    </article>
+    <article class="card">
+      <div class="card-top"><div class="ico" style="background:#e9f8f0">📊</div><span class="num">OPTION 02</span></div>
+      <h3>आय-व्यय <span style="font-size:15px;font-weight:500;color:#667085">(Income &amp; Expense)</span></h3>
+      <p>आय और व्यय के रिकॉर्ड के लिए अलग कार्यक्षेत्र। आगे इसमें तारीख, विवरण, राशि, कुल हिसाब और रिपोर्ट की सुविधाएँ विकसित होंगी।</p>
+      <a class="btn" href="income_expense.html" style="background:#168052;border-color:#168052">आय-व्यय खोलें <span class="arrow">→</span></a>
+    </article>
+  </section>
+  <div class="info"><span>💡</span><div><b>आसान नेविगेशन:</b> किसी विकल्प पर क्लिक करके उसका पेज खोलें। ऊपर दिए गए Office बटन से वापस जा सकते हैं।</div></div>
 </main>
+<footer>Harshi Computer Online Management System</footer>
 </body>
 </html>
