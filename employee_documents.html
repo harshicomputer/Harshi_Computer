@@ -35,7 +35,7 @@
     <div class="employee-extra-item"><span>ई-मेल</span><b id="profileEmail">—</b></div>
     <div class="employee-extra-item"><span>Employee Treasury Code</span><b id="profileTreasuryCode">—</b></div>
   </div>
-  <div class="employee-extra-form-wrap"><h3>परिवार और सेवा विवरण</h3><form id="employeeExtraForm">
+  <div class="employee-extra-form-wrap"><h3>परिवार और सेवा विवरण</h3><form id="employeeExtraForm"><div class="field" style="margin-bottom:8px"><label for="profileTreasuryCodeInput">Employee Treasury Code</label><input id="profileTreasuryCodeInput" maxlength="50" placeholder="जैसे H0000409503"></div>
     <div class="row">
       <div class="field"><label for="profileFather">1. पिता का नाम</label><input id="profileFather" maxlength="150"></div>
       <div class="field"><label for="profileMother">2. माता का नाम</label><input id="profileMother" maxlength="150"></div>
@@ -92,23 +92,24 @@ function setEmployeeCategory(category,btn){selectedEmployeeCategory=category;doc
 };function backToEmployeeList(){$("employeeDetailHeader").hidden=true;$("employeeContactPanel").hidden=true;$("employeeExtraDetails").hidden=true;$("employeeDocumentPanel").hidden=true;$("employeeDocumentFiles").hidden=true;document.querySelectorAll("#appBox > .notice, #appBox > #employeeImportToggle, #appBox > #employeeCategoryFilter").forEach(el=>el.hidden=false);$("employeeImportCard").hidden=true;$("employeeBasicList").hidden=false;$("employeePickerCard").hidden=true;document.querySelectorAll("#appBox > section").forEach(el=>{if(el.querySelector("#docRows"))el.hidden=true});window.scrollTo({top:0,behavior:"smooth"})}async function loadEmployees(){const {data:em,error}=await db.from("employees").select("id,code,name,post,department,active,employee_type").order("code");if(error)throw error;employees=em||[];renderEmployeeCategory()}
 async function loadEmployeeExtraDetails(){
  const id=$("empSelect").value;
- ["profileDob","profileFather","profileMother","profileSpouse","profileJoining","profileRetirement"].forEach(k=>$(k).value="");
- $("profileBankName").textContent="—";$("profileBankAccount").textContent="—";$("profileBankIfsc").textContent="—";$("profileMobile").textContent="—";$("profileEmail").textContent="—";$("profileEmployeeCode").textContent="—";
+ ["profileDob","profileFather","profileMother","profileSpouse","profileJoining","profileRetirement"].forEach(k=>$(k).value="");$("profileTreasuryCodeInput").value="";
+ $("profileBankName").textContent="—";$("profileBankAccount").textContent="—";$("profileBankIfsc").textContent="—";$("profileMobile").textContent="—";$("profileEmail").textContent="—";$("profileTreasuryCode").textContent="—";
  const emp=employees.find(e=>String(e.id)===String(id));if(!emp)return;
- $("profileEmployeeCode").textContent=emp.code||"—";
+ 
  const {data:bank,error:bankErr}=await db.from("employee_bank_details").select("bank_name,account_number,ifsc_code").eq("employee_id",id).maybeSingle();
  if(bankErr)message("employeeExtraMsg","बैंक विवरण लोड नहीं हुआ: "+bankErr.message,true);
  if(bank){$("profileBankName").textContent=bank.bank_name||"—";$("profileBankAccount").textContent=bank.account_number||"—";$("profileBankIfsc").textContent=bank.ifsc_code||"—";}
  const contacts=await db.from("employee_contact_credentials").select("mobile_number,email_id,record_type").eq("employee_id",id).eq("record_type","contact");
  if(!contacts.error){const rows=contacts.data||[];$("profileMobile").textContent=[...new Set(rows.map(x=>x.mobile_number).filter(Boolean))].join(", ")||"—";$("profileEmail").textContent=[...new Set(rows.map(x=>x.email_id).filter(Boolean))].join(", ")||"—";}
- const {data,error}=await db.from("employee_personal_details").select("date_of_birth,father_name,mother_name,spouse_name,joining_date,retirement_date").eq("employee_id",id).maybeSingle();
+ const {data,error}=await db.from("employee_personal_details").select("date_of_birth,father_name,mother_name,spouse_name,joining_date,retirement_date,treasury_code").eq("employee_id",id).maybeSingle();
  if(error){message("employeeExtraMsg","व्यक्तिगत जानकारी लोड नहीं हुई: "+error.message,true);return}
+ $("profileTreasuryCode").textContent=data?.treasury_code||"—";$("profileTreasuryCodeInput").value=data?.treasury_code||"";
  if(data){$("profileDob").value=data.date_of_birth||"";$("profileFather").value=data.father_name||"";$("profileMother").value=data.mother_name||"";$("profileSpouse").value=data.spouse_name||"";$("profileJoining").value=data.joining_date||"";$("profileRetirement").value=data.retirement_date||"";}
 }
 async function saveEmployeeExtraDetails(ev){
  ev.preventDefault();const id=$("empSelect").value;if(!id)return message("employeeExtraMsg","पहले कर्मचारी चुनें।",true);
  const btn=$("profileSaveBtn");btn.disabled=true;
- try{const row={employee_id:id,date_of_birth:$("profileDob").value||null,father_name:$("profileFather").value.trim()||null,mother_name:$("profileMother").value.trim()||null,spouse_name:$("profileSpouse").value.trim()||null,joining_date:$("profileJoining").value||null,retirement_date:$("profileRetirement").value||null,updated_by:currentUser.id,updated_at:new Date().toISOString()};
+ try{const row={employee_id:id,treasury_code:$("profileTreasuryCodeInput").value.trim()||null,date_of_birth:$("profileDob").value||null,father_name:$("profileFather").value.trim()||null,mother_name:$("profileMother").value.trim()||null,spouse_name:$("profileSpouse").value.trim()||null,joining_date:$("profileJoining").value||null,retirement_date:$("profileRetirement").value||null,updated_by:currentUser.id,updated_at:new Date().toISOString()};
  const {error}=await db.from("employee_personal_details").upsert(row,{onConflict:"employee_id"});if(error)throw error;message("employeeExtraMsg","व्यक्तिगत जानकारी सुरक्षित हो गई।");}
  catch(e){message("employeeExtraMsg","जानकारी सुरक्षित नहीं हुई: "+(e.message||e),true)}
  finally{btn.disabled=false}
