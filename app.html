@@ -90,10 +90,16 @@ window.loginNow=async function(){
   <div class="portal-head"><h2>🏢 Office</h2><p>कृपया कार्य चुनें</p></div>
   <div class="portal-grid">
     <div class="portal-card"><div class="portal-icon">👥</div><h3>कर्मचारी प्रबंधन</h3><p>वेतन और कर्मचारी दस्तावेज़ों के लिए सभी विकल्प।</p><button class="btn primary" onclick="openEmployeeManagement()">कर्मचारी प्रबंधन खोलें</button></div>
-    <div class="portal-card"><div class="portal-icon">📒</div><h3>लेखा प्रबंधन</h3><p>कार्यालय के बैंक खातों और लेखा रिकॉर्ड का प्रबंधन</p><button class="btn primary" onclick="window.location.href='account_menu.html'">लेखा प्रबंधन खोलें</button></div>
-    <div class="portal-card"><div class="portal-icon">🏦</div><h3>FDR</h3><p>FDR की जानकारी, Renewal और Scan Copy</p><button class="btn primary" onclick="openOfficeModule('fdr')">FDR खोलें</button></div>
+    <div class="portal-card"><div class="portal-icon">📒</div><h3>लेखा प्रबंधन</h3><p>FDR और कार्यालय के बैंक खातों का प्रबंधन</p><button class="btn primary" onclick="openAccountsManagement()">लेखा प्रबंधन खोलें</button></div>
   </div>
   <div style="text-align:center;margin-top:20px"><button class="btn" onclick="backToPortal()">← मुख्य चयन</button></div>
+</section><section id="accountsManagement" class="page">
+  <div class="portal-head"><h2>📒 लेखा प्रबंधन</h2><p>कृपया कार्य चुनें</p></div>
+  <div class="portal-grid">
+    <div class="portal-card"><div class="portal-icon">🏦</div><h3>FDR</h3><p>FDR की जानकारी, Renewal और Scan Copy</p><button class="btn primary" onclick="openOfficeModule('fdr')">FDR खोलें</button></div>
+    <div class="portal-card"><div class="portal-icon">🏦</div><h3>Account</h3><p>Office Bank Account और उसके रिकॉर्ड</p><button class="btn primary" onclick="window.location.href='account_menu.html'">Account खोलें</button></div>
+  </div>
+  <div style="text-align:center;margin-top:20px"><button class="btn" onclick="openOffice()">← Office पर वापस</button></div>
 </section><section id="employeeManagement" class="page">
   <div class="portal-head"><h2>👥 कर्मचारी प्रबंधन</h2><p>कृपया कार्य चुनें</p></div>
   <div class="portal-grid">
@@ -238,6 +244,13 @@ function openOffice(){
   document.getElementById("personal").style.display="none";
   document.querySelectorAll("#app .page").forEach(x=>x.classList.remove("active"));
   document.getElementById("officeMenu").classList.add("active");
+  document.getElementById("officeModuleNav").style.display="none";
+  document.getElementById("salarySubNav").style.display="none";
+  resetInactivityTimer();
+}
+function openAccountsManagement(){
+  document.querySelectorAll("#app .page").forEach(x=>x.classList.remove("active"));
+  document.getElementById("accountsManagement").classList.add("active");
   document.getElementById("officeModuleNav").style.display="none";
   document.getElementById("salarySubNav").style.display="none";
   resetInactivityTimer();
