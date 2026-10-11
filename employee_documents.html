@@ -43,8 +43,8 @@ function setEmployeeCategory(category,btn){selectedEmployeeCategory=category;doc
   $("employeeDetailMeta").textContent="Employee ID: "+(e.code||"—")+" | श्रेणी: "+(e.employee_type||"Regular")+" | पद: "+(e.post||"—")+" | विभाग: "+(e.department||"—");
   $("employeeDetailHeader").hidden=false;
   $("employeeContactPanel").hidden=false;
-  $("employeeDocumentPanel").hidden=true;
   $("employeeDocumentFiles").hidden=false;
+  $("employeeDocumentPanel").hidden=false;
   document.querySelectorAll("#appBox > .notice, #appBox > #employeeImportToggle, #appBox > #employeeImportCard, #appBox > #employeeCategoryFilter, #appBox > #employeeBasicList, #appBox > #employeePickerCard").forEach(el=>el.hidden=true);
   await loadDocs();await loadContacts();window.scrollTo({top:0,behavior:"smooth"});
  }catch(err){console.error("Employee detail open failed:",err);alert("कर्मचारी का पेज खोलने में समस्या: "+(err.message||err))}
