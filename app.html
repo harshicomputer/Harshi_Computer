@@ -278,7 +278,7 @@ function openOfficeModule(id){
   if(id==="fdr")renderFdr();
   if(id==="reports")setupReport();
   if(id==="backup")renderBackupList();
-} function openBusiness(){alert("Harshi Computer दुकान प्रबंधन मॉड्यूल अगला चरण है।");}
+} function openBusiness(){window.location.href="business_customers.html";}
 function openPersonal(){document.getElementById("portal").classList.remove("show");document.getElementById("app").style.display="none";document.getElementById("personal").style.display="block"} function openPersonalSection(id,b){
   document.getElementById("personalLoanSection").style.display=id==="loan"?"block":"none";
   document.getElementById("personalCreditCardSection").classList.toggle("show",id==="creditCard");
