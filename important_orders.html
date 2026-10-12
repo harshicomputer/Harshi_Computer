@@ -43,17 +43,17 @@ async function fillFromPdf(){
   window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   const bytes=await file.arrayBuffer(),pdf=await window.pdfjsLib.getDocument({data:bytes}).promise;let pages=[];
   for(let n=1;n<=Math.min(pdf.numPages,20);n++){const page=await pdf.getPage(n),content=await page.getTextContent();pages.push(content.items.map(x=>x.str).join(" "))}
-  const text=pages.join("\n").replace(/[\\t ]+/g," ").trim();
+  const text=pages.join("\n").replace(/[\t ]+/g," ").trim();
   if(!text){throw new Error("इस PDF में पढ़ने योग्य टेक्स्ट नहीं मिला। यह स्कैन की हुई PDF हो सकती है; इसमें OCR की आवश्यकता होगी।")}
   const lines=text.split(/\n|(?<=।)\s+/).map(x=>x.trim()).filter(Boolean);
-  const dateMatch=text.match(/(?:दिनांक|दिनांकः|दिनांक:|Date\s*[:：]?)\s*([0-3]?\\d[\\/-][01]?\\d[\\/-](?:19|20)\\d{2}|(?:19|20)\\d{2}[\\/-][01]?\\d[\\/-][0-3]?\\d)/i);
-  const anyDate=text.match(/\\b([0-3]?\\d[\\/-][01]?\\d[\\/-](?:19|20)\\d{2})\\b/);
+  const dateMatch=text.match(/(?:दिनांक|दिनांकः|दिनांक:|Date\s*[:：]?)\s*([0-3]?\d[\/-][01]?\d[\/-](?:19|20)\d{2}|(?:19|20)\d{2}[\/-][01]?\d[\/-][0-3]?\d)/i);
+  const anyDate=text.match(/\b([0-3]?\d[\/-][01]?\d[\/-](?:19|20)\d{2})\b/);
   const chosenDate=dateMatch?.[1]||anyDate?.[1];
-  if(chosenDate){let p=chosenDate.split(/[\\/-]/);if(p[0].length===4)$( "orderDate").value=p[0]+"-"+p[1].padStart(2,"0")+"-"+p[2].padStart(2,"0");else $( "orderDate").value=p[2]+"-"+p[1].padStart(2,"0")+"-"+p[0].padStart(2,"0")}
-  const noMatch=text.match(/(?:आदेश\\s*(?:क्रमांक|क्र\.?|संख्या|सं\.?|क्रम\.?\s*संख्या)|क्रमांक|Order\\s*(?:No\\.?|Number)|No\.?)\\s*[:：#-]?\\s*([A-Z0-9\\/-]{3,})/i);
+  if(chosenDate){let p=chosenDate.split(/[\/-]/);if(p[0].length===4)$( "orderDate").value=p[0]+"-"+p[1].padStart(2,"0")+"-"+p[2].padStart(2,"0");else $( "orderDate").value=p[2]+"-"+p[1].padStart(2,"0")+"-"+p[0].padStart(2,"0")}
+  const noMatch=text.match(/(?:आदेश\s*(?:क्रमांक|क्र\.?|संख्या|सं\.?|क्रम\.?\s*संख्या)|क्रमांक|Order\s*(?:No\.?|Number)|No\.?)\s*[:：#-]?\s*([A-Z0-9\/-]{3,})/i);
   if(noMatch)$( "orderNumber").value=noMatch[1].replace(/[.,;]+$/,"");
-  const subjLine=lines.find(x=>/(?:विषय|विषयः|Subject)\\s*[:：-]/i.test(x));
-  if(subjLine){const s=subjLine.replace(/^.*?(?:विषय|विषयः|Subject)\\s*[:：-]\\s*/i,"").trim();if(s)$( "subject").value=s.slice(0,250)}
+  const subjLine=lines.find(x=>/(?:विषय|विषयः|Subject)\s*[:：-]/i.test(x));
+  if(subjLine){const s=subjLine.replace(/^.*?(?:विषय|विषयः|Subject)\s*[:：-]\s*/i,"").trim();if(s)$( "subject").value=s.slice(0,250)}
   const deptLine=lines.find(x=>/(?:मध्य प्रदेश शासन|कार्यालय|संचालनालय|विभाग|मंत्रालय|Government of|Department of)/i.test(x));
   if(deptLine&&!$( "department").value)$( "department").value=deptLine.slice(0,180);
   if(!$( "subject").value){const candidate=lines.find(x=>x.length>12&&!/(?:मध्य प्रदेश शासन|कार्यालय|संचालनालय|विभाग|क्रमांक|दिनांक|विषय|प्रतिलिपि|प्रति:)/i.test(x));if(candidate)$( "subject").value=candidate.slice(0,250)}
