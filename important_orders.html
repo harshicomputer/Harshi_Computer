@@ -35,30 +35,47 @@ async function fillFromPdf(){
  const file=$("orderFile").files[0];
  if(!file){note("पहले आदेश की PDF फाइल चुनें।",true);return}
  if(!/\.pdf$/i.test(file.name)&&file.type!=="application/pdf"){note("जानकारी निकालने के लिए कृपया PDF चुनें।",true);return}
- const btn=$("extractPdfBtn");btn.disabled=true;btn.textContent="PDF पढ़ी जा रही है...";
+ const btn=$("extractPdfBtn");btn.disabled=true;
  try{
-  if(!window.pdfjsLib){
-   await new Promise((resolve,reject)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";s.onload=resolve;s.onerror=()=>reject(new Error("PDF रीडर लोड नहीं हुआ। इंटरनेट कनेक्शन जाँचें।"));document.head.appendChild(s)});
-  }
+  btn.textContent="PDF पढ़ी जा रही है...";
+  if(!window.pdfjsLib)await new Promise((resolve,reject)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";s.onload=resolve;s.onerror=()=>reject(new Error("PDF रीडर लोड नहीं हुआ। इंटरनेट कनेक्शन जाँचें।"));document.head.appendChild(s)});
   window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-  const bytes=await file.arrayBuffer(),pdf=await window.pdfjsLib.getDocument({data:bytes}).promise;let pages=[];
-  for(let n=1;n<=Math.min(pdf.numPages,20);n++){const page=await pdf.getPage(n),content=await page.getTextContent();pages.push(content.items.map(x=>x.str).join(" "))}
-  const text=pages.join("\n").replace(/[\t ]+/g," ").trim();
-  if(!text){throw new Error("इस PDF में पढ़ने योग्य टेक्स्ट नहीं मिला। यह स्कैन की हुई PDF हो सकती है; इसमें OCR की आवश्यकता होगी।")}
+  const pdf=await window.pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;let pages=[],hasText=false;
+  for(let n=1;n<=Math.min(pdf.numPages,10);n++){const page=await pdf.getPage(n),content=await page.getTextContent();const t=content.items.map(x=>x.str).join(" ");pages.push(t);if(t.replace(/\s/g,"").length>25)hasText=true}
+  let text=pages.join("\n").replace(/[\t ]+/g," ").trim();
+  if(!hasText||text.replace(/\s/g,"").length<80){
+   note("स्कैन की हुई PDF पहचानी गई। OCR से हिंदी/अंग्रेज़ी पढ़ने का प्रयास हो रहा है—कृपया प्रतीक्षा करें।");
+   btn.textContent="OCR चल रहा है...";
+   if(!window.Tesseract)await new Promise((resolve,reject)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";s.onload=resolve;s.onerror=()=>reject(new Error("OCR लाइब्रेरी लोड नहीं हुई। इंटरनेट कनेक्शन जाँचें।"));document.head.appendChild(s)});
+   const worker=await window.Tesseract.createWorker("hin+eng",1,{logger:m=>{if(m.status==="recognizing text")btn.textContent="OCR चल रहा है... "+Math.round((m.progress||0)*100)+"%" }});
+   try{
+    const ocrPages=[];
+    for(let n=1;n<=Math.min(pdf.numPages,10);n++){
+     btn.textContent="OCR: पेज "+n+" / "+Math.min(pdf.numPages,10);
+     const page=await pdf.getPage(n),viewport=page.getViewport({scale:1.6}),canvas=document.createElement("canvas"),ctx=canvas.getContext("2d");
+     canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
+     await page.render({canvasContext:ctx,viewport}).promise;
+     const result=await worker.recognize(canvas);ocrPages.push(result.data.text||"");canvas.width=0;canvas.height=0;
+    }
+    const ocrText=ocrPages.join("\n").trim();
+    if(ocrText.replace(/\s/g,"").length>10)text=ocrText;
+    else throw new Error("OCR को पढ़ने योग्य अक्षर नहीं मिले। PDF बहुत धुँधली हो सकती है।");
+   }finally{await worker.terminate()}
+  }
   const lines=text.split(/\n|(?<=।)\s+/).map(x=>x.trim()).filter(Boolean);
   const dateMatch=text.match(/(?:दिनांक|दिनांकः|दिनांक:|Date\s*[:：]?)\s*([0-3]?\d[\/-][01]?\d[\/-](?:19|20)\d{2}|(?:19|20)\d{2}[\/-][01]?\d[\/-][0-3]?\d)/i);
   const anyDate=text.match(/\b([0-3]?\d[\/-][01]?\d[\/-](?:19|20)\d{2})\b/);
   const chosenDate=dateMatch?.[1]||anyDate?.[1];
-  if(chosenDate){let p=chosenDate.split(/[\/-]/);if(p[0].length===4)$( "orderDate").value=p[0]+"-"+p[1].padStart(2,"0")+"-"+p[2].padStart(2,"0");else $( "orderDate").value=p[2]+"-"+p[1].padStart(2,"0")+"-"+p[0].padStart(2,"0")}
+  if(chosenDate){let p=chosenDate.split(/[\/-]/);if(p[0].length===4)$("orderDate").value=p[0]+"-"+p[1].padStart(2,"0")+"-"+p[2].padStart(2,"0");else $("orderDate").value=p[2]+"-"+p[1].padStart(2,"0")+"-"+p[0].padStart(2,"0")}
   const noMatch=text.match(/(?:आदेश\s*(?:क्रमांक|क्र\.?|संख्या|सं\.?|क्रम\.?\s*संख्या)|क्रमांक|Order\s*(?:No\.?|Number)|No\.?)\s*[:：#-]?\s*([A-Z0-9\/-]{3,})/i);
-  if(noMatch)$( "orderNumber").value=noMatch[1].replace(/[.,;]+$/,"");
+  if(noMatch)$("orderNumber").value=noMatch[1].replace(/[.,;]+$/,"");
   const subjLine=lines.find(x=>/(?:विषय|विषयः|Subject)\s*[:：-]/i.test(x));
-  if(subjLine){const s=subjLine.replace(/^.*?(?:विषय|विषयः|Subject)\s*[:：-]\s*/i,"").trim();if(s)$( "subject").value=s.slice(0,250)}
+  if(subjLine){const s=subjLine.replace(/^.*?(?:विषय|विषयः|Subject)\s*[:：-]\s*/i,"").trim();if(s)$("subject").value=s.slice(0,250)}
   const deptLine=lines.find(x=>/(?:मध्य प्रदेश शासन|कार्यालय|संचालनालय|विभाग|मंत्रालय|Government of|Department of)/i.test(x));
-  if(deptLine&&!$( "department").value)$( "department").value=deptLine.slice(0,180);
-  if(!$( "subject").value){const candidate=lines.find(x=>x.length>12&&!/(?:मध्य प्रदेश शासन|कार्यालय|संचालनालय|विभाग|क्रमांक|दिनांक|विषय|प्रतिलिपि|प्रति:)/i.test(x));if(candidate)$( "subject").value=candidate.slice(0,250)}
-  if(!$( "notes").value)$( "notes").value=text.slice(0,12000);
-  note("PDF से टेक्स्ट पढ़ लिया गया। भरे गए विवरण जाँचें; जो जानकारी नहीं पहचानी गई हो उसे स्वयं सुधारें। मूल PDF सेव करने के लिए यही फाइल चयनित रहने दें।");
+  if(deptLine&&!$("department").value)$("department").value=deptLine.slice(0,180);
+  if(!$("subject").value){const candidate=lines.find(x=>x.length>12&&!/(?:मध्य प्रदेश शासन|कार्यालय|संचालनालय|विभाग|क्रमांक|दिनांक|विषय|प्रतिलिपि|प्रति:)/i.test(x));if(candidate)$("subject").value=candidate.slice(0,250)}
+  if(!$("notes").value)$("notes").value=text.slice(0,12000);
+  note("PDF पढ़ ली गई। भरे गए विवरण जाँचें; OCR में गलती हो सकती है। मूल PDF सेव करने के लिए चयनित रहने दें।");
  }catch(err){note("PDF से जानकारी नहीं निकली: "+(err.message||String(err)),true)}
  finally{btn.disabled=false;btn.textContent="📄 PDF से जानकारी भरें"}
 }
