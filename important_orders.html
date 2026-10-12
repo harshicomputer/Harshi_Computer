@@ -27,7 +27,7 @@
 const SUPABASE_URL="https://khwzoolgjzghdixlclwu.supabase.co",SUPABASE_KEY="sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P",ADMIN_ID="27b1b694-0498-4d5d-af63-aecadcf31705";
 const db=window.supabase?.createClient?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}):null;
 let records=[],currentUser=null;const $=id=>document.getElementById(id);const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-async function logoutNow(){if(!confirm("क्या आप अभी लॉग आउट करना चाहते हैं?"))return;try{await db.auth.signOut({scope:"local"})}finally{location.href="index.html"}}
+async function logoutNow(){if(!confirm("क्या आप अभी लॉग आउट करना चाहते हैं?"))return;try{await db.auth.signOut({scope:"local"})}finally{location.href="/"}}
 function note(t,err=false){$("msg").textContent=t;$("msg").className="notice"+(err?" error":"")}
 function dateToday(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function showForm(){ $("formPanel").classList.remove("hidden");$("formPanel").scrollIntoView({behavior:"smooth",block:"start"})}
