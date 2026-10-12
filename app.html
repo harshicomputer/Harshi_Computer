@@ -226,7 +226,7 @@ const years=()=>[...new Set(periodMonths().map(x=>x.y))];
 function msg(x,ok=false){let el=document.getElementById("authMsg");el.textContent=x;el.className=ok?"ok":"error"}
 async function signIn(){let email=document.getElementById("email").value.trim().toLowerCase(),password=document.getElementById("password").value,btn=document.getElementById("loginBtn");if(!email||!password)return msg("Email और Password दोनों भरें।");btn.disabled=true;btn.textContent="Login हो रहा है...";msg("Database connection जाँच रहा है...",true);try{const db=await window.salaryDbReady;let{error}=await db.auth.signInWithPassword({email,password});if(error){let x=error.message.toLowerCase();msg(x.includes("invalid login credentials")?"Email या Password गलत है।":x.includes("email not confirmed")?"Email confirmation बाकी है。":error.message)}}catch(e){msg("Login में तकनीकी समस्या: "+(e?.message||e))}finally{btn.disabled=false;btn.textContent="Login"}}
 async function signUp(){msg("नया Account बनाना बंद है। Admin द्वारा दिए गए Login credentials का उपयोग करें।")}
-async function signOut(){await window.salaryDb.auth.signOut()}
+async function signOut(){if(!confirm("क्या आप लॉग आउट करके वेबसाइट के Home Page पर जाना चाहते हैं?"))return;try{await window.salaryDb.auth.signOut({scope:"local"})}finally{window.location.href="/"}}
 let forceLoginOnEntry=new URLSearchParams(location.search).get("login")==="1";let requireFreshLogin=forceLoginOnEntry;function showLoginScreen(){document.getElementById("app").style.display="none";document.getElementById("personal").style.display="none";document.getElementById("portal").classList.remove("show");document.getElementById("login").style.display="grid"}if(forceLoginOnEntry)showLoginScreen();window.salaryDbReady.then(db=>db.auth.onAuthStateChange((e,s)=>{if(e==="INITIAL_SESSION"){if(requireFreshLogin){showLoginScreen();if(s)db.auth.signOut().catch(err=>console.error("Session reset failed:",err));return}if(s&&!loginStarting){setTimeout(()=>start(s),0)}else if(!s)showLoginScreen();return}if(e==="SIGNED_OUT"){showLoginScreen();return}if(e==="SIGNED_IN"&&s&&!loginStarting){requireFreshLogin=false;setTimeout(()=>start(s),0);return}if(s&&!loginStarting&&!requireFreshLogin){setTimeout(()=>start(s),0)}else if(!s)showLoginScreen()})).catch(e=>{console.error(e);const m=document.getElementById("authMsg");if(m){m.textContent="Database connection शुरू नहीं हो सकी। कृपया थोड़ी देर बाद फिर प्रयास करें।";m.className="error"}})
 function start(s){
   document.getElementById("login").style.display="none";
@@ -287,7 +287,7 @@ function openPersonal(){document.getElementById("portal").classList.remove("show
   if(b)b.classList.add("active");
   resetInactivityTimer();
 }
-function goHome(){ window.location.href="index.html"; }
+function goHome(){ window.location.href="/"; }
 function goBackOne(){
   const personal=document.getElementById("personal");
   if(personal && personal.style.display!=="none"){
