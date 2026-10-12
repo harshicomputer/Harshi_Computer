@@ -62,6 +62,7 @@ window.loginNow=async function(){
   <div class="portal-head"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><h2>Harshi Computer Online Management System</h2><p>कृपया अपना कार्य क्षेत्र चुनें</p></div><button class="btn" onclick="goHome()">← Back</button></div></div>
   <div class="portal-grid">
     <div class="portal-card"><div class="portal-icon">🏢</div><h3>Office / ऑफिस</h3><p>वेतन, FDR और कार्यालय के अन्य वित्तीय रिकॉर्ड।</p><button class="btn primary" onclick="openOffice()">Office खोलें</button></div>
+    <div class="portal-card"><div class="portal-icon">🖥️</div><h3>Harshi Computer / हर्षी कंप्यूटर</h3><p>दुकान और बिजनेस के कार्य, बिक्री, खरीद और हिसाब-किताब।</p><button class="btn" onclick="openBusiness()">Harshi Computer खोलें</button></div>
     <div class="portal-card"><div class="portal-icon">👤</div><h3>Personal / व्यक्तिगत</h3><p>Loan, Credit Card और Documents के व्यक्तिगत रिकॉर्ड।</p><button class="btn" onclick="openPersonal()">Personal खोलें</button></div>
   </div>
 </div><div id="personal" class="app">
@@ -276,7 +277,8 @@ function openOfficeModule(id){
   if(id==="fdr")renderFdr();
   if(id==="reports")setupReport();
   if(id==="backup")renderBackupList();
-} function openPersonal(){document.getElementById("portal").classList.remove("show");document.getElementById("app").style.display="none";document.getElementById("personal").style.display="block"} function openPersonalSection(id,b){
+} function openBusiness(){alert("Harshi Computer दुकान प्रबंधन मॉड्यूल अगला चरण है।");}
+function openPersonal(){document.getElementById("portal").classList.remove("show");document.getElementById("app").style.display="none";document.getElementById("personal").style.display="block"} function openPersonalSection(id,b){
   document.getElementById("personalLoanSection").style.display=id==="loan"?"block":"none";
   document.getElementById("personalCreditCardSection").classList.toggle("show",id==="creditCard");
   document.getElementById("personalDocumentsSection").classList.toggle("show",id==="documents");
