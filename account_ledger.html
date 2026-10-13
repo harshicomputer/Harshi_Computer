@@ -52,7 +52,6 @@ th{background:#f7f9fc;position:sticky;top:0;z-index:2}
 @media(max-width:600px){.formgrid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <header class="top">
@@ -79,7 +78,7 @@ th{background:#f7f9fc;position:sticky;top:0;z-index:2}
 <h2 id="title">📒 Ledger</h2>
 <div id="sub" class="muted"></div>
 </div>
-<div class="toolbar"><label class="btn primary" for="grantExcelFile">📥 Excel से डेटा अपलोड करें</label><input id="grantExcelFile" type="file" accept=".xlsx,.xls" style="display:none" onchange="importGrantExcel()"></div>
+
 </div>
 
 <div id="top" class="notice"></div>
@@ -113,52 +112,6 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&
 const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtDate=v=>{if(!v)return"—";const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"-"+m[2]+"-"+m[1]:v};
 
-
-async function importGrantExcel(){
- const input=document.getElementById("grantExcelFile"),file=input?.files?.[0];if(!file)return;
- const msg=document.getElementById("top");const reset=()=>{input.value=""};
- try{
-  if(!window.XLSX)throw new Error("Excel रीडर लोड नहीं हुआ। इंटरनेट कनेक्शन जाँचें।");
-  if(!head)throw new Error("पहले बाईं ओर 15 वाँ वित्त मद चुनें।");
-  if(!confirm("Excel का डेटा वित्तीय वर्ष "+fy+" में '"+head+"' Ledger में जोड़ा जाएगा। यदि इसी Excel को पहले अपलोड किया है, तो समान स्रोत-पंक्तियाँ अपडेट होंगी। जारी रखें?")){reset();return}
-  msg.textContent="Excel पढ़ी जा रही है...";
-  const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true});
-  const sheetName=wb.SheetNames.find(n=>n.replace(/[\s\u200b\u200c\u200d]/g,"").includes("15")&&n.includes("वित्त"))||wb.SheetNames[0];
-  if(!sheetName)throw new Error("Excel में कोई worksheet नहीं मिली।");
-  const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,raw:true,defval:null});
-  if(rows.length<4)throw new Error("इस Excel में पर्याप्त डेटा नहीं है।");
-  const u=(await db.auth.getUser()).data.user;if(!u)throw new Error("लॉगिन सत्र समाप्त है। दोबारा लॉगिन करें।");
-  const parseDate=v=>{
-   if(v instanceof Date&&!isNaN(v))return [v.getFullYear(),String(v.getMonth()+1).padStart(2,"0"),String(v.getDate()).padStart(2,"0")].join("-");
-   if(typeof v==="number"){const d=XLSX.SSF.parse_date_code(v);if(d)return d.y+"-"+String(d.m).padStart(2,"0")+"-"+String(d.d).padStart(2,"0")}
-   const s=String(v??"").trim();let m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);if(m)return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
-   m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?s:"";
-  };
-  const num=v=>{if(v==null||v==="")return 0;if(typeof v==="number")return Number.isFinite(v)?v:0;return Number(String(v).replace(/[₹,\s]/g,""))||0};
-  const opening=num(rows[2]?.[2]);
-  const transactions=[];let receipts=0,payments=0;
-  for(let i=3;i<rows.length;i++){
-   const r=rows[i]||[];
-   const receipt=num(r[2]),payment=num(r[5]);
-   if(!receipt&&!payment)continue;
-   const receiptDate=parseDate(r[1]),paymentDate=parseDate(r[4]);
-   const date=paymentDate||receiptDate||null;
-   const voucher=payment?(r[3]!=null?String(r[3]):null):(r[0]!=null?String(r[0]):null);
-   const description=r[6]!=null?String(r[6]):null;
-   transactions.push({user_id:u.id,financial_year:fy,head_name:head,transaction_date:date,voucher_no:voucher||null,receipt_amount:receipt,payment_amount:payment,description:description||null,source_sheet:sheetName,source_row:i+1});
-   receipts+=receipt;payments+=payment;
-  }
-  if(!transactions.length)throw new Error("Excel में आय या व्यय की कोई राशि नहीं मिली।");
-  msg.textContent="कुल "+transactions.length+" प्रविष्टियाँ सेव की जा रही हैं...";
-  const up=await db.from("account_transactions").upsert(transactions,{onConflict:"user_id,financial_year,source_sheet,source_row"});
-  if(up.error)throw new Error(up.error.message);
-  const hu=await db.from("account_heads").update({opening_balance:opening,total_receipts:receipts,total_payments:payments,closing_balance:opening+receipts-payments}).eq("user_id",u.id).eq("financial_year",fy).eq("head_name",head);
-  if(hu.error)throw new Error("Entries सेव हुईं, लेकिन Head summary update नहीं हुई: "+hu.error.message);
-  await loadLedger();
-  msg.textContent="✅ Excel अपलोड पूरा: "+transactions.length+" प्रविष्टियाँ | आय ₹"+receipts.toLocaleString("en-IN")+" | व्यय ₹"+payments.toLocaleString("en-IN")+" | Opening ₹"+opening.toLocaleString("en-IN");
- }catch(e){msg.textContent="❌ Excel अपलोड नहीं हुआ: "+(e?.message||String(e));msg.classList.add("error")}
- finally{reset()}
-}
 
 async function init(){
  try{
