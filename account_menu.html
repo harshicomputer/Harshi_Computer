@@ -13,8 +13,8 @@ body{margin:0;min-height:100vh;font-family:Arial,"Noto Sans Devanagari",sans-ser
 .wrap{max-width:1120px;margin:38px auto;padding:0 22px 42px}
 .crumb{font-size:13px;color:var(--muted);margin-bottom:18px}.crumb b{color:var(--blue)}
 .intro{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:24px}.intro h2{font-size:clamp(25px,3vw,34px);margin:0;color:var(--navy)}.intro p{margin:9px 0 0;color:var(--muted);line-height:1.6}.pill{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid #d5e4fb;background:#fff;border-radius:999px;color:#235a9f;font-size:12px;font-weight:700;white-space:nowrap}
-.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
-.card{position:relative;overflow:hidden;background:#fff;border:1px solid var(--line);border-radius:20px;padding:25px;min-height:250px;box-shadow:0 12px 35px #123b730d;display:flex;flex-direction:column;align-items:flex-start;transition:transform .2s,box-shadow .2s,border-color .2s}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.card{position:relative;overflow:hidden;background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px;min-height:250px;box-shadow:0 12px 35px #123b730d;display:flex;flex-direction:column;align-items:flex-start;transition:transform .2s,box-shadow .2s,border-color .2s}
 .card:before{content:"";position:absolute;right:-38px;top:-52px;width:150px;height:150px;border-radius:50%;background:var(--pale)}
 .card:hover{transform:translateY(-4px);box-shadow:0 18px 42px #123b7318;border-color:#b6cdef}
 .card-top{position:relative;display:flex;align-items:center;justify-content:space-between;width:100%;gap:12px}.ico{width:58px;height:58px;border-radius:17px;display:grid;place-items:center;background:var(--pale);font-size:29px}.num{color:#9aabc2;font-weight:800;font-size:14px}
@@ -53,6 +53,12 @@ footer{text-align:center;color:#8793a5;font-size:12px;padding:18px}
       <h3>Bank Account Management</h3>
       <p>10–12 बैंक खातों का अलग-अलग Opening Balance, जमा, भुगतान और Closing Balance रखें। मौजूदा Head / मद चुनकर लेन-देन को अनुदान Ledger से जोड़ें।</p>
       <a class="btn" href="bank_accounts.html" style="background:#b86b12;border-color:#b86b12">बैंक हिसाब खोलें <span class="arrow">→</span></a>
+    </article>
+    <article class="card">
+      <div class="card-top"><div class="ico" style="background:#f2eaff">📁</div><span class="num">OPTION 04</span></div>
+      <h3>महत्वपूर्ण दस्तावेज</h3>
+      <p>कार्यालय के जरूरी दस्तावेज PDF और JPEG/JPG फॉर्मेट में सुरक्षित रखें। दस्तावेज का नाम, श्रेणी, दिनांक व संदर्भ क्रमांक दर्ज करें; बाद में खोजें, देखें या डाउनलोड करें।</p>
+      <a class="btn" href="important_documents.html" style="background:#7352a3;border-color:#7352a3">दस्तावेज खोलें <span class="arrow">→</span></a>
     </article>
   </section>
   <div class="info"><span>💡</span><div><b>आसान नेविगेशन:</b> किसी विकल्प पर क्लिक करके उसका पेज खोलें। ऊपर दिए गए Office बटन से वापस जा सकते हैं।</div></div>
