@@ -214,6 +214,8 @@ async function signUp(){msg("नया Account बनाना बंद है�
 async function signOut(){if(!confirm("क्या आप लॉग आउट करके वेबसाइट के Home Page पर जाना चाहते हैं?"))return;try{await window.salaryDb.auth.signOut({scope:"local"})}finally{window.location.href="/"}}
 let forceLoginOnEntry=new URLSearchParams(location.search).get("login")==="1";let requireFreshLogin=forceLoginOnEntry;function showLoginScreen(){document.getElementById("app").style.display="none";document.getElementById("personal").style.display="none";document.getElementById("portal").classList.remove("show");document.getElementById("login").style.display="grid";mfaUiActive=false}if(forceLoginOnEntry)showLoginScreen();window.salaryDbReady.then(db=>db.auth.onAuthStateChange((e,s)=>{if(e==="INITIAL_SESSION"){if(requireFreshLogin){showLoginScreen();if(s)db.auth.signOut().catch(err=>console.error("Session reset failed:",err));return}if(s&&!loginStarting){setTimeout(()=>prepareMfaFlow(db,s),0)}else if(!s)showLoginScreen();return}if(e==="SIGNED_OUT"){showLoginScreen();return}if(e==="SIGNED_IN"&&s&&!loginStarting){requireFreshLogin=false;setTimeout(()=>prepareMfaFlow(db,s),0)}})).catch(e=>{console.error(e);const m=document.getElementById("authMsg");if(m){m.textContent="Database connection शुरू नहीं हो सकी। कृपया थोड़ी देर बाद फिर प्रयास करें।";m.className="error"}})
 function start(s){
+  inactivityActive=true;
+  resetInactivityTimer();
   document.getElementById("login").style.display="none";
   document.getElementById("portal").classList.add("show");
   document.getElementById("app").style.display="none";
@@ -919,22 +921,32 @@ async function exportCSV(){
   }catch(e){alert(e?.message||e);}
 }
 
-// 10-minute inactivity security logout
+// 10-minute inactivity security logout — starts only after authenticated app entry
 let inactivityTimer=null;
+let inactivityActive=false;
+let inactivityLogoutRunning=false;
 const INACTIVITY_LIMIT=600000;
+function stopInactivityTimer(){
+  inactivityActive=false;
+  clearTimeout(inactivityTimer);
+  inactivityTimer=null;
+}
 function resetInactivityTimer(){
+  if(!inactivityActive || inactivityLogoutRunning) return;
   clearTimeout(inactivityTimer);
   inactivityTimer=setTimeout(async function(){
-    try{ await window.salaryDb.auth.signOut({scope:"local"}); }catch(e){}
+    if(!inactivityActive || inactivityLogoutRunning) return;
+    inactivityLogoutRunning=true;
+    inactivityActive=false;
+    try{ await window.salaryDb.auth.signOut({scope:"local"}); }catch(e){console.error("Auto logout sign-out failed:",e);}
     alert("सुरक्षा के लिए 10 मिनट तक कोई गतिविधि नहीं होने के कारण आपको स्वतः Logout कर दिया गया है।");
-    location.href="index.html";
+    location.replace("index.html");
   },INACTIVITY_LIMIT);
 }
 ["mousemove","mousedown","keydown","scroll","touchstart","click"].forEach(function(evt){
   window.addEventListener(evt,resetInactivityTimer,{passive:true});
 });
-document.addEventListener("visibilitychange",function(){
-  if(document.visibilityState==="visible") resetInactivityTimer();
+window.addEventListener("storage",function(evt){
+  if(evt.key==="hc_last_activity" && inactivityActive) resetInactivityTimer();
 });
-resetInactivityTimer();
 </script></body></html>
