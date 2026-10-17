@@ -638,9 +638,32 @@ async function bulkUpload(){
     }
     const unique=[...new Map(rows.map(x=>[x.code.toUpperCase(),x])).values()];
     if(!unique.length){out.textContent="कोई Employee record नहीं मिला।";return}
-    const {error}=await window.salaryDb.from("employees").upsert(unique,{onConflict:"code"});
+    out.textContent="मौजूदा कर्मचारी IDs से मिलान किया जा रहा है…";
+    const {data:existing,error:lookupError}=await window.salaryDb.from("employees").select("id,code,name,post,department");
+    if(lookupError){out.textContent="मौजूदा कर्मचारी सूची नहीं पढ़ सके: "+lookupError.message;return}
+    const legacyPrefixes=["168","8168","188","213","446"];
+    const mapped=[],ambiguous=[];
+    for(const row of unique){
+      const isLegacy=legacyPrefixes.some(prefix=>row.code.startsWith(prefix))&&!/^(NR|R)/i.test(row.code);
+      if(!isLegacy){mapped.push(row);continue}
+      const exactNameMatches=(existing||[]).filter(e=>String(e.name||"").trim()===row.name&&/^(NR|R)/i.test(String(e.code||"").trim()));
+      if(exactNameMatches.length===1){
+        const target=exactNameMatches[0];
+        mapped.push({...row,code:target.code,post:row.post||target.post||null,department:row.department||target.department||null});
+      }else if(exactNameMatches.length>1){
+        ambiguous.push({oldCode:row.code,name:row.name,candidates:exactNameMatches.map(e=>e.code)});
+      }else mapped.push(row);
+    }
+    if(ambiguous.length){
+      out.textContent="अपलोड रोका गया: कुछ नामों के लिए एक से अधिक NR/R IDs मिलीं। पहले इनका मिलान ठीक करें: "+ambiguous.map(x=>x.oldCode+" (“"+x.name+"”): "+x.candidates.join(", ")).join(" | ");
+      return;
+    }
+    const finalRows=[...new Map(mapped.map(x=>[x.code.toUpperCase(),x])).values()];
+    const {error}=await window.salaryDb.from("employees").upsert(finalRows,{onConflict:"code"});
     if(error){out.textContent="Upload error: "+error.message;return}
-    await refresh();init();out.textContent=unique.length+" कर्मचारी Database में सफलतापूर्वक सेव/अपडेट हो गए।";
+    await refresh();init();
+    const merged=unique.length-finalRows.length;
+    out.textContent=finalRows.length+" कर्मचारी Database में सेव/अपडेट हुए। "+(merged>0?merged+" पुरानी ID रिकॉर्ड नाम के सटीक मिलान पर मौजूदा NR/R ID में मर्ज किए गए।":"पुरानी ID का कोई सुरक्षित NR/R नाम-मिलान नहीं मिला; कोई गलत मर्ज नहीं किया गया।");
   }catch(e){out.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
 }
 function newEmployee(){
