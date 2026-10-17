@@ -938,9 +938,18 @@ function resetInactivityTimer(){
     if(!inactivityActive || inactivityLogoutRunning) return;
     inactivityLogoutRunning=true;
     inactivityActive=false;
-    try{ await window.salaryDb.auth.signOut({scope:"local"}); }catch(e){console.error("Auto logout sign-out failed:",e);}
+    clearTimeout(inactivityTimer);
+    // Do not let a stalled network request prevent the security redirect.
+    try{
+      if(window.salaryDb?.auth?.signOut){
+        await Promise.race([
+          window.salaryDb.auth.signOut({scope:"local"}),
+          new Promise(resolve=>setTimeout(resolve,1500))
+        ]);
+      }
+    }catch(e){console.error("Auto logout sign-out failed:",e);}
     alert("सुरक्षा के लिए 10 मिनट तक कोई गतिविधि नहीं होने के कारण आपको स्वतः Logout कर दिया गया है।");
-    location.replace("index.html");
+    location.replace("/");
   },INACTIVITY_LIMIT);
 }
 ["mousemove","mousedown","keydown","scroll","touchstart","click"].forEach(function(evt){
