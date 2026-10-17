@@ -629,10 +629,12 @@ async function previewPaymentUpload(){
     });
     let dupKeys=new Set(dups.map(x=>x.key)),total=pendingPaymentRows.reduce((s,x)=>s+x.amount,0);
     msgEl.textContent=pendingPaymentRows.length+" भुगतान रिकॉर्ड मिले | कुल राशि ₹"+total.toLocaleString("en-IN")+" | Match नहीं: "+bad.length+(dups.length?" | Duplicate: "+dups.length:"")+(invalidSheets.length?" | गलत format sheets: "+invalidSheets.join(", "):"");
-    box.innerHTML="<table><thead><tr><th>Code</th><th>नाम</th><th>माह</th><th>Payable Amount</th><th>भुगतान राशि</th><th>Pending</th><th>Payment Date</th><th>Voucher</th><th>स्थिति</th></tr></thead><tbody>"+
-      pendingPaymentRows.slice(0,100).map((x,i)=>{
+    const orderedRows=[...bad,...pendingPaymentRows.filter(x=>x.employee_id)];
+    const escHtml=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+    box.innerHTML=(bad.length?'<div class="notice" style="margin-bottom:8px;border-color:#dc2626;color:#991b1b"><b>पहले इन '+bad.length+' रिकॉर्ड की जाँच करें:</b> लाल स्थिति वाली पंक्ति में कर्मचारी कोड मौजूदा कर्मचारी सूची में नहीं मिला। Excel में Code/Employee ID ठीक करके Preview दोबारा करें।</div>':'')+"<table><thead><tr><th>Code</th><th>नाम (Excel)</th><th>माह</th><th>Payable Amount</th><th>भुगतान राशि</th><th>Pending</th><th>Payment Date</th><th>Voucher</th><th>स्थिति / समस्या</th></tr></thead><tbody>"+
+      orderedRows.map((x,i)=>{
         const k=normalizeCode(x.code)+"|"+x.month_start,isDup=dupKeys.has(k);
-        return "<tr><td>"+x.code+"</td><td>"+(x.name||"—")+"</td><td>"+x.month_start+"</td><td>₹"+Number(x.payable_amount||0).toLocaleString("en-IN")+"</td><td>₹"+Number(x.amount||0).toLocaleString("en-IN")+"</td><td>₹"+(Number(x.payable_amount||0)-Number(x.amount||0)).toLocaleString("en-IN")+"</td><td>"+(x.payment_date||"")+"</td><td>"+(x.voucher_no||"")+"</td><td>"+(x.employee_id?"✓ Match":"✗ Employee नहीं मिला")+(isDup?" | Duplicate":"")+"</td></tr>"
+        return "<tr"+(!x.employee_id?' style="background:#fff1f2;color:#991b1b"':"")+"><td>"+escHtml(x.code)+"</td><td>"+escHtml(x.name||"—")+"</td><td>"+escHtml(x.month_start)+"</td><td>₹"+Number(x.payable_amount||0).toLocaleString("en-IN")+"</td><td>₹"+Number(x.amount||0).toLocaleString("en-IN")+"</td><td>₹"+(Number(x.payable_amount||0)-Number(x.amount||0)).toLocaleString("en-IN")+"</td><td>"+escHtml(x.payment_date||"")+"</td><td>"+escHtml(x.voucher_no||"")+"</td><td>"+(x.employee_id?"✓ Match":"✗ Employee ID/Code '"+escHtml(x.code)+"' कर्मचारी सूची में नहीं मिला")+(isDup?" | Duplicate":"")+"</td></tr>"
       }).join("")+"</tbody></table>";
     btn.disabled=!pendingPaymentRows.length||bad.length>0||dups.length>0;
   }catch(e){msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
