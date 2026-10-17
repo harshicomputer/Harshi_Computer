@@ -921,41 +921,60 @@ async function exportCSV(){
   }catch(e){alert(e?.message||e);}
 }
 
-// 10-minute inactivity security logout — starts only after authenticated app entry
+// 10-minute inactivity security logout — interval watchdog also handles throttled background tabs
 let inactivityTimer=null;
 let inactivityActive=false;
 let inactivityLogoutRunning=false;
+let inactivityLastActivity=Date.now();
 const INACTIVITY_LIMIT=600000;
+const INACTIVITY_CHECK_EVERY=15000;
+const INACTIVITY_STORAGE_KEY="hc_last_activity";
 function stopInactivityTimer(){
   inactivityActive=false;
-  clearTimeout(inactivityTimer);
+  if(inactivityTimer!==null) clearInterval(inactivityTimer);
   inactivityTimer=null;
+}
+function recordInactivityActivity(){
+  inactivityLastActivity=Date.now();
+  try{localStorage.setItem(INACTIVITY_STORAGE_KEY,String(inactivityLastActivity));}catch(e){}
+}
+async function performInactivityLogout(){
+  if(!inactivityActive || inactivityLogoutRunning) return;
+  inactivityLogoutRunning=true;
+  stopInactivityTimer();
+  try{
+    if(window.salaryDb?.auth?.signOut){
+      await Promise.race([
+        window.salaryDb.auth.signOut({scope:"local"}),
+        new Promise(resolve=>setTimeout(resolve,1500))
+      ]);
+    }
+  }catch(e){console.error("Auto logout sign-out failed:",e);}
+  alert("सुरक्षा के लिए 10 मिनट तक कोई गतिविधि नहीं होने के कारण आपको स्वतः Logout कर दिया गया है।");
+  location.replace("/");
+}
+function checkInactivityDeadline(){
+  if(!inactivityActive || inactivityLogoutRunning) return;
+  let last=inactivityLastActivity;
+  try{
+    const shared=Number(localStorage.getItem(INACTIVITY_STORAGE_KEY)||0);
+    if(shared>last) last=shared;
+  }catch(e){}
+  if(Date.now()-last>=INACTIVITY_LIMIT) performInactivityLogout();
 }
 function resetInactivityTimer(){
   if(!inactivityActive || inactivityLogoutRunning) return;
-  clearTimeout(inactivityTimer);
-  inactivityTimer=setTimeout(async function(){
-    if(!inactivityActive || inactivityLogoutRunning) return;
-    inactivityLogoutRunning=true;
-    inactivityActive=false;
-    clearTimeout(inactivityTimer);
-    // Do not let a stalled network request prevent the security redirect.
-    try{
-      if(window.salaryDb?.auth?.signOut){
-        await Promise.race([
-          window.salaryDb.auth.signOut({scope:"local"}),
-          new Promise(resolve=>setTimeout(resolve,1500))
-        ]);
-      }
-    }catch(e){console.error("Auto logout sign-out failed:",e);}
-    alert("सुरक्षा के लिए 10 मिनट तक कोई गतिविधि नहीं होने के कारण आपको स्वतः Logout कर दिया गया है।");
-    location.replace("/");
-  },INACTIVITY_LIMIT);
+  recordInactivityActivity();
+  if(inactivityTimer===null) inactivityTimer=setInterval(checkInactivityDeadline,INACTIVITY_CHECK_EVERY);
 }
-["mousemove","mousedown","keydown","scroll","touchstart","click"].forEach(function(evt){
+["mousemove","mousedown","keydown","scroll","touchstart","click","pointerdown"].forEach(function(evt){
   window.addEventListener(evt,resetInactivityTimer,{passive:true});
 });
 window.addEventListener("storage",function(evt){
-  if(evt.key==="hc_last_activity" && inactivityActive) resetInactivityTimer();
+  if(evt.key===INACTIVITY_STORAGE_KEY && inactivityActive && Number(evt.newValue)>inactivityLastActivity){
+    inactivityLastActivity=Number(evt.newValue);
+  }
 });
+window.addEventListener("pageshow",function(){if(inactivityActive) checkInactivityDeadline();});
+document.addEventListener("visibilitychange",function(){if(inactivityActive && !document.hidden) checkInactivityDeadline();});
 </script></body></html>
