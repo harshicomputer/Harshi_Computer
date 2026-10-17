@@ -147,7 +147,7 @@ async function saveEmployeeBankDetails(ev){ev.preventDefault();const id=$("empSe
 async function loadEmployeeExtraDetails(){
  const id=$("empSelect").value;
  ["profileDob","profileFather","profileMother","profileSpouse","profileJoining","profileRetirement"].forEach(k=>$(k).value="");$("profileTreasuryCodeInput").value="";
- $("profileBankName").textContent="—";$("profileBankAccount").textContent="—";$("profileBankIfsc").textContent="—";$("profileBankNameInput").value="";$("profileBankAccountInput").value="";$("profileBankIfscInput").value="";$("profileMobileInput").value="";$("profileEmailInput").value="";$("employeeBankForm").hidden=true;$("bankEditToggle").textContent="✏️एडिट करें";$("profileMobile").textContent="—";$("profileEmail").textContent="—";$("profileTreasuryCode").textContent="—";
+ $("profileBankName").textContent="—";$("profileBankAccount").textContent="—";$("profileBankIfsc").textContent="—";$("profileBankNameInput").value="";$("profileBankAccountInput").value="";$("profileBankIfscInput").value="";$("profileMobileInput").value="";$("profileEmailInput").value="";$("employeeBankForm").hidden=false;$("employeeBankForm").classList.remove("is-editing");["profileBankNameInput","profileBankAccountInput","profileBankIfscInput","profileMobileInput","profileEmailInput"].forEach(k=>$(k).disabled=true);$("bankEditToggle").hidden=false;$("bankInlineSave").hidden=true;$("profileMobile").textContent="—";$("profileEmail").textContent="—";$("profileTreasuryCode").textContent="—";
  const emp=employees.find(e=>String(e.id)===String(id));if(!emp)return;
  
  const {data:bank,error:bankErr}=await db.from("employee_bank_details").select("bank_name,account_number,ifsc_code").eq("employee_id",id).maybeSingle();
