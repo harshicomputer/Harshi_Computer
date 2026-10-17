@@ -595,6 +595,16 @@ async function previewPaymentUpload(){
   if(!file)return msgEl.textContent="पहले fixed Payment Template वाली Excel फ़ाइल चुनें।";
   try{
     let data=await file.arrayBuffer(),wb=XLSX.read(data,{type:"array",cellDates:false}),codes=new Map(employees.map(e=>[normalizeCode(e.code),e]));
+    const legacyPrefixes=["168","8168","188","213","446"];
+    const isLegacyCode=code=>{const n=normalizeCode(code);return legacyPrefixes.some(p=>n.startsWith(p))&&!/^(NR|R)/i.test(n)};
+    const findLegacyTarget=(name)=>{
+      const n=String(name||"").trim().replace(/\\s+/g," ").toLocaleLowerCase();
+      if(!n)return {employee:null,reason:"Excel में कर्मचारी का नाम खाली है"};
+      const matches=employees.filter(e=>/^(NR|R)/i.test(String(e.code||"").trim())&&String(e.name||"").trim().replace(/\\s+/g," ").toLocaleLowerCase()===n);
+      if(matches.length===1)return {employee:matches[0],reason:""};
+      if(matches.length>1)return {employee:null,reason:"एक ही नाम की कई नई R/NR IDs मिलीं: "+matches.map(e=>e.code).join(", ")};
+      return {employee:null,reason:"इस नाम से कोई नई R/NR ID नहीं मिली"};
+    };
     const required=["employeecode","employeename","salarymonth","payableamount","paidamount","paymentdate","voucherno","remarks"];
     let invalidSheets=[];
     for(let si=0;si<wb.SheetNames.length;si++){
@@ -613,8 +623,9 @@ async function previewPaymentUpload(){
         if(!month)continue;
         let payDate=dateISO(row[di]);
         let payable=Number(String(row[pi]??"").replace(/,/g,"")); if(!isFinite(payable)||payable<0)payable=0;
-        let e=codes.get(normalizeCode(code));
-        pendingPaymentRows.push({code,name:e?.name||nameCell,employee_id:e?.id||null,month_start:month,payable_amount:payable,amount,payment_date:payDate||null,voucher_no:String(row[vi]??"").trim(),remarks:String(row[ri]??"").trim(),sheet:name});
+        let e=codes.get(normalizeCode(code)),legacyMatch=null,matchReason="";
+        if(!e&&isLegacyCode(code)){legacyMatch=findLegacyTarget(nameCell);e=legacyMatch.employee;matchReason=legacyMatch.reason}
+        pendingPaymentRows.push({code,name:e?.name||nameCell,employee_id:e?.id||null,matched_code:e?.code||"",match_reason:matchReason,was_legacy_mapped:!!(legacyMatch&&e),month_start:month,payable_amount:payable,amount,payment_date:payDate||null,voucher_no:String(row[vi]??"").trim(),remarks:String(row[ri]??"").trim(),sheet:name});
       }
     }
     if(invalidSheets.length&&!pendingPaymentRows.length){
@@ -623,7 +634,7 @@ async function previewPaymentUpload(){
     }
     let bad=pendingPaymentRows.filter(x=>!x.employee_id),seen=new Map(),dups=[];
     pendingPaymentRows.forEach((x,i)=>{
-      const k=normalizeCode(x.code)+"|"+x.month_start;
+      const k=(x.employee_id||normalizeCode(x.code))+"|"+x.month_start;
       if(seen.has(k)){const first=seen.get(k);dups.push({key:k,code:x.code,name:x.name||first.name||"—",month:x.month_start,firstIndex:first.index+1,secondIndex:i+1,firstSheet:first.sheet,secondSheet:x.sheet})}
       else seen.set(k,{index:i,name:x.name,sheet:x.sheet});
     });
@@ -633,8 +644,9 @@ async function previewPaymentUpload(){
     const escHtml=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
     box.innerHTML=(bad.length?'<div class="notice" style="margin-bottom:8px;border-color:#dc2626;color:#991b1b"><b>पहले इन '+bad.length+' रिकॉर्ड की जाँच करें:</b> लाल स्थिति वाली पंक्ति में कर्मचारी कोड मौजूदा कर्मचारी सूची में नहीं मिला। Excel में Code/Employee ID ठीक करके Preview दोबारा करें।</div>':'')+"<table><thead><tr><th>Code</th><th>नाम (Excel)</th><th>माह</th><th>Payable Amount</th><th>भुगतान राशि</th><th>Pending</th><th>Payment Date</th><th>Voucher</th><th>स्थिति / समस्या</th></tr></thead><tbody>"+
       orderedRows.map((x,i)=>{
-        const k=normalizeCode(x.code)+"|"+x.month_start,isDup=dupKeys.has(k);
-        return "<tr"+(!x.employee_id?' style="background:#fff1f2;color:#991b1b"':"")+"><td>"+escHtml(x.code)+"</td><td>"+escHtml(x.name||"—")+"</td><td>"+escHtml(x.month_start)+"</td><td>₹"+Number(x.payable_amount||0).toLocaleString("en-IN")+"</td><td>₹"+Number(x.amount||0).toLocaleString("en-IN")+"</td><td>₹"+(Number(x.payable_amount||0)-Number(x.amount||0)).toLocaleString("en-IN")+"</td><td>"+escHtml(x.payment_date||"")+"</td><td>"+escHtml(x.voucher_no||"")+"</td><td>"+(x.employee_id?"✓ Match":"✗ Employee ID/Code '"+escHtml(x.code)+"' कर्मचारी सूची में नहीं मिला")+(isDup?" | Duplicate":"")+"</td></tr>"
+        const k=(x.employee_id||normalizeCode(x.code))+"|"+x.month_start,isDup=dupKeys.has(k);
+        const status=x.employee_id?(x.was_legacy_mapped?"✓ पुरानी ID "+escHtml(x.code)+" → नई ID "+escHtml(x.matched_code)+" में मर्ज होगी":"✓ Match"):"✗ "+escHtml(x.match_reason||("Employee ID/Code '"+x.code+"' कर्मचारी सूची में नहीं मिला"));
+        return "<tr"+(!x.employee_id?' style="background:#fff1f2;color:#991b1b"':x.was_legacy_mapped?' style="background:#f0fdf4;color:#166534"':"")+"><td>"+escHtml(x.code)+(x.was_legacy_mapped?" → "+escHtml(x.matched_code):"")+"</td><td>"+escHtml(x.name||"—")+"</td><td>"+escHtml(x.month_start)+"</td><td>₹"+Number(x.payable_amount||0).toLocaleString("en-IN")+"</td><td>₹"+Number(x.amount||0).toLocaleString("en-IN")+"</td><td>₹"+(Number(x.payable_amount||0)-Number(x.amount||0)).toLocaleString("en-IN")+"</td><td>"+escHtml(x.payment_date||"")+"</td><td>"+escHtml(x.voucher_no||"")+"</td><td>"+status+(isDup?" | Duplicate":"")+"</td></tr>"
       }).join("")+"</tbody></table>";
     btn.disabled=!pendingPaymentRows.length||bad.length>0||dups.length>0;
   }catch(e){msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
