@@ -292,7 +292,25 @@ function goBackOne(){
   }
   backToPortal();
 }
-function backToPortal(){document.getElementById("personal").style.display="none";document.getElementById("app").style.display="none";document.getElementById("portal").classList.add("show")}async function refresh(){let a=await window.salaryDb.from("employees").select("*").order("code");if(a.error)return alert(a.error.message);employees=a.data;let b=await window.salaryDb.from("salary_records").select("*");if(b.error)return alert(b.error.message);records=b.data;let c=await window.salaryDb.from("fdr_records").select("*").order("maturity_date",{ascending:true,nullsFirst:false});if(c.error)return alert(c.error.message);fdrRecords=c.data||[]}
+function backToPortal(){document.getElementById("personal").style.display="none";document.getElementById("app").style.display="none";document.getElementById("portal").classList.add("show")}async function refresh(){
+  let a=await window.salaryDb.from("employees").select("*").order("code");
+  if(a.error)return alert(a.error.message);
+  employees=a.data||[];
+  // Supabase/PostgREST commonly caps a response at 1000 rows. Fetch salary records in pages
+  // so dashboard totals and date/voucher searches do not silently miss older or later records.
+  const allRecords=[];const pageSize=1000;let from=0;
+  while(true){
+    const b=await window.salaryDb.from("salary_records").select("*").order("id").range(from,from+pageSize-1);
+    if(b.error)return alert("वेतन रिकॉर्ड लोड नहीं हो सके: "+b.error.message);
+    const page=b.data||[];allRecords.push(...page);
+    if(page.length<pageSize)break;
+    from+=pageSize;
+  }
+  records=allRecords;
+  let c=await window.salaryDb.from("fdr_records").select("*").order("maturity_date",{ascending:true,nullsFirst:false});
+  if(c.error)return alert(c.error.message);
+  fdrRecords=c.data||[];
+}
 async function loadAccountSummary(){
   const fy=document.getElementById("accountFY")?.value; if(!fy)return;
   const q=await window.salaryDb.from("account_heads").select("*").eq("financial_year",fy);
