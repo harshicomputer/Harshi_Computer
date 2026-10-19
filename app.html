@@ -626,6 +626,11 @@ async function previewPaymentUpload(){
         let payDate=dateISO(row[di]);
         let payable=Number(String(row[pi]??"").replace(/,/g,"")); if(!isFinite(payable)||payable<0)payable=0;
         let e=codes.get(normalizeCode(code)),legacyMatch=null,matchReason="";
+        // If the legacy numeric ID is stored with an R/NR prefix, try exact prefixed-ID matches before name-based legacy matching.
+        if(!e&&!/^(NR|R)/i.test(normalizeCode(code))){
+          const numericCode=normalizeCode(code);
+          e=codes.get(normalizeCode("R"+numericCode))||codes.get(normalizeCode("NR"+numericCode))||null;
+        }
         if(!e&&isLegacyCode(code)){legacyMatch=findLegacyTarget(nameCell);e=legacyMatch.employee;matchReason=legacyMatch.reason}
         pendingPaymentRows.push({code,name:e?.name||nameCell,employee_id:e?.id||null,matched_code:e?.code||"",match_reason:matchReason,was_legacy_mapped:!!(legacyMatch&&e),month_start:month,payable_amount:payable,amount,payment_date:payDate||null,voucher_no:String(row[vi]??"").trim(),remarks:String(row[ri]??"").trim(),sheet:name});
       }
