@@ -223,8 +223,17 @@ function start(s){
   window.currentSession=s;
   try{init()}catch(e){console.error("Initial UI error:",e)}
   const openParam=new URLSearchParams(location.search).get("open");
-  if(openParam==="officeAccount"){openOffice();openOfficeModule("officeAccount");setupAccount();}
-  refresh().then(()=>{try{init();if(openParam==="officeAccount"){openOffice();openOfficeModule("officeAccount");setupAccount();}}catch(e){console.error("UI refresh error:",e)}}).catch(e=>{
+  // Treat deep-link routing as a one-time action. Do not let the delayed data refresh
+  // pull the user back to Anudan after they have moved to another module.
+  if(openParam==="officeAccount"){
+    openOffice();
+    openOfficeModule("officeAccount");
+    setupAccount();
+    const cleanUrl=new URL(location.href);
+    cleanUrl.searchParams.delete("open");
+    history.replaceState(history.state,"",cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+  }
+  refresh().then(()=>{try{init();}catch(e){console.error("UI refresh error:",e)}}).catch(e=>{
     console.error("Background database refresh error:",e);
   });
 }
