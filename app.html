@@ -1056,6 +1056,26 @@ function resetInactivityTimer(){
 ["mousemove","mousedown","keydown","scroll","touchstart","click","pointerdown"].forEach(function(evt){
   window.addEventListener(evt,resetInactivityTimer,{passive:true});
 });
+// Loan is displayed in a same-origin iframe. Its events do not bubble to the parent,
+// so count activity inside Loan to prevent a false inactivity logout while the user is working there.
+function bindLoanFrameActivity(){
+  const frame=document.querySelector("#personalLoanSection iframe");
+  if(!frame || frame.dataset.activityBound==="1") return;
+  frame.dataset.activityBound="1";
+  const bind=()=>{
+    try{
+      const doc=frame.contentDocument;
+      if(!doc) return;
+      ["mousemove","mousedown","keydown","scroll","touchstart","click","pointerdown","input","change"].forEach(function(evt){
+        doc.addEventListener(evt,resetInactivityTimer,{passive:true,capture:true});
+      });
+      frame.contentWindow.addEventListener("focus",resetInactivityTimer);
+    }catch(e){console.warn("Loan frame activity bridge unavailable:",e);}
+  };
+  frame.addEventListener("load",bind);
+  bind();
+}
+bindLoanFrameActivity();
 window.addEventListener("storage",function(evt){
   if(evt.key===INACTIVITY_STORAGE_KEY && inactivityActive && Number(evt.newValue)>inactivityLastActivity){
     inactivityLastActivity=Number(evt.newValue);
