@@ -171,32 +171,35 @@ function renderSelectedReport(){
   const sel=document.getElementById("reportLoanSelect"),id=sel?.value,l=loans.find(x=>String(x.id)===String(id)),box=document.getElementById("selectedReport");if(!l||!box)return;
   const t=totals(l);let sched=loanInstallments(id).slice().sort((a,b)=>Number(a.installment_no||0)-Number(b.installment_no||0));if(!sched.length)sched=buildFallbackSchedule(l);const calc=projected(l);
   box.innerHTML='<div class="kpi" style="margin-top:10px"><div class="mini">Original Loan<b>'+money(l.principal_amount)+'</b></div><div class="mini">EMI<b>'+money(l.emi_amount)+'</b></div><div class="mini">Paid<b>'+money(t.paid)+'</b></div><div class="mini">Outstanding<b>'+money(t.outstanding)+'</b></div></div><div class="note" style="margin-top:12px"><b>'+esc(l.loan_name)+'</b> — '+esc(l.lender_name||"")+' | Account: '+esc(l.account_number||"—")+' | EMI Date: हर महीने '+esc(l.emi_day||"—")+' तारीख | Interest: '+Number(l.interest_rate||0)+'% | Tenure: '+(l.tenure_months||"—")+' months | Start: '+fmtDate(l.start_date)+' | Status: '+(l.status==="closed"?"Closed / बंद":"Active / चालू")+(calc?' | अनुमानित कुल ब्याज: '+money(calc.interest):"")+'</div><div style="overflow:auto;margin-top:14px"><h3>EMI Schedule / '+esc(l.loan_name)+' — आज तक</h3>'+(!sched.length?'<div class="empty">इस Loan की EMI Schedule अभी उपलब्ध नहीं है।</div>':'<table class="table"><thead><tr><th>भुगतान ✓</th><th>EMI No.</th><th>EMI Date</th><th>EMI Amount</th><th>Principal</th><th>Interest</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead><tbody>'+sched.map((p,i)=>{
-    const paid=Number(p.paid_amount||0),month=String(p.due_date||"").slice(0,7),monthPayments=payments.filter(x=>String(x.loan_id)===String(l.id)&&String(x.payment_date||"").slice(0,7)===month),autoPayment=monthPayments.find(x=>String(x.reference_no||"")==="EMI-CHECK:"+String(p.id)),isPaid=paid>0||p.status==="paid"||monthPayments.length>0,canUndo=!!autoPayment,disabled=!p.id||(isPaid&&!canUndo);
+    const paid=Number(p.paid_amount||0),month=String(p.due_date||"").slice(0,7),monthPayments=payments.filter(x=>String(x.loan_id)===String(l.id)&&String(x.payment_date||"").slice(0,7)===month),autoPayment=monthPayments.find(x=>String(x.reference_no||"")==="EMI-CHECK:"+String(p.id||p.due_date)),isPaid=paid>0||p.status==="paid"||monthPayments.length>0,canUndo=!!autoPayment,disabled=isPaid&&!canUndo;
     const bal=Number(p.closing_balance??(Number(l.principal_amount||0)+Number(l.capitalized_interest||0)-sched.slice(0,i+1).reduce((a,x)=>a+Number(x.principal_due||0),0)));
     return '<tr style="'+(isPaid?'background:#e8f7ee;':'')+'"><td style="text-align:center"><input type="checkbox" aria-label="EMI '+(p.installment_no||i+1)+' भुगतान स्थिति" data-installment-id="'+esc(p.id)+'" '+(isPaid?'checked ':'')+(disabled?'disabled ':'')+'data-emi-checkbox="1" style="width:18px;height:18px;accent-color:#16834a;cursor:'+(disabled?'not-allowed':'pointer')+'"></td><td>'+(p.installment_no||i+1)+'</td><td>'+fmtDate(p.due_date)+'</td><td>'+money(p.emi_amount)+'</td><td>'+money(p.principal_due)+'</td><td>'+money(p.interest_due)+'</td><td>'+money(Math.max(paid,monthPayments.reduce((a,x)=>a+Number(x.amount||0),0)))+'</td><td>'+money(bal)+'</td><td><span class="badge '+(isPaid?"active":"pending")+'">'+(isPaid?"Paid / भुगतान":"Pending / बाकी")+'</span></td></tr>'
   }).join('')+'</tbody></table>')+'</div>'
   box.querySelectorAll('input[data-emi-checkbox="1"]').forEach(el=>{
-    el.addEventListener("change",function(){toggleEmiPaid(this.dataset.installmentId,this.checked,this)});
+    el.addEventListener("change",function(){toggleEmiPaid(this.dataset.installmentId,this.checked,this,this.dataset.loanId,this.dataset.dueDate,this.dataset.emiNo,this.dataset.emiAmount,this.dataset.principal,this.dataset.interest)});
   });
 }
-async function toggleEmiPaid(installmentId,checked,el){
-  const inst=installments.find(x=>String(x.id)===String(installmentId));if(!inst||!el)return;
-  const l=loans.find(x=>String(x.id)===String(inst.loan_id));if(!l){el.checked=!checked;return}
-  const marker="EMI-CHECK:"+String(inst.id),month=String(inst.due_date||"").slice(0,7);el.disabled=true;
+async function toggleEmiPaid(installmentId,checked,el,loanId,dueDate,emiNo,emiAmount,principal,interest){
+  const inst=installments.find(x=>String(x.id)===String(installmentId))||null;
+  const l=loans.find(x=>String(x.id)===String(inst?.loan_id||loanId));
+  if(!l||!el||!dueDate){if(el)el.checked=!checked;return}
+  const marker="EMI-CHECK:"+String(inst?.id||dueDate),month=String(dueDate).slice(0,7);el.disabled=true;
   try{
     if(checked){
       const existing=payments.filter(p=>String(p.loan_id)===String(l.id)&&String(p.payment_date||"").slice(0,7)===month);
       if(existing.length){alert("इस महीने की EMI का भुगतान पहले से दर्ज है। डुप्लिकेट भुगतान नहीं जोड़ा गया।");await refresh();return}
-      const {error}=await db.from("loan_payments").insert({loan_id:l.id,payment_date:inst.due_date,amount:Number(inst.emi_amount||0),principal_component:Number(inst.principal_due||0),interest_component:Number(inst.interest_due||0),charges_component:0,payment_mode:"EMI Schedule Checkbox",reference_no:marker,remarks:"EMI No. "+inst.installment_no+" — EMI Schedule से भुगतान दर्ज"});
+      const {error}=await db.from("loan_payments").insert({loan_id:l.id,payment_date:dueDate,amount:Number(emiAmount||inst?.emi_amount||0),principal_component:Number(principal||inst?.principal_due||0),interest_component:Number(interest||inst?.interest_due||0),charges_component:0,payment_mode:"EMI Schedule Checkbox",reference_no:marker,remarks:"EMI No. "+(emiNo||inst?.installment_no||"")+" — EMI Schedule से भुगतान दर्ज"});
       if(error)throw error;
     }else{
       const auto=payments.find(p=>String(p.loan_id)===String(l.id)&&String(p.reference_no||"")===marker);
       if(!auto){alert("यह किस्त पुराने रिकॉर्ड या मैन्युअल भुगतान से भुगतान हुई है। उसे यहाँ से हटाया नहीं गया।");await refresh();return}
       const {error}=await db.from("loan_payments").delete().eq("id",auto.id).eq("loan_id",l.id);if(error)throw error;
-      const remain=payments.filter(p=>String(p.loan_id)===String(l.id)&&String(p.id)!==String(auto.id)&&String(p.payment_date||"").slice(0,7)===month);
-      const amount=remain.reduce((a,p)=>a+Number(p.amount||0),0),principal=remain.reduce((a,p)=>a+Number(p.principal_component||0),0),interest=remain.reduce((a,p)=>a+Number(p.interest_component||0),0);
-      const upd=await db.from("loan_installments").update({paid_amount:amount,principal_paid:principal,interest_paid:interest,paid_date:remain.length?remain.map(p=>p.payment_date).sort().at(-1):null,payment_mode:remain.length?(remain[remain.length-1].payment_mode||null):null,reference_no:remain.length?(remain[remain.length-1].reference_no||null):null,status:amount>0?"paid":"pending"}).eq("id",inst.id);
-      if(upd.error)throw upd.error;
+      if(inst){
+        const remain=payments.filter(p=>String(p.loan_id)===String(l.id)&&String(p.id)!==String(auto.id)&&String(p.payment_date||"").slice(0,7)===month);
+        const amount=remain.reduce((a,p)=>a+Number(p.amount||0),0),pp=remain.reduce((a,p)=>a+Number(p.principal_component||0),0),ii=remain.reduce((a,p)=>a+Number(p.interest_component||0),0);
+        const upd=await db.from("loan_installments").update({paid_amount:amount,principal_paid:pp,interest_paid:ii,paid_date:remain.length?remain.map(p=>p.payment_date).sort().at(-1):null,payment_mode:remain.length?(remain[remain.length-1].payment_mode||null):null,reference_no:remain.length?(remain[remain.length-1].reference_no||null):null,status:amount>0?"paid":"pending"}).eq("id",inst.id);
+        if(upd.error)throw upd.error;
+      }
     }
     await refresh();
   }catch(err){alert("EMI भुगतान अपडेट नहीं हुआ: "+(err?.message||err));el.checked=!checked}
