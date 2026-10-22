@@ -1135,6 +1135,11 @@ function stopInactivityTimer(){
 function recordInactivityActivity(){
   inactivityLastActivity=Date.now();
   try{localStorage.setItem(INACTIVITY_STORAGE_KEY,String(inactivityLastActivity));}catch(e){}
+  // Keep the saved workspace eligible for restoration while the user remains active.
+  try{
+    const saved=JSON.parse(sessionStorage.getItem(WORKSPACE_STATE_KEY)||"null");
+    if(saved){saved.savedAt=inactivityLastActivity;sessionStorage.setItem(WORKSPACE_STATE_KEY,JSON.stringify(saved));}
+  }catch(e){}
 }
 async function performInactivityLogout(){
   if(!inactivityActive || inactivityLogoutRunning) return;
