@@ -193,7 +193,7 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 </section>
 <section id="reports" class="page"><div class="card"><h2>कर्मचारी रिपोर्ट</h2><div class="toolbar"><select id="reportEmp" onchange="renderReport()"></select><button class="btn primary" onclick="window.print()">Print / PDF</button></div><div id="reportBox"></div></div></section>
 <section id="backup" class="page"><div class="card"><h2>🔐 Data Security + Backup</h2>
-<p class="notice"><b>Full Site Backup:</b> एक क्लिक में सभी मुख्य application data tables (कर्मचारी, वेतन, FDR, Loan, Office Ledger और Bank) का Cloud Backup बनाया जाएगा और JSON व Excel फाइलें डाउनलोड होंगी। Backup केवल Login किए हुए Admin के लिए उपलब्ध है। Auth passwords/API secrets इसमें शामिल नहीं होते।</p>
+<p class="notice"><b>Full Site Backup:</b> Admin के लिए एक क्लिक में सभी application database tables और private Storage में रखे दस्तावेज़ों का ZIP Cloud Backup बनेगा। ZIP में database JSON, document files और manifest रहेगा। वेबसाइट का source code GitHub repository में है। Auth passwords/MFA seeds और API secrets शामिल नहीं होते। पूरा disaster-recovery सत्यापन करने के लिए अलग test project में Restore Test भी आवश्यक है।</p>
 <div class="toolbar" style="margin-top:14px">
 <button class="btn primary" onclick="createFullSiteBackup()">☁️ एक क्लिक में पूरा Site Backup</button>
 <button class="btn" onclick="createCloudBackup()">☁️ केवल Cloud Backup</button>
@@ -936,14 +936,17 @@ async function deleteFdr(id){
 // ================= END FDR MANAGEMENT =================
 
 async function getBackupSnapshot(){
-  // Application data tables. system_backups is deliberately excluded to avoid recursively embedding old backups.
-  const tables=["employees","salary_records","fdr_records","loan_accounts","loan_installments","loan_payments","loans","account_heads","account_transactions","bank_accounts","bank_transactions","app_admins","employee_documents","employee_contact_credentials","employee_bank_details","important_documents"];
-  const out={product:"Harshi Computer Online Management System",backup_type:"full_application_data",schema_version:2,exported_at:new Date().toISOString(),included_tables:tables,excluded_tables:["system_backups (backup history; excluded to prevent recursive backups)","Supabase Auth credentials/passwords and project secrets (not exportable from this client backup)","Employee and important document files live in private Storage; this export contains document metadata and storage paths, not the binary PDF/JPG/PNG files"],tables:{},row_counts:{}};
+  // Client-side export for ordinary JSON/Excel downloads. The full-site archive uses a protected server-side function.
+  const tables=["employees","salary_records","fdr_records","loan_accounts","loan_installments","loan_payments","loans","account_heads","account_transactions","bank_accounts","bank_transactions","app_admins","employee_documents","employee_contact_credentials","employee_bank_details","employee_personal_details","important_orders","business_customers","business_customer_documents","important_documents"];
+  const out={product:"Harshi Computer Online Management System",backup_type:"application_data_export",schema_version:3,exported_at:new Date().toISOString(),included_tables:tables,excluded_tables:["system_backups (backup history excluded to avoid recursion)","employee_aadhaar_private (restricted server-side table; included in Full Site Backup ZIP)","Storage document file contents (included in Full Site Backup ZIP, not this JSON/Excel-only export)","Supabase Auth passwords/MFA seeds and project secrets"],tables:{},row_counts:{}};
   for(const table of tables){
-    const {data,error}=await window.salaryDb.from(table).select("*");
-    if(error)throw new Error(table+": "+error.message);
-    out.tables[table]=data||[];
-    out.row_counts[table]=(data||[]).length;
+    const rows=[];let offset=0;
+    while(true){
+      const {data,error}=await window.salaryDb.from(table).select("*").range(offset,offset+999);
+      if(error)throw new Error(table+": "+error.message);
+      const page=data||[];rows.push(...page);if(page.length<1000)break;offset+=page.length;
+    }
+    out.tables[table]=rows;out.row_counts[table]=rows.length;
   }
   return out;
 }
@@ -959,21 +962,22 @@ async function downloadBackup(){
   }catch(e){document.getElementById("backupMsg").textContent="Backup error: "+(e?.message||e);}
 }
 async function createFullSiteBackup(){
-  const msgEl=document.getElementById("backupMsg");msgEl.textContent="पूरा Site Backup बनाया जा रहा है—कृपया पेज बंद न करें...";
+  const msgEl=document.getElementById("backupMsg");
+  const btn=[...document.querySelectorAll("button")].find(b=>b.getAttribute("onclick")==="createFullSiteBackup()");
+  if(btn){btn.disabled=true;btn.dataset.originalText=btn.textContent;btn.textContent="⏳ Backup बन रहा है...";}
+  msgEl.textContent="पूरा Site Backup बनाया जा रहा है—Database की सभी tables और private Storage documents शामिल होंगे। कृपया पेज बंद न करें।";
   try{
-    const u=(await window.salaryDb.auth.getUser()).data.user;
-    if(!u)throw new Error("Login session समाप्त हो गई है।");
-    const snap=await getBackupSnapshot();
-    const {error}=await window.salaryDb.from("system_backups").insert({user_id:u.id,label:"Full Site Backup",exported_at:snap.exported_at,snapshot:snap});
-    if(error)throw error;
-    saveJsonFile(snap,"harshi-computer-full-site-backup-"+new Date().toISOString().slice(0,10)+".json");
-    const wb=XLSX.utils.book_new();
-    const add=(name,rows)=>{const ws=XLSX.utils.json_to_sheet(rows||[]);XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31));};
-    add("Employees",snap.tables.employees);add("Salary Records",snap.tables.salary_records);add("FDR Records",snap.tables.fdr_records);add("Loan Accounts",snap.tables.loan_accounts);add("Loan Installments",snap.tables.loan_installments);add("Loan Payments",snap.tables.loan_payments);add("Loans",snap.tables.loans);add("Account Heads",snap.tables.account_heads);add("Account Transactions",snap.tables.account_transactions);add("Bank Accounts",snap.tables.bank_accounts);add("Bank Transactions",snap.tables.bank_transactions);add("App Admins",snap.tables.app_admins);add("Employee Documents",snap.tables.employee_documents);add("Important Documents",snap.tables.important_documents);add("Contact & Accounts",snap.tables.employee_contact_credentials);add("Employee Bank Details",snap.tables.employee_bank_details);add("Backup Info",[{product:snap.product,backup_type:snap.backup_type,schema_version:snap.schema_version,exported_at:snap.exported_at,included_tables:snap.included_tables.join(", "),excluded_tables:snap.excluded_tables.join("; "),row_counts:JSON.stringify(snap.row_counts)}]);
-    XLSX.writeFile(wb,"harshi-computer-full-site-backup-"+new Date().toISOString().slice(0,10)+".xlsx");
-    msgEl.textContent="✅ Full Site Backup सफल: Cloud में सुरक्षित, JSON और Excel डाउनलोड शुरू। कुल "+snap.included_tables.length+" tables शामिल। यदि डाउनलोड रोके जाएँ तो ब्राउज़र में multiple downloads Allow करें।";
+    const {data:{session},error:sessionError}=await window.salaryDb.auth.getSession();
+    if(sessionError)throw sessionError;
+    if(!session?.access_token)throw new Error("Login session समाप्त हो गई है। कृपया फिर Login करें।");
+    const {data,error}=await window.salaryDb.functions.invoke("full-site-backup",{body:{}});
+    if(error)throw new Error(error.message||"Full Site Backup request failed.");
+    if(!data?.success)throw new Error(data?.error||"Backup पूरा नहीं हुआ।");
+    const date=new Date(data.exported_at).toLocaleString("en-IN");
+    msgEl.innerHTML="✅ <b>Full Site Backup Cloud में सुरक्षित है।</b><br>तारीख: "+date+"<br>Database tables: "+data.included_tables.length+" | कुल database records: "+Number(data.total_database_rows||0).toLocaleString("en-IN")+" | Storage files: "+Number(data.storage_file_count||0)+" | ZIP आकार: "+(Number(data.archive_size_bytes||0)/1024/1024).toFixed(2)+" MB<br><a href='"+data.signed_url+"' target='_blank' rel='noopener'>⬇️ पूरा ZIP Backup डाउनलोड करें (Database + Documents)</a><br><span class='muted'>Website source code GitHub पर सुरक्षित है: <a href='"+data.github_repository+"' target='_blank' rel='noopener'>Repository खोलें</a>. अलग test project में Restore Test अभी बाकी है।</span>";
     await renderBackupList();
   }catch(e){msgEl.textContent="Full Site Backup error: "+(e?.message||e);}
+  finally{if(btn){btn.disabled=false;btn.textContent=btn.dataset.originalText||"☁️ एक क्लिक में पूरा Site Backup";delete btn.dataset.originalText;}}
 }
 async function createCloudBackup(){
   const msgEl=document.getElementById("backupMsg");msgEl.textContent="Cloud Backup बनाया जा रहा है...";
