@@ -211,8 +211,47 @@ const years=()=>[...new Set(periodMonths().map(x=>x.y))];
 function msg(x,ok=false){let el=document.getElementById("authMsg");el.textContent=x;el.className=ok?"ok":"error"}
 async function signIn(){let email=document.getElementById("email").value.trim().toLowerCase(),password=document.getElementById("password").value,btn=document.getElementById("loginBtn");if(!email||!password)return msg("Email और Password दोनों भरें।");btn.disabled=true;btn.textContent="Login हो रहा है...";msg("Database connection जाँच रहा है...",true);try{const db=await window.salaryDbReady;let{error}=await db.auth.signInWithPassword({email,password});if(error){let x=error.message.toLowerCase();msg(x.includes("invalid login credentials")?"Email या Password गलत है।":x.includes("email not confirmed")?"Email confirmation बाकी है。":error.message)}}catch(e){msg("Login में तकनीकी समस्या: "+(e?.message||e))}finally{btn.disabled=false;btn.textContent="Login"}}
 async function signUp(){msg("नया Account बनाना बंद है। Admin द्वारा दिए गए Login credentials का उपयोग करें।")}
-async function signOut(){if(!confirm("क्या आप लॉग आउट करके वेबसाइट के Home Page पर जाना चाहते हैं?"))return;try{await window.salaryDb.auth.signOut({scope:"local"})}finally{window.location.href="/"}}
+async function signOut(){if(!confirm("क्या आप लॉग आउट करके वेबसाइट के Home Page पर जाना चाहते हैं?"))return;clearWorkspaceState();try{await window.salaryDb.auth.signOut({scope:"local"})}finally{window.location.href="/"}}
 let forceLoginOnEntry=new URLSearchParams(location.search).get("login")==="1";let requireFreshLogin=forceLoginOnEntry;function showLoginScreen(){document.getElementById("app").style.display="none";document.getElementById("personal").style.display="none";document.getElementById("portal").classList.remove("show");document.getElementById("login").style.display="grid";mfaUiActive=false}if(forceLoginOnEntry)showLoginScreen();window.salaryDbReady.then(db=>db.auth.onAuthStateChange((e,s)=>{if(e==="INITIAL_SESSION"){if(requireFreshLogin){showLoginScreen();if(s)db.auth.signOut().catch(err=>console.error("Session reset failed:",err));return}if(s&&!loginStarting){setTimeout(()=>prepareMfaFlow(db,s),0)}else if(!s)showLoginScreen();return}if(e==="SIGNED_OUT"){showLoginScreen();return}if(e==="SIGNED_IN"&&s&&!loginStarting){requireFreshLogin=false;setTimeout(()=>prepareMfaFlow(db,s),0)}})).catch(e=>{console.error(e);const m=document.getElementById("authMsg");if(m){m.textContent="Database connection शुरू नहीं हो सकी। कृपया थोड़ी देर बाद फिर प्रयास करें।";m.className="error"}})
+const WORKSPACE_STATE_KEY="hc_workspace_state_v1";
+function saveWorkspaceState(){
+  try{
+    const app=document.getElementById("app"), personal=document.getElementById("personal"), portal=document.getElementById("portal");
+    let state={view:"portal"};
+    if(app && app.style.display!=="none"){
+      const active=document.querySelector("#app .page.active");
+      state={view:"office",page:active?.id||"officeMenu"};
+    }else if(personal && personal.style.display!=="none"){
+      const loan=document.getElementById("personalLoanSection"),cc=document.getElementById("personalCreditCardSection"),docs=document.getElementById("personalDocumentsSection");
+      state={view:"personal",section:docs?.classList.contains("show")?"documents":cc?.classList.contains("show")?"creditCard":loan?.style.display!=="none"?"loan":""};
+    }else if(portal?.classList.contains("show")) state={view:"portal"};
+    state.savedAt=Date.now();
+    sessionStorage.setItem(WORKSPACE_STATE_KEY,JSON.stringify(state));
+  }catch(e){console.warn("Workspace state save unavailable:",e)}
+}
+function clearWorkspaceState(){try{sessionStorage.removeItem(WORKSPACE_STATE_KEY)}catch(e){}}
+function restoreWorkspaceState(){
+  let state;
+  try{state=JSON.parse(sessionStorage.getItem(WORKSPACE_STATE_KEY)||"null")}catch(e){}
+  if(!state || !state.savedAt || Date.now()-state.savedAt>=INACTIVITY_LIMIT){clearWorkspaceState();return false}
+  if(state.view==="office"){
+    const page=document.getElementById(state.page);
+    if(!page || !page.classList.contains("page"))return false;
+    openOffice();
+    if(state.page==="officeMenu"){saveWorkspaceState();return true}
+    if(["accountsManagement","employeeManagement"].includes(state.page)){
+      if(state.page==="accountsManagement")openAccountsManagement();else openEmployeeManagement();
+    }else openOfficeModule(state.page);
+    return true;
+  }
+  if(state.view==="personal"){
+    openPersonal();
+    const section=["loan","creditCard","documents"].includes(state.section)?state.section:"loan";
+    openPersonalSection(section,document.querySelector(section==="loan"?"#personalNav button:nth-child(1)":section==="creditCard"?"#personalNav button:nth-child(2)":"#personalNav button:nth-child(3)"));
+    return true;
+  }
+  return false;
+}
 function start(s){
   inactivityActive=true;
   resetInactivityTimer();
@@ -223,15 +262,18 @@ function start(s){
   window.currentSession=s;
   try{init()}catch(e){console.error("Initial UI error:",e)}
   const openParam=new URLSearchParams(location.search).get("open");
-  // Treat deep-link routing as a one-time action. Do not let the delayed data refresh
-  // pull the user back to Anudan after they have moved to another module.
   if(openParam==="officeAccount"){
+    clearWorkspaceState();
     openOffice();
     openOfficeModule("officeAccount");
     setupAccount();
     const cleanUrl=new URL(location.href);
     cleanUrl.searchParams.delete("open");
     history.replaceState(history.state,"",cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+  }else{
+    // Restore the last workspace/page in this browser tab after a tab discard or reload.
+    // The normal inactivity deadline still logs out after 10 minutes without activity.
+    restoreWorkspaceState();
   }
   refresh().then(()=>{try{init();}catch(e){console.error("UI refresh error:",e)}}).catch(e=>{
     console.error("Background database refresh error:",e);
@@ -246,6 +288,7 @@ function openOffice(){
   document.getElementById("officeModuleNav").style.display="none";
   document.getElementById("salarySubNav").style.display="none";
   resetInactivityTimer();
+  saveWorkspaceState();
 }
 function openAccountsManagement(){
   document.querySelectorAll("#app .page").forEach(x=>x.classList.remove("active"));
@@ -253,6 +296,7 @@ function openAccountsManagement(){
   document.getElementById("officeModuleNav").style.display="none";
   document.getElementById("salarySubNav").style.display="none";
   resetInactivityTimer();
+  saveWorkspaceState();
 }
 function openEmployeeManagement(){
   document.querySelectorAll("#app .page").forEach(x=>x.classList.remove("active"));
@@ -260,6 +304,7 @@ function openEmployeeManagement(){
   document.getElementById("officeModuleNav").style.display="none";
   document.getElementById("salarySubNav").style.display="none";
   resetInactivityTimer();
+  saveWorkspaceState();
 }
 function openOfficeModule(id){
   document.querySelectorAll("#app .page").forEach(x=>x.classList.remove("active"));
@@ -274,16 +319,18 @@ function openOfficeModule(id){
   if(id==="fdr")renderFdr();
   if(id==="reports")setupReport();
   if(id==="backup")renderBackupList();
+  saveWorkspaceState();
 } function openBusiness(){window.location.href="business_customers.html";}
-function openPersonal(){document.getElementById("portal").classList.remove("show");document.getElementById("app").style.display="none";document.getElementById("personal").style.display="block"} function openPersonalSection(id,b){
+function openPersonal(){document.getElementById("portal").classList.remove("show");document.getElementById("app").style.display="none";document.getElementById("personal").style.display="block";saveWorkspaceState()} function openPersonalSection(id,b){
   document.getElementById("personalLoanSection").style.display=id==="loan"?"block":"none";
   document.getElementById("personalCreditCardSection").classList.toggle("show",id==="creditCard");
   document.getElementById("personalDocumentsSection").classList.toggle("show",id==="documents");
   document.querySelectorAll("#personalNav button").forEach(x=>x.classList.remove("active"));
   if(b)b.classList.add("active");
   resetInactivityTimer();
+  saveWorkspaceState();
 }
-function goHome(){ window.location.href="/"; }
+function goHome(){ clearWorkspaceState(); window.location.href="/"; }
 function goBackOne(){
   const personal=document.getElementById("personal");
   if(personal && personal.style.display!=="none"){
@@ -301,7 +348,7 @@ function goBackOne(){
   }
   backToPortal();
 }
-function backToPortal(){document.getElementById("personal").style.display="none";document.getElementById("app").style.display="none";document.getElementById("portal").classList.add("show")}async function refresh(){
+function backToPortal(){document.getElementById("personal").style.display="none";document.getElementById("app").style.display="none";document.getElementById("portal").classList.add("show");saveWorkspaceState()}async function refresh(){
   let a=await window.salaryDb.from("employees").select("*").order("code");
   if(a.error)return alert(a.error.message);
   employees=a.data||[];
@@ -1092,6 +1139,7 @@ function recordInactivityActivity(){
 async function performInactivityLogout(){
   if(!inactivityActive || inactivityLogoutRunning) return;
   inactivityLogoutRunning=true;
+  clearWorkspaceState();
   stopInactivityTimer();
   // Wait for Supabase to finish clearing the local session before navigating.
   // The previous 1.5-second race could redirect while the session was still active,
