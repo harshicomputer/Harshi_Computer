@@ -654,7 +654,17 @@ async function previewPaymentUpload(){
       for(let row of rows){
         let code=String(row[ci]??"").trim(),nameCell=String(row[ni]??"").trim(),amount=Number(String(row[ai]??"").replace(/,/g,""));
         if(!code&&!nameCell&&!row[mi]&&!row[ai])continue;
-        if(!code||!isFinite(amount)||amount<0){pendingPaymentRejectedRows.push({sheet:name,rowNumber:hi+rows.indexOf(row)+2,code,name:nameCell,monthRaw:String(row[mi]??""),reason:!code?"Employee Code खाली है":"Paid Amount खाली, गलत या ऋणात्मक है"});continue}
+        // If Code is blank, safely match by exact employee name only when exactly one employee has that name.
+        if(!code&&nameCell){
+          const cleanName=v=>String(v||"").trim().replace(/\\s+/g," ").toLocaleLowerCase();
+          const nameMatches=employees.filter(emp=>cleanName(emp.name)===cleanName(nameCell));
+          if(nameMatches.length===1){code=nameMatches[0].code;}
+          else {
+            pendingPaymentRejectedRows.push({sheet:name,rowNumber:hi+rows.indexOf(row)+2,code,name:nameCell,monthRaw:String(row[mi]??""),reason:nameMatches.length>1?"Employee Code खाली है और इस नाम के कई कर्मचारी मिले; सही Code भरें":"Employee Code खाली है और नाम से कर्मचारी का निश्चित मिलान नहीं हुआ"});
+            continue;
+          }
+        }
+        if(!isFinite(amount)||amount<0){pendingPaymentRejectedRows.push({sheet:name,rowNumber:hi+rows.indexOf(row)+2,code,name:nameCell,monthRaw:String(row[mi]??""),reason:"Paid Amount खाली, गलत या ऋणात्मक है"});continue}
         let month=monthISO(row[mi]);
         if(!month){pendingPaymentRejectedRows.push({sheet:name,rowNumber:hi+rows.indexOf(row)+2,code,name:nameCell,monthRaw:String(row[mi]??""),reason:"Salary Month पढ़ा नहीं जा सका; कृपया YYYY-MM या मान्य Excel date डालें"});continue}
         let payDate=dateISO(row[di]);
