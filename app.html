@@ -999,9 +999,20 @@ async function renderBackupList(){
   box.innerHTML="<h3>हाल के Cloud Backups</h3><div class='scroll'><table><thead><tr><th>तारीख</th><th>नाम</th><th></th></tr></thead><tbody>"+data.map(x=>"<tr><td>"+new Date(x.created_at).toLocaleString("en-IN")+"</td><td>"+x.label+"</td><td><button class='btn' onclick='downloadCloudBackup("+JSON.stringify(x.id)+")'>Download</button></td></tr>").join("")+"</tbody></table></div>";
 }
 async function downloadCloudBackup(id){
-  const {data,error}=await window.salaryDb.from("system_backups").select("snapshot,label,created_at").eq("id",id).single();
-  if(error){alert(error.message);return}
-  saveJsonFile(data.snapshot,"harshi-computer-cloud-backup-"+String(data.created_at).slice(0,10)+".json");
+  try{
+    const {data,error}=await window.salaryDb.from("system_backups").select("snapshot,label,created_at").eq("id",id).single();
+    if(error)throw error;
+    if(data.snapshot?.archive_path){
+      const {data:download,error:downloadError}=await window.salaryDb.functions.invoke("full-site-backup",{body:{action:"download",backup_id:id}});
+      if(downloadError)throw downloadError;
+      if(!download?.success||!download?.signed_url)throw new Error(download?.error||"ZIP download link नहीं बना।");
+      const a=document.createElement("a");a.href=download.signed_url;a.target="_blank";a.rel="noopener";a.download="harshi-computer-full-site-backup.zip";document.body.appendChild(a);a.click();a.remove();
+      document.getElementById("backupMsg").textContent="पूरा ZIP Backup डाउनलोड शुरू हुआ। इसमें Database और Storage documents शामिल हैं।";
+      return;
+    }
+    saveJsonFile(data.snapshot,"harshi-computer-cloud-backup-"+String(data.created_at).slice(0,10)+".json");
+    document.getElementById("backupMsg").textContent="पुराने backup का JSON snapshot डाउनलोड हुआ। इसमें Storage document files शामिल नहीं हैं।";
+  }catch(e){document.getElementById("backupMsg").textContent="Backup download error: "+(e?.message||e);}
 }
 async function exportExcelBackup(){
   try{
