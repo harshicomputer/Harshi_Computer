@@ -558,6 +558,9 @@ function setupReport(){reportEmp.innerHTML=employees.map((e,i)=>`<option value="
 function renderReport(){let e=employees[Number(reportEmp.value)],rr=records.filter(x=>x.employee_id===e.id).sort((a,b)=>a.month_start.localeCompare(b.month_start)),s=stats(e);let body=rr.map(r=>"<tr><td>"+r.month_start+"</td><td>₹"+Number(r.payable_amount||0).toLocaleString("en-IN")+"</td><td>₹"+Number(r.amount||0).toLocaleString("en-IN")+"</td><td>₹"+(Number(r.payable_amount||0)-Number(r.amount||0)).toLocaleString("en-IN")+"</td><td>"+(r.voucher_no||"")+"</td><td>"+(r.payment_date||"")+"</td><td>"+(r.remarks||"")+"</td></tr>").join("")||"<tr><td colspan=7>कोई रिकॉर्ड नहीं</td></tr>";reportBox.innerHTML="<p><b>भुगतान योग्य:</b> ₹"+s.payable.toLocaleString("en-IN")+" &nbsp; <b>भुगतान किया:</b> ₹"+s.total.toLocaleString("en-IN")+" &nbsp; <b>लंबित राशि:</b> ₹"+s.pending.toLocaleString("en-IN")+" &nbsp; <b>दर्ज:</b> "+s.months+"</p><div class=\"scroll\"><table><thead><tr><th>माह</th><th>भुगतान योग्य</th><th>भुगतान किया</th><th>लंबित</th><th>Voucher</th><th>Date</th><th>Remarks</th></tr></thead><tbody>"+body+"</tbody></table></div>"}
 let pendingPaymentRows=[];
 let pendingPaymentRejectedRows=[];
+let pendingPaymentDatabaseDuplicates=[];
+let pendingPaymentInternalDuplicates=0;
+let pendingPaymentDbLookupFailed=false;
 function parseExcelParts(v){
   if(v instanceof Date&&!isNaN(v)) return {y:v.getFullYear(),m:v.getMonth()+1,d:v.getDate()};
   if(typeof v==="number"&&isFinite(v)){
@@ -624,7 +627,7 @@ function downloadPaymentTemplate(){
 }
 async function previewPaymentUpload(){
   let file=document.getElementById("paymentFile").files[0],msgEl=document.getElementById("paymentMsg"),box=document.getElementById("paymentPreview"),btn=document.getElementById("confirmPaymentBtn");
-  pendingPaymentRows=[];pendingPaymentRejectedRows=[];btn.disabled=true;box.innerHTML="";
+  pendingPaymentRows=[];pendingPaymentRejectedRows=[];pendingPaymentDatabaseDuplicates=[];pendingPaymentInternalDuplicates=0;pendingPaymentDbLookupFailed=false;btn.disabled=true;box.innerHTML="";
   if(!file)return msgEl.textContent="पहले fixed Payment Template वाली Excel फ़ाइल चुनें।";
   try{
     let data=await file.arrayBuffer(),wb=XLSX.read(data,{type:"array",cellDates:false}),codes=new Map(employees.map(e=>[normalizeCode(e.code),e]));
@@ -676,6 +679,24 @@ async function previewPaymentUpload(){
       if(seen.has(k)){const first=seen.get(k);dups.push({key:k,code:x.code,name:x.name||first.name||"—",month:x.month_start,firstIndex:first.index+1,secondIndex:i+1,firstSheet:first.sheet,secondSheet:x.sheet})}
       else seen.set(k,{index:i,name:x.name,sheet:x.sheet});
     });
+    pendingPaymentInternalDuplicates=dups.length;
+    // Check matching employee + salary month against records already stored in the database.
+    const matchedIds=[...new Set(pendingPaymentRows.filter(x=>x.employee_id).map(x=>x.employee_id))];
+    const matchedMonths=[...new Set(pendingPaymentRows.filter(x=>x.employee_id).map(x=>x.month_start))];
+    if(matchedIds.length&&matchedMonths.length){
+      const {data:existingRecords,error:existingError}=await window.salaryDb.from("salary_records").select("employee_id,month_start,amount,payable_amount,voucher_no,payment_date").in("employee_id",matchedIds).in("month_start",matchedMonths);
+      if(existingError){
+        pendingPaymentDbLookupFailed=true;
+        msgEl.textContent="Duplicate जाँच पूरी नहीं हो सकी, इसलिए सुरक्षित रखने के लिए Upload रोक दिया गया है: "+existingError.message;
+        btn.disabled=true;return;
+      }
+      const existingMap=new Map((existingRecords||[]).map(r=>[r.employee_id+"|"+String(r.month_start).slice(0,7),r]));
+      pendingPaymentRows.forEach(x=>{
+        if(!x.employee_id)return;
+        const existing=existingMap.get(x.employee_id+"|"+String(x.month_start).slice(0,7));
+        if(existing){x._existingDuplicate=existing;pendingPaymentDatabaseDuplicates.push({code:x.matched_code||x.code,name:x.name,month:x.month_start,existing});}
+      });
+    }
     let dupKeys=new Set(dups.map(x=>x.key)),total=pendingPaymentRows.reduce((s,x)=>s+x.amount,0);
     msgEl.textContent="Excel में जाँचे गए: "+(pendingPaymentRows.length+pendingPaymentRejectedRows.length)+" | पढ़े गए भुगतान रिकॉर्ड: "+pendingPaymentRows.length+" | कुल पढ़ी गई राशि ₹"+total.toLocaleString("en-IN")+" | अस्वीकार रिकॉर्ड: "+pendingPaymentRejectedRows.length+" | Match नहीं: "+bad.length+(dups.length?" | Duplicate: "+dups.length:"")+(invalidSheets.length?" | गलत format sheets: "+invalidSheets.join(", "):"");
     const orderedRows=[...bad,...pendingPaymentRows.filter(x=>x.employee_id)];
@@ -687,10 +708,20 @@ async function previewPaymentUpload(){
         return "<tr"+(!x.employee_id?' style="background:#fff1f2;color:#991b1b"':x.was_legacy_mapped?' style="background:#f0fdf4;color:#166534"':"")+"><td>"+escHtml(x.code)+(x.was_legacy_mapped?" → "+escHtml(x.matched_code):"")+"</td><td>"+escHtml(x.name||"—")+"</td><td>"+escHtml(x.month_start)+"</td><td>₹"+Number(x.payable_amount||0).toLocaleString("en-IN")+"</td><td>₹"+Number(x.amount||0).toLocaleString("en-IN")+"</td><td>₹"+(Number(x.payable_amount||0)-Number(x.amount||0)).toLocaleString("en-IN")+"</td><td>"+escHtml(x.payment_date||"")+"</td><td>"+escHtml(x.voucher_no||"")+"</td><td>"+status+(isDup?" | Duplicate":"")+"</td></tr>"
       }).join("")+"</tbody></table>"+
       (pendingPaymentRejectedRows.length ? "<div class=\"notice\" style=\"margin-top:12px;border-color:#dc2626;color:#991b1b\"><b>अस्वीकार किए गए " + pendingPaymentRejectedRows.length + " रिकॉर्ड:</b><ul>" + pendingPaymentRejectedRows.map(function(x){return "<li>Sheet " + escHtml(x.sheet) + ", Excel पंक्ति " + x.rowNumber + ", Code " + escHtml(x.code) + ", नाम " + escHtml(x.name) + ", Salary Month " + escHtml(x.monthRaw) + " — " + escHtml(x.reason) + "</li>";}).join("") + "</ul></div>" : "");
-    btn.disabled=!pendingPaymentRows.length||pendingPaymentRejectedRows.length>0||bad.length>0||dups.length>0;
+    if(pendingPaymentDatabaseDuplicates.length){
+      const dupList=pendingPaymentDatabaseDuplicates.map(x=>"<li>"+String(x.code||"")+" — "+String(x.name||"")+" — "+String(x.month||"")+" (पहले से भुगतान ₹"+Number(x.existing.amount||0).toLocaleString("en-IN")+")</li>").join("");
+      box.insertAdjacentHTML("afterbegin",'<div class="notice" style="margin-bottom:10px;border-color:#dc2626;color:#991b1b"><b>⚠️ Duplicate Alert:</b> '+pendingPaymentDatabaseDuplicates.length+' रिकॉर्ड में वही कर्मचारी और महीना पहले से Database में है। पुराने रिकॉर्ड गलती से बदलने से बचाने के लिए Upload रोका गया है।<ul>'+dupList+'</ul><label><input id="allowExistingPaymentOverwrite" type="checkbox" onchange="toggleExistingPaymentOverwrite()"> मैंने पुराने रिकॉर्ड जाँच लिए हैं; इन Duplicate रिकॉर्ड को Excel से अपडेट करने दें।</label></div>');
+    }
+    toggleExistingPaymentOverwrite();
   }catch(e){msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
 }
-async function confirmPaymentUpload(){if(!pendingPaymentRows.length)return;let msgEl=document.getElementById("paymentMsg"),btn=document.getElementById("confirmPaymentBtn");btn.disabled=true;let u=(await window.salaryDb.auth.getUser()).data.user;if(!u){msgEl.textContent="Login session समाप्त हो गई है।";btn.disabled=false;return}let rows=pendingPaymentRows.filter(x=>x.employee_id).map(x=>({employee_id:x.employee_id,month_start:x.month_start,payable_amount:x.payable_amount||0,amount:x.amount,payment_date:x.payment_date,voucher_no:String(x.voucher_no??"").trim()||null,remarks:String(x.remarks??"").trim()||null,updated_by:u.id}));let{error}=await window.salaryDb.from("salary_records").upsert(rows,{onConflict:"employee_id,month_start"});if(error){msgEl.textContent="Upload error: "+error.message;btn.disabled=false;return}await refresh();renderEmployees();updateDash();setupRecord();msgEl.textContent=rows.length+" भुगतान रिकॉर्ड Database में सफलतापूर्वक सेव हो गए।";pendingPaymentRows=[];document.getElementById("paymentFile").value="";document.getElementById("paymentPreview").innerHTML=""}
+function toggleExistingPaymentOverwrite(){
+  const btn=document.getElementById("confirmPaymentBtn");
+  const allow=!!document.getElementById("allowExistingPaymentOverwrite")?.checked;
+  const bad=pendingPaymentRows.some(x=>!x.employee_id);
+  btn.disabled=!pendingPaymentRows.length||pendingPaymentRejectedRows.length>0||bad||pendingPaymentInternalDuplicates>0||pendingPaymentDbLookupFailed||(pendingPaymentDatabaseDuplicates.length>0&&!allow);
+}
+async function confirmPaymentUpload(){if(!pendingPaymentRows.length)return;if(pendingPaymentDatabaseDuplicates.length&&!document.getElementById("allowExistingPaymentOverwrite")?.checked){alert("Duplicate रिकॉर्ड मिले हैं। पहले पुराने रिकॉर्ड जाँचें; अपडेट करना हो तो सहमति checkbox चुनें।");return}let msgEl=document.getElementById("paymentMsg"),btn=document.getElementById("confirmPaymentBtn");btn.disabled=true;let u=(await window.salaryDb.auth.getUser()).data.user;if(!u){msgEl.textContent="Login session समाप्त हो गई है।";btn.disabled=false;return}let rows=pendingPaymentRows.filter(x=>x.employee_id).map(x=>({employee_id:x.employee_id,month_start:x.month_start,payable_amount:x.payable_amount||0,amount:x.amount,payment_date:x.payment_date,voucher_no:String(x.voucher_no??"").trim()||null,remarks:String(x.remarks??"").trim()||null,updated_by:u.id}));let{error}=await window.salaryDb.from("salary_records").upsert(rows,{onConflict:"employee_id,month_start"});if(error){msgEl.textContent="Upload error: "+error.message;btn.disabled=false;return}await refresh();renderEmployees();updateDash();setupRecord();msgEl.textContent=rows.length+" भुगतान रिकॉर्ड Database में सफलतापूर्वक सेव हो गए।";pendingPaymentRows=[];document.getElementById("paymentFile").value="";document.getElementById("paymentPreview").innerHTML=""}
 function downloadBulkTemplate(){let rows=[["Employee ID","Employee Name","Post","Department"],["EMP-001","कर्मचारी 1","",""],["EMP-002","कर्मचारी 2","",""]];let ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Employees");XLSX.writeFile(wb,"employee-bulk-upload-template.xlsx")}
 async function bulkUpload(){
   const file=document.getElementById("bulkFile").files[0],out=document.getElementById("bulkMsg");
