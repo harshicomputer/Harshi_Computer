@@ -197,8 +197,15 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 <h2>मासिक वेतन पत्रक (जनवरी 2019 से)</h2>
 <p class="muted">माह चुनें, सभी कर्मचारियों का वेतन विवरण भरें और रिकॉर्ड सेव करें। Total Earnings, Total Deductions और Net Pay अपने-आप गणना होंगे।</p>
 <div class="toolbar"><label>वेतन माह <input id="payrollMonth" type="month" min="2019-01" value="2026-10" onchange="loadPayrollSheet()"></label><button class="btn primary" onclick="loadPayrollSheet()">पत्रक खोलें</button><button class="btn primary" onclick="savePayrollSheet()">वेतन पत्रक सेव करें</button><button class="btn" onclick="exportPayrollSheet()">Excel Export</button></div>
+<div class="card" style="margin-top:14px;border:1px solid #b8c9e3">
+<h3>📥 चारों Excel शीटों का Bulk Upload</h3>
+<p class="muted">अप्रैल 2019, फरवरी 2019, जून 2025 और दिसंबर 2025 की संयुक्त Excel फ़ाइल चुनें। पहले Preview में कर्मचारी नंबर, वेतन माह और कुल राशियों की जाँच करें; उसके बाद ही डेटाबेस में सेव करें। कर्मचारी नंबर का निश्चित मिलान न होने पर रिकॉर्ड अपलोड नहीं होगा।</p>
+<div class="toolbar"><input id="payrollBulkFile" type="file" accept=".xlsx,.xls" /><button class="btn" onclick="previewPayrollBulkUpload()">Preview / जाँचें</button><button id="confirmPayrollBulkBtn" class="btn primary" onclick="confirmPayrollBulkUpload()" disabled>जाँचे हुए रिकॉर्ड अपलोड करें</button></div>
+<div id="payrollBulkMsg" class="muted" style="margin:8px 0">अभी कोई फ़ाइल जाँची नहीं गई है।</div>
+<div id="payrollBulkPreview" style="overflow:auto;max-width:100%"></div>
+</div>
 <div id="payrollSheetMsg" class="muted" style="margin:8px 0">माह चुनकर पत्रक खोलें।</div>
-<div style="overflow:auto;max-width:100%"><table id="payrollSheetTable" style="min-width:2200px"><thead><tr><th>Employee Number</th><th>Name</th><th>Designation</th><th>Pay Band Pay</th><th>Grade Pay</th><th>Dearness Allowance</th><th>House Rent Allowance</th><th>Medical Allowance</th><th>Physically Handicapped Allowance</th><th>Vehicle Allowance</th><th>Special Allowance</th><th>Basic Salary Arrear</th><th>Total Earnings</th><th>GPF</th><th>GPF Loan</th><th>Family Benefit Plan</th><th>NPS Deduction</th><th>Income Tax</th><th>Professional Tax</th><th>Water Charges</th><th>Salary Recovery</th><th>Group Insurance</th><th>Total Deductions</th><th>Net Pay</th></tr></thead><tbody id="payrollSheetBody"><tr><td colspan="24">पत्रक लोड हो रहा है…</td></tr></tbody></table></div>
+<div style="overflow:auto;max-width:100%"><table id="payrollSheetTable" style="min-width:2200px"><thead><tr><th>Employee Number</th><th>Name</th><th>Designation</th><th>Pay Band Pay</th><th>Grade Pay</th><th>Dearness Allowance</th><th>DA Arrear</th><th>House Rent Allowance</th><th>Medical Allowance</th><th>Physically Handicapped Allowance</th><th>Vehicle Allowance</th><th>Special Allowance</th><th>Special Allowance 10 Yrs</th><th>Other Allowance (W)</th><th>Cust. Sp. Annual Exmp.</th><th>Arrears Salary Payment</th><th>Basic Salary Arrear</th><th>Basic (Daily Wages)</th><th>Total Earnings</th><th>GPF</th><th>GPF Loan</th><th>Family Benefit Plan</th><th>NPS Deduction</th><th>Income Tax</th><th>Professional Tax</th><th>LIC Deduction</th><th>Water Charges</th><th>Salary Recovery</th><th>Group Insurance</th><th>Group Insurance Scheme</th><th>Total Deductions</th><th>Net Pay</th></tr></thead><tbody id="payrollSheetBody"><tr><td colspan="24">पत्रक लोड हो रहा है…</td></tr></tbody></table></div>
 </div></section>
 <section id="reports" class="page"><div class="card"><h2>कर्मचारी रिपोर्ट</h2><div class="toolbar"><select id="reportEmp" onchange="renderReport()"></select><button class="btn primary" onclick="window.print()">Print / PDF</button></div><div id="reportBox"></div></div></section>
 <section id="backup" class="page"><div class="card"><h2>🔐 Data Security + Backup</h2>
@@ -1214,9 +1221,9 @@ window.addEventListener("storage",function(evt){
 window.addEventListener("pageshow",function(){if(inactivityActive) checkInactivityDeadline();});
 document.addEventListener("visibilitychange",function(){if(inactivityActive && !document.hidden) checkInactivityDeadline();});
 
-const PAYROLL_EARN_FIELDS=["band_pay","grade_pay","dearness_allowance","house_rent_allowance","medical_allowance","handicapped_allowance","vehicle_allowance","special_allowance","basic_salary_arrear"];
-const PAYROLL_DED_FIELDS=["gpf","gpf_loan","family_benefit_plan","nps_deduction","income_tax","professional_tax","water_charges","salary_recovery","group_insurance"];
-const PAYROLL_LABELS={band_pay:"Pay Band Pay",grade_pay:"Grade Pay",dearness_allowance:"Dearness Allowance",house_rent_allowance:"House Rent Allowance",medical_allowance:"Medical Allowance",handicapped_allowance:"Physically Handicapped Allowance",vehicle_allowance:"Vehicle Allowance",special_allowance:"Special Allowance",basic_salary_arrear:"Basic Salary Arrear",gpf:"GPF",gpf_loan:"GPF Loan",family_benefit_plan:"Family Benefit Plan",nps_deduction:"NPS Deduction",income_tax:"Income Tax",professional_tax:"Professional Tax",water_charges:"Water Charges",salary_recovery:"Salary Recovery",group_insurance:"Group Insurance"};
+const PAYROLL_EARN_FIELDS=["band_pay","grade_pay","dearness_allowance","da_arrear","house_rent_allowance","medical_allowance","handicapped_allowance","vehicle_allowance","special_allowance","special_allowance_10_yrs","other_allowance_w","cust_sp_annual_exmp","arrears_salary_payment","basic_salary_arrear","basic_daily_wages"];
+const PAYROLL_DED_FIELDS=["gpf","gpf_loan","family_benefit_plan","nps_deduction","income_tax","professional_tax","lic_deduction","water_charges","salary_recovery","group_insurance","group_insurance_scheme"];
+const PAYROLL_LABELS={band_pay:"Pay Band Pay",grade_pay:"Grade Pay",dearness_allowance:"Dearness Allowance",da_arrear:"DA Arrear",house_rent_allowance:"House Rent Allowance",medical_allowance:"Medical Allowance",handicapped_allowance:"Physically Handicapped Allowance",vehicle_allowance:"Vehicle Allowance",special_allowance:"Special Allowance",special_allowance_10_yrs:"Special Allowance 10 Yrs",other_allowance_w:"Other Allowance (W)",cust_sp_annual_exmp:"Cust. Sp. Annual Exmp.",arrears_salary_payment:"Arrears Salary Payment",basic_salary_arrear:"Basic Salary Arrear",basic_daily_wages:"Basic (Daily Wages)",gpf:"GPF",gpf_loan:"GPF Loan",family_benefit_plan:"Family Benefit Plan",nps_deduction:"NPS Deduction",income_tax:"Income Tax",professional_tax:"Professional Tax",lic_deduction:"LIC Deduction",water_charges:"Water Charges",salary_recovery:"Salary Recovery",group_insurance:"Group Insurance",group_insurance_scheme:"Group Insurance Scheme"};
 function payrollNum(v){const n=Number(v);return Number.isFinite(n)&&n>=0?n:0}
 function payrollCalcRow(tr){const earnings=PAYROLL_EARN_FIELDS.reduce((s,k)=>s+payrollNum(tr.querySelector('[data-field="'+k+'"]')?.value),0);const deductions=PAYROLL_DED_FIELDS.reduce((s,k)=>s+payrollNum(tr.querySelector('[data-field="'+k+'"]')?.value),0);tr.querySelector('[data-total="earnings"]').textContent=earnings.toFixed(2);tr.querySelector('[data-total="deductions"]').textContent=deductions.toFixed(2);tr.querySelector('[data-total="net"]').textContent=Math.max(0,earnings-deductions).toFixed(2)}
 async function loadPayrollSheet(){
@@ -1262,6 +1269,69 @@ function exportPayrollSheet(){
  const month=document.getElementById("payrollMonth").value;const headers=["Employee Number","Name","Designation",...PAYROLL_EARN_FIELDS.map(k=>PAYROLL_LABELS[k]),"Total Earnings",...PAYROLL_DED_FIELDS.map(k=>PAYROLL_LABELS[k]),"Total Deductions","Net Pay"];
  const rows=[headers];document.querySelectorAll("#payrollSheetBody tr[data-employee-id]").forEach(tr=>{const vals=[tr.dataset.code,tr.dataset.name,tr.querySelector('[data-field="designation"]')?.value||""];PAYROLL_EARN_FIELDS.forEach(k=>vals.push(payrollNum(tr.querySelector('[data-field="'+k+'"]')?.value)));vals.push(Number(tr.querySelector('[data-total="earnings"]')?.textContent||0));PAYROLL_DED_FIELDS.forEach(k=>vals.push(payrollNum(tr.querySelector('[data-field="'+k+'"]')?.value)));vals.push(Number(tr.querySelector('[data-total="deductions"]')?.textContent||0),Number(tr.querySelector('[data-total="net"]')?.textContent||0));rows.push(vals)});
  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"Payroll");XLSX.writeFile(wb,"salary-sheet-"+month+".xlsx");
+}
+
+let pendingPayrollImportRows=[],pendingPayrollImportRejected=[];
+function payrollNormalizeHeader(v){return String(v??"").normalize("NFC").trim().toLowerCase().replace(/[\\s._-]+/g,"").replace(/[()]/g,"")}
+function payrollNormalizeCode(v){return String(v??"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"")}
+function payrollMonthKey(v){
+ const s=String(v??"").trim();
+ let m=s.match(/^(\\d{4})-(\\d{1,2})(?:-\\d{1,2})?$/);if(m)return m[1]+"-"+String(Number(m[2])).padStart(2,"0")+"-01";
+ const months={"january":1,"jan":1,"जनवरी":1,"february":2,"feb":2,"फरवरी":2,"march":3,"mar":3,"मार्च":3,"april":4,"apr":4,"अप्रैल":4,"may":5,"मई":5,"june":6,"jun":6,"जून":6,"july":7,"jul":7,"जुलाई":7,"august":8,"aug":8,"अगस्त":8,"september":9,"sep":9,"sept":9,"सितंबर":9,"सितम्बर":9,"october":10,"oct":10,"अक्टूबर":10,"november":11,"nov":11,"नवंबर":11,"नवम्बर":11,"december":12,"dec":12,"दिसंबर":12,"दिसम्बर":12};
+ const low=s.toLowerCase().replace(/[.,]/g," ").replace(/\\s+/g," ").trim();
+ for(const [name,n] of Object.entries(months)){const re=new RegExp("(?:^|\\s)"+name+"(?:\\s+)(\\d{4})(?:$|\\s)","i");const hit=low.match(re);if(hit)return hit[1]+"-"+String(n).padStart(2,"0")+"-01";}
+ if(v instanceof Date&&!isNaN(v))return v.getFullYear()+"-"+String(v.getMonth()+1).padStart(2,"0")+"-01";
+ if(typeof v==="number"&&window.XLSX){const p=XLSX.SSF.parse_date_code(v);if(p)return p.y+"-"+String(p.m).padStart(2,"0")+"-01";}
+ return "";
+}
+function payrollAmount(v){if(v===null||v===undefined||String(v).trim()==="")return 0;const n=Number(String(v).replace(/,/g,"").replace(/[₹]/g,"").trim());return Number.isFinite(n)&&n>=0?n:0}
+const PAYROLL_IMPORT_MAP={"paybandpay":"band_pay","gradepay":"grade_pay","dearnessallowance":"dearness_allowance","dearnessallowence":"dearness_allowance","daarrear":"da_arrear","houserentallowance":"house_rent_allowance","houserentallowene":"house_rent_allowance","medicalallowance":"medical_allowance","medicalallowence":"medical_allowance","physicallyhandicappedallowance":"handicapped_allowance","physicallyhandicappedal":"handicapped_allowance","vehicleallowance":"vehicle_allowance","specialallowance":"special_allowance","specialallowance10yrs":"special_allowance_10_yrs","specialallowence10yrs":"special_allowance_10_yrs","otherallowancew":"other_allowance_w","custspannualexmp":"cust_sp_annual_exmp","arrearssalarypayment":"arrears_salary_payment","arrearssalarypayement":"arrears_salary_payment","basicsalaryarrear":"basic_salary_arrear","basicdw":"basic_daily_wages","gpf":"gpf","gpfloan":"gpf_loan","familybenefitplan":"family_benefit_plan","npsdeduction":"nps_deduction","npsemployeecontribution":"nps_deduction","incometax":"income_tax","professionaltax":"professional_tax","licdeduction":"lic_deduction","watercharges":"water_charges","waterchagers":"water_charges","salaryrecovery":"salary_recovery","groupinsurance":"group_insurance","groupinsurancescheme":"group_insurance_scheme"};
+async function previewPayrollBulkUpload(){
+ const file=document.getElementById("payrollBulkFile")?.files?.[0],msg=document.getElementById("payrollBulkMsg"),box=document.getElementById("payrollBulkPreview"),btn=document.getElementById("confirmPayrollBulkBtn");
+ pendingPayrollImportRows=[];pendingPayrollImportRejected=[];btn.disabled=true;box.innerHTML="";
+ if(!file){msg.textContent="पहले संयुक्त Excel फ़ाइल चुनें।";return}if(!window.XLSX){msg.textContent="Excel library उपलब्ध नहीं है। पेज refresh कर फिर प्रयास करें।";return}
+ try{
+  const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true}),q=await window.salaryDb.from("employees").select("id,code,name,post,department,active").order("code");if(q.error)throw q.error;employees=q.data||[];
+  const codeMap=new Map(employees.map(e=>[payrollNormalizeCode(e.code),e]));
+  const earn=["band_pay","grade_pay","dearness_allowance","da_arrear","house_rent_allowance","medical_allowance","handicapped_allowance","vehicle_allowance","special_allowance","special_allowance_10_yrs","other_allowance_w","cust_sp_annual_exmp","arrears_salary_payment","basic_salary_arrear","basic_daily_wages"],ded=["gpf","gpf_loan","family_benefit_plan","nps_deduction","income_tax","professional_tax","lic_deduction","water_charges","salary_recovery","group_insurance","group_insurance_scheme"],seen=new Set();
+  for(const sn of wb.SheetNames){
+   const grid=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:"",raw:true});if(!grid.length)continue;
+   const hi=grid.findIndex(row=>row.some(v=>["employeenumber","employeecode","employee"].includes(payrollNormalizeHeader(v)))&&row.some(v=>["payrollmonth","salarymonth"].includes(payrollNormalizeHeader(v))));if(hi<0)continue;
+   const headers=grid[hi].map(payrollNormalizeHeader),idx=(...names)=>{for(const n of names){const i=headers.indexOf(n);if(i>=0)return i}return -1},get=(row,names)=>{const i=idx(...names);return i<0?null:row[i]};
+   const ei=idx("employeenumber","employeecode","employee"),ni=idx("employeename","name"),di=idx("designation"),mi=idx("payrollmonth","salarymonth"),si=idx("sourcefile");
+   for(let ri=hi+1;ri<grid.length;ri++){
+    const row=grid[ri],code=String(row[ei]??"").trim(),name=String(row[ni]??"").trim(),month=payrollMonthKey(row[mi]);if(!code&&!name)continue;
+    if(!code||!month){pendingPayrollImportRejected.push({sheet:sn,row:ri+1,code,name,month,reason:!code?"Employee Number खाली है":"Payroll Month पढ़ा नहीं गया"});continue}
+    const emp=codeMap.get(payrollNormalizeCode(code));if(!emp){pendingPayrollImportRejected.push({sheet:sn,row:ri+1,code,name,month,reason:"Employee Number से वेबसाइट के कर्मचारी रिकॉर्ड का मिलान नहीं हुआ"});continue}
+    const key=emp.id+"|"+month;if(seen.has(key)){pendingPayrollImportRejected.push({sheet:sn,row:ri+1,code,name,month,reason:"इस कर्मचारी और माह का डुप्लिकेट रिकॉर्ड फ़ाइल में है"});continue}seen.add(key);
+    const raw={};headers.forEach((h,i)=>{if(h)raw[h]=row[i]??""});
+    const p={employee_id:emp.id,month_start:month,designation:String((di>=0?row[di]:"")||emp.post||emp.department||"").trim()||null,source_file:String((si>=0?row[si]:"")||file.name),source_fields:raw};
+    [...earn,...ded].forEach(k=>p[k]=0);
+    headers.forEach((h,i)=>{const k=PAYROLL_IMPORT_MAP[h];if(k)p[k]=payrollAmount(row[i])});
+    const val=(...names)=>{const v=get(row,names);return v===null?null:payrollAmount(v)};
+    p.total_earnings=val("totalearnings");if(p.total_earnings===null)p.total_earnings=earn.reduce((s,k)=>s+p[k],0);
+    p.total_deductions=val("totaldeductions");if(p.total_deductions===null)p.total_deductions=ded.reduce((s,k)=>s+p[k],0);
+    p.net_pay=val("netpay","netpayamount");if(p.net_pay===null)p.net_pay=Math.max(0,p.total_earnings-p.total_deductions);
+    for(const [h,k] of [["ulb","ulb"],["department","department"],["category","category"],["otheremployeetype","other_employee_type"]]){const i=headers.indexOf(h);if(i>=0)p[k]=String(row[i]??"").trim()||null}
+    pendingPayrollImportRows.push({payload:p,code,name:emp.name||name,month,sheet:sn,row:ri+1,sourceFile:p.source_file});
+   }
+  }
+  if(!pendingPayrollImportRows.length){msg.textContent="कोई अपलोड योग्य रिकॉर्ड नहीं मिला। Employee Number और Payroll Month कॉलम जाँचें।";return}
+  const esc=v=>String(v??"").replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+  box.innerHTML="<p><b>Preview — पहले 25 रिकॉर्ड</b></p><table><thead><tr><th>Employee No.</th><th>Name</th><th>Payroll Month</th><th>Total Earnings</th><th>Total Deductions</th><th>Net Pay</th><th>Source</th></tr></thead><tbody>"+pendingPayrollImportRows.slice(0,25).map(x=>"<tr><td>"+esc(x.code)+"</td><td>"+esc(x.name)+"</td><td>"+x.month+"</td><td>"+Number(x.payload.total_earnings).toLocaleString("en-IN")+"</td><td>"+Number(x.payload.total_deductions).toLocaleString("en-IN")+"</td><td>"+Number(x.payload.net_pay).toLocaleString("en-IN")+"</td><td>"+esc(x.sourceFile)+"</td></tr>").join("")+"</tbody></table>";
+  msg.textContent="जाँच पूरी: "+pendingPayrollImportRows.length+" रिकॉर्ड अपलोड योग्य; "+pendingPayrollImportRejected.length+" रिकॉर्ड रोके गए।";
+  if(pendingPayrollImportRejected.length)box.innerHTML+="<h4>अपलोड नहीं किए गए रिकॉर्ड ("+pendingPayrollImportRejected.length+")</h4><div style='max-height:220px;overflow:auto'><table><thead><tr><th>Sheet</th><th>Row</th><th>Code</th><th>Name</th><th>Month</th><th>कारण</th></tr></thead><tbody>"+pendingPayrollImportRejected.slice(0,100).map(x=>"<tr><td>"+esc(x.sheet)+"</td><td>"+x.row+"</td><td>"+esc(x.code)+"</td><td>"+esc(x.name)+"</td><td>"+esc(x.month)+"</td><td>"+esc(x.reason)+"</td></tr>").join("")+"</tbody></table></div>";
+  btn.disabled=false;
+ }catch(e){console.error("Payroll bulk preview failed",e);msg.textContent="Excel Preview नहीं बन पाया: "+(e.message||e);btn.disabled=true}
+}
+async function confirmPayrollBulkUpload(){
+ const msg=document.getElementById("payrollBulkMsg"),btn=document.getElementById("confirmPayrollBulkBtn");if(!pendingPayrollImportRows.length){msg.textContent="पहले Preview चलाएँ।";return}
+ if(!confirm("क्या "+pendingPayrollImportRows.length+" वेतन रिकॉर्ड डेटाबेस में सेव करने हैं? उसी कर्मचारी/माह का मौजूदा रिकॉर्ड अपडेट हो सकता है।"))return;
+ btn.disabled=true;msg.textContent="डेटाबेस में रिकॉर्ड सेव हो रहे हैं…";
+ try{const db=await window.salaryDbReady,uid=(await db.auth.getUser()).data?.user?.id||null;
+  for(let i=0;i<pendingPayrollImportRows.length;i+=50){const batch=pendingPayrollImportRows.slice(i,i+50).map(x=>({...x.payload,updated_by:uid}));const {error}=await db.from("payroll_sheets").upsert(batch,{onConflict:"employee_id,month_start"});if(error)throw error;msg.textContent="सेव हो रहे हैं… "+Math.min(i+50,pendingPayrollImportRows.length)+" / "+pendingPayrollImportRows.length}
+  msg.textContent="✅ Bulk Upload पूरा हुआ: "+pendingPayrollImportRows.length+" रिकॉर्ड सेव; "+pendingPayrollImportRejected.length+" रिकॉर्ड जाँच हेतु रोके गए।";alert(msg.textContent);pendingPayrollImportRows=[];btn.disabled=true;await loadPayrollSheet();
+ }catch(e){console.error("Payroll bulk upload failed",e);msg.textContent="Upload सफल नहीं हुआ या बीच में रुका: "+(e.message||e)+". कृपया रिकॉर्ड जाँचकर पुनः प्रयास करें।";btn.disabled=false}
 }
 
 </script></body></html>
