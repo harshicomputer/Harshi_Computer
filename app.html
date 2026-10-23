@@ -224,6 +224,12 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 <div class="toolbar"><input id="payrollBulkFile" type="file" accept=".xlsx,.xls" /><button class="btn" onclick="previewPayrollBulkUpload()">Preview / जाँचें</button><button id="confirmPayrollBulkBtn" class="btn primary" onclick="confirmPayrollBulkUpload()" disabled>जाँचे हुए रिकॉर्ड अपलोड करें</button></div>
 <div id="payrollBulkMsg" class="muted" style="margin:8px 0">अभी कोई फ़ाइल जाँची नहीं गई है।</div>
 <div id="payrollBulkPreview" style="overflow:auto;max-width:100%"></div>
+<div class="toolbar" style="margin-top:14px;padding-top:12px;border-top:1px solid #edf1f6">
+<label for="payrollFilterMonth">माह:</label><input id="payrollFilterMonth" type="month" min="2019-01" onchange="syncPayrollFilterMonth()" />
+<label for="payrollEmployeeCategory">कर्मचारी श्रेणी:</label><select id="payrollEmployeeCategory" onchange="filterPayrollEmployees()"><option value="all">सभी कर्मचारी</option><option value="daily">Daily Wages</option><option value="sathai">Sathaikarmi / स्थाईकर्मी</option><option value="other">बाकी सभी कर्मचारी</option></select>
+<button class="btn" type="button" onclick="resetPayrollFilters()">फ़िल्टर हटाएँ</button>
+</div>
+<div id="payrollFilterMsg" class="muted" style="margin:4px 0 8px">कर्मचारी श्रेणी चुनकर सूची फ़िल्टर करें।</div>
 </div>
 <div id="payrollSheetMsg" class="muted" style="margin:8px 0">माह चुनकर पत्रक खोलें।</div>
 <div style="overflow:auto;max-width:100%"><table id="payrollSheetTable" style="min-width:2200px"><thead><tr><th>Employee Number</th><th>Name</th><th>Designation</th><th>Pay Band Pay</th><th>Grade Pay</th><th>Dearness Allowance</th><th>DA Arrear</th><th>House Rent Allowance</th><th>Medical Allowance</th><th>Physically Handicapped Allowance</th><th>Vehicle Allowance</th><th>Special Allowance</th><th>Special Allowance 10 Yrs</th><th>Other Allowance (W)</th><th>Cust. Sp. Annual Exmp.</th><th>Arrears Salary Payment</th><th>Basic Salary Arrear</th><th>Basic (Daily Wages)</th><th>Total Earnings</th><th>GPF</th><th>GPF Loan</th><th>Family Benefit Plan</th><th>NPS Deduction</th><th>Income Tax</th><th>Professional Tax</th><th>LIC Deduction</th><th>Water Charges</th><th>Salary Recovery</th><th>Group Insurance</th><th>Group Insurance Scheme</th><th>Total Deductions</th><th>Net Pay</th></tr></thead><tbody id="payrollSheetBody"><tr><td colspan="24">पत्रक लोड हो रहा है…</td></tr></tbody></table></div>
@@ -1247,6 +1253,38 @@ const PAYROLL_DED_FIELDS=["gpf","gpf_loan","family_benefit_plan","nps_deduction"
 const PAYROLL_LABELS={band_pay:"Pay Band Pay",grade_pay:"Grade Pay",dearness_allowance:"Dearness Allowance",da_arrear:"DA Arrear",house_rent_allowance:"House Rent Allowance",medical_allowance:"Medical Allowance",handicapped_allowance:"Physically Handicapped Allowance",vehicle_allowance:"Vehicle Allowance",special_allowance:"Special Allowance",special_allowance_10_yrs:"Special Allowance 10 Yrs",other_allowance_w:"Other Allowance (W)",cust_sp_annual_exmp:"Cust. Sp. Annual Exmp.",arrears_salary_payment:"Arrears Salary Payment",basic_salary_arrear:"Basic Salary Arrear",basic_daily_wages:"Basic (Daily Wages)",gpf:"GPF",gpf_loan:"GPF Loan",family_benefit_plan:"Family Benefit Plan",nps_deduction:"NPS Deduction",income_tax:"Income Tax",professional_tax:"Professional Tax",lic_deduction:"LIC Deduction",water_charges:"Water Charges",salary_recovery:"Salary Recovery",group_insurance:"Group Insurance",group_insurance_scheme:"Group Insurance Scheme"};
 function payrollNum(v){const n=Number(v);return Number.isFinite(n)&&n>=0?n:0}
 function payrollCalcRow(tr){const earnings=PAYROLL_EARN_FIELDS.reduce((s,k)=>s+payrollNum(tr.querySelector('[data-field="'+k+'"]')?.value),0);const deductions=PAYROLL_DED_FIELDS.reduce((s,k)=>s+payrollNum(tr.querySelector('[data-field="'+k+'"]')?.value),0);tr.querySelector('[data-total="earnings"]').textContent=earnings.toFixed(2);tr.querySelector('[data-total="deductions"]').textContent=deductions.toFixed(2);tr.querySelector('[data-total="net"]').textContent=Math.max(0,earnings-deductions).toFixed(2)}
+function payrollEmployeeCategory(e, designation){
+ const s=String(designation||e?.post||e?.department||"").toLocaleLowerCase().replace(/[\\s._-]+/g,"");
+ if(s.includes("dailywage")||s.includes("दैनिकवेतन"))return "daily";
+ if(s.includes("sathaikarmi")||s.includes("स्थाईकर्मी")||s.includes("स्थायीकर्मी")||s.includes("स्थाईकर्म"))return "sathai";
+ return "other";
+}
+function filterPayrollEmployees(){
+ const wanted=document.getElementById("payrollEmployeeCategory")?.value||"all";
+ let shown=0,total=0;
+ document.querySelectorAll("#payrollSheetBody tr[data-employee-id]").forEach(tr=>{
+  total++;
+  const cat=tr.dataset.category||"other";
+  const visible=wanted==="all"||cat===wanted;
+  tr.style.display=visible?"":"none";
+  if(visible)shown++;
+ });
+ const msg=document.getElementById("payrollFilterMsg");
+ if(msg)msg.textContent="दिखाए जा रहे कर्मचारी: "+shown+" / "+total;
+}
+function syncPayrollFilterMonth(){
+ const chosen=document.getElementById("payrollFilterMonth")?.value;
+ if(!chosen)return;
+ document.getElementById("payrollMonth").value=chosen;
+ loadPayrollSheet();
+}
+function resetPayrollFilters(){
+ const main=document.getElementById("payrollMonth");
+ const duplicate=document.getElementById("payrollFilterMonth");
+ if(main&&duplicate)duplicate.value=main.value;
+ const cat=document.getElementById("payrollEmployeeCategory");if(cat)cat.value="all";
+ filterPayrollEmployees();
+}
 async function loadPayrollSheet(){
  const month=document.getElementById("payrollMonth").value;const body=document.getElementById("payrollSheetBody");const msg=document.getElementById("payrollSheetMsg");
  if(!month||month<"2019-01"){msg.textContent="कृपया जनवरी 2019 या उसके बाद का माह चुनें।";return}
@@ -1261,7 +1299,7 @@ async function loadPayrollSheet(){
   const map=new Map((existing||[]).map(r=>[r.employee_id,r]));
   body.innerHTML="";
   for(const e of (emps||[])){
-   const r=map.get(e.id)||{};const tr=document.createElement("tr");tr.dataset.employeeId=e.id;tr.dataset.code=e.code||"";tr.dataset.name=e.name||"";
+   const r=map.get(e.id)||{};const tr=document.createElement("tr");tr.dataset.employeeId=e.id;tr.dataset.code=e.code||"";tr.dataset.name=e.name||"";tr.dataset.category=payrollEmployeeCategory(e,r.designation);
    const identity=[e.code||"",e.name||"",r.designation??e.post??e.department??""];
    identity.forEach((v,i)=>{const td=document.createElement("td");if(i===2){const inp=document.createElement("input");inp.value=v;inp.dataset.field="designation";inp.style.minWidth="130px";td.appendChild(inp)}else td.textContent=v;tr.appendChild(td)});
    for(const k of PAYROLL_EARN_FIELDS){const td=document.createElement("td");const inp=document.createElement("input");inp.type="number";inp.min="0";inp.step="0.01";inp.value=r[k]??0;inp.dataset.field=k;inp.style.width="110px";inp.addEventListener("input",()=>payrollCalcRow(tr));td.appendChild(inp);tr.appendChild(td)}
@@ -1270,6 +1308,7 @@ async function loadPayrollSheet(){
    for(const [k,t] of [["deductions","deductions"],["net_pay","net"]]){const td=document.createElement("td");td.dataset.total=t;td.textContent=Number(r[k]||0).toFixed(2);tr.appendChild(td)}
    payrollCalcRow(tr);body.appendChild(tr);
   }
+  const filterMonth=document.getElementById("payrollFilterMonth");if(filterMonth)filterMonth.value=month;filterPayrollEmployees();
   msg.textContent="वेतन माह "+month+" के लिए "+(emps||[]).length+" कर्मचारियों का पत्रक खुल गया। पहले से सेव रिकॉर्ड भी लोड किए गए हैं।";
  }catch(e){body.innerHTML='<tr><td colspan="24">पत्रक लोड नहीं हुआ।</td></tr>';msg.textContent="त्रुटि: "+(e.message||e)+" — Database table/policy की जाँच आवश्यक है।"}
 }
