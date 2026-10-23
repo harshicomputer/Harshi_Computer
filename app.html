@@ -196,7 +196,7 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 <div class="card">
 <h2>मासिक वेतन पत्रक (जनवरी 2019 से)</h2>
 <p class="muted">माह चुनें, सभी कर्मचारियों का वेतन विवरण भरें और रिकॉर्ड सेव करें। Total Earnings, Total Deductions और Net Pay अपने-आप गणना होंगे।</p>
-<div class="toolbar"><label>वेतन माह <input id="payrollMonth" type="month" min="2019-01" value="${new Date().toISOString().slice(0,7)}" onchange="loadPayrollSheet()"></label><button class="btn primary" onclick="loadPayrollSheet()">पत्रक खोलें</button><button class="btn primary" onclick="savePayrollSheet()">वेतन पत्रक सेव करें</button><button class="btn" onclick="exportPayrollSheet()">Excel Export</button></div>
+<div class="toolbar"><label>वेतन माह <input id="payrollMonth" type="month" min="2019-01" value="2026-10" onchange="loadPayrollSheet()"></label><button class="btn primary" onclick="loadPayrollSheet()">पत्रक खोलें</button><button class="btn primary" onclick="savePayrollSheet()">वेतन पत्रक सेव करें</button><button class="btn" onclick="exportPayrollSheet()">Excel Export</button></div>
 <div id="payrollSheetMsg" class="muted" style="margin:8px 0">माह चुनकर पत्रक खोलें।</div>
 <div style="overflow:auto;max-width:100%"><table id="payrollSheetTable" style="min-width:2200px"><thead><tr><th>Employee Number</th><th>Name</th><th>Designation</th><th>Pay Band Pay</th><th>Grade Pay</th><th>Dearness Allowance</th><th>House Rent Allowance</th><th>Medical Allowance</th><th>Physically Handicapped Allowance</th><th>Vehicle Allowance</th><th>Special Allowance</th><th>Basic Salary Arrear</th><th>Total Earnings</th><th>GPF</th><th>GPF Loan</th><th>Family Benefit Plan</th><th>NPS Deduction</th><th>Income Tax</th><th>Professional Tax</th><th>Water Charges</th><th>Salary Recovery</th><th>Group Insurance</th><th>Total Deductions</th><th>Net Pay</th></tr></thead><tbody id="payrollSheetBody"><tr><td colspan="24">पत्रक लोड हो रहा है…</td></tr></tbody></table></div>
 </div></section>
@@ -319,12 +319,13 @@ function openOfficeModule(id){
   document.querySelectorAll("#app .page").forEach(x=>x.classList.remove("active"));
   document.getElementById(id).classList.add("active");
   document.getElementById("officeModuleNav").style.display="flex";
-  const isSalary=["dash","employees","records","reports","backup"].includes(id);
+  const isSalary=["dash","employees","records","payrollSheet","reports","backup"].includes(id);
   document.getElementById("salarySubNav").style.display=isSalary?"inline-flex":"none";
   resetInactivityTimer();
   if(id==="dash")updateDash();
   if(id==="employees")renderEmployees();
   if(id==="records")setupRecord();
+  if(id==="payrollSheet")loadPayrollSheet();
   if(id==="fdr")renderFdr();
   if(id==="reports")setupReport();
   if(id==="backup")renderBackupList();
