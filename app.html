@@ -68,6 +68,7 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
     <button class="active" onclick="openOfficeModule('dash')">डैशबोर्ड</button>
     <button onclick="openOfficeModule('employees')">कर्मचारी</button>
     <button onclick="openOfficeModule('records')">मासिक रिकॉर्ड</button>
+    <button onclick="openOfficeModule('payrollSheet')">वेतन पत्रक</button>
     <button onclick="openOfficeModule('reports')">रिपोर्ट</button>
     <button onclick="openOfficeModule('backup')">Backup / Export</button>
   </span>
@@ -191,6 +192,14 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
   </div>
 </div>
 </section>
+<section id="payrollSheet" class="page">
+<div class="card">
+<h2>मासिक वेतन पत्रक (जनवरी 2019 से)</h2>
+<p class="muted">माह चुनें, सभी कर्मचारियों का वेतन विवरण भरें और रिकॉर्ड सेव करें। Total Earnings, Total Deductions और Net Pay अपने-आप गणना होंगे।</p>
+<div class="toolbar"><label>वेतन माह <input id="payrollMonth" type="month" min="2019-01" value="${new Date().toISOString().slice(0,7)}" onchange="loadPayrollSheet()"></label><button class="btn primary" onclick="loadPayrollSheet()">पत्रक खोलें</button><button class="btn primary" onclick="savePayrollSheet()">वेतन पत्रक सेव करें</button><button class="btn" onclick="exportPayrollSheet()">Excel Export</button></div>
+<div id="payrollSheetMsg" class="muted" style="margin:8px 0">माह चुनकर पत्रक खोलें।</div>
+<div style="overflow:auto;max-width:100%"><table id="payrollSheetTable" style="min-width:2200px"><thead><tr><th>Employee Number</th><th>Name</th><th>Designation</th><th>Pay Band Pay</th><th>Grade Pay</th><th>Dearness Allowance</th><th>House Rent Allowance</th><th>Medical Allowance</th><th>Physically Handicapped Allowance</th><th>Vehicle Allowance</th><th>Special Allowance</th><th>Basic Salary Arrear</th><th>Total Earnings</th><th>GPF</th><th>GPF Loan</th><th>Family Benefit Plan</th><th>NPS Deduction</th><th>Income Tax</th><th>Professional Tax</th><th>Water Charges</th><th>Salary Recovery</th><th>Group Insurance</th><th>Total Deductions</th><th>Net Pay</th></tr></thead><tbody id="payrollSheetBody"><tr><td colspan="24">पत्रक लोड हो रहा है…</td></tr></tbody></table></div>
+</div></section>
 <section id="reports" class="page"><div class="card"><h2>कर्मचारी रिपोर्ट</h2><div class="toolbar"><select id="reportEmp" onchange="renderReport()"></select><button class="btn primary" onclick="window.print()">Print / PDF</button></div><div id="reportBox"></div></div></section>
 <section id="backup" class="page"><div class="card"><h2>🔐 Data Security + Backup</h2>
 <p class="notice"><b>Full Site Backup:</b> Admin के लिए एक क्लिक में सभी application database tables और private Storage में रखे दस्तावेज़ों का ZIP Cloud Backup बनेगा। ZIP में database JSON, document files और manifest रहेगा। वेबसाइट का source code GitHub repository में है। Auth passwords/MFA seeds और API secrets शामिल नहीं होते। पूरा disaster-recovery सत्यापन करने के लिए अलग test project में Restore Test भी आवश्यक है।</p>
@@ -1203,4 +1212,55 @@ window.addEventListener("storage",function(evt){
 });
 window.addEventListener("pageshow",function(){if(inactivityActive) checkInactivityDeadline();});
 document.addEventListener("visibilitychange",function(){if(inactivityActive && !document.hidden) checkInactivityDeadline();});
+
+const PAYROLL_EARN_FIELDS=["band_pay","grade_pay","dearness_allowance","house_rent_allowance","medical_allowance","handicapped_allowance","vehicle_allowance","special_allowance","basic_salary_arrear"];
+const PAYROLL_DED_FIELDS=["gpf","gpf_loan","family_benefit_plan","nps_deduction","income_tax","professional_tax","water_charges","salary_recovery","group_insurance"];
+const PAYROLL_LABELS={band_pay:"Pay Band Pay",grade_pay:"Grade Pay",dearness_allowance:"Dearness Allowance",house_rent_allowance:"House Rent Allowance",medical_allowance:"Medical Allowance",handicapped_allowance:"Physically Handicapped Allowance",vehicle_allowance:"Vehicle Allowance",special_allowance:"Special Allowance",basic_salary_arrear:"Basic Salary Arrear",gpf:"GPF",gpf_loan:"GPF Loan",family_benefit_plan:"Family Benefit Plan",nps_deduction:"NPS Deduction",income_tax:"Income Tax",professional_tax:"Professional Tax",water_charges:"Water Charges",salary_recovery:"Salary Recovery",group_insurance:"Group Insurance"};
+function payrollNum(v){const n=Number(v);return Number.isFinite(n)&&n>=0?n:0}
+function payrollCalcRow(tr){const earnings=PAYROLL_EARN_FIELDS.reduce((s,k)=>s+payrollNum(tr.querySelector('[data-field="'+k+'"]')?.value),0);const deductions=PAYROLL_DED_FIELDS.reduce((s,k)=>s+payrollNum(tr.querySelector('[data-field="'+k+'"]')?.value),0);tr.querySelector('[data-total="earnings"]').textContent=earnings.toFixed(2);tr.querySelector('[data-total="deductions"]').textContent=deductions.toFixed(2);tr.querySelector('[data-total="net"]').textContent=Math.max(0,earnings-deductions).toFixed(2)}
+async function loadPayrollSheet(){
+ const month=document.getElementById("payrollMonth").value;const body=document.getElementById("payrollSheetBody");const msg=document.getElementById("payrollSheetMsg");
+ if(!month||month<"2019-01"){msg.textContent="कृपया जनवरी 2019 या उसके बाद का माह चुनें।";return}
+ body.innerHTML='<tr><td colspan="24">लोड हो रहा है…</td></tr>';
+ try{
+  await window.salaryDbReady;
+  const {data:emps,error:ee}=await window.salaryDb.from("employees").select("id,code,name,post,department,active").order("code");
+  if(ee)throw ee;
+  const start=month+"-01";
+  const {data:existing,error:pe}=await window.salaryDb.from("payroll_sheets").select("*").eq("month_start",start);
+  if(pe)throw pe;
+  const map=new Map((existing||[]).map(r=>[r.employee_id,r]));
+  body.innerHTML="";
+  for(const e of (emps||[])){
+   const r=map.get(e.id)||{};const tr=document.createElement("tr");tr.dataset.employeeId=e.id;tr.dataset.code=e.code||"";tr.dataset.name=e.name||"";
+   const identity=[e.code||"",e.name||"",r.designation??e.post??e.department??""];
+   identity.forEach((v,i)=>{const td=document.createElement("td");if(i===2){const inp=document.createElement("input");inp.value=v;inp.dataset.field="designation";inp.style.minWidth="130px";td.appendChild(inp)}else td.textContent=v;tr.appendChild(td)});
+   for(const k of PAYROLL_EARN_FIELDS){const td=document.createElement("td");const inp=document.createElement("input");inp.type="number";inp.min="0";inp.step="0.01";inp.value=r[k]??0;inp.dataset.field=k;inp.style.width="110px";inp.addEventListener("input",()=>payrollCalcRow(tr));td.appendChild(inp);tr.appendChild(td)}
+   for(const [k,t] of [["earnings","earnings"]]){const td=document.createElement("td");td.dataset.total=t;td.textContent=Number(r.total_earnings||0).toFixed(2);tr.appendChild(td)}
+   for(const k of PAYROLL_DED_FIELDS){const td=document.createElement("td");const inp=document.createElement("input");inp.type="number";inp.min="0";inp.step="0.01";inp.value=r[k]??0;inp.dataset.field=k;inp.style.width="110px";inp.addEventListener("input",()=>payrollCalcRow(tr));td.appendChild(inp);tr.appendChild(td)}
+   for(const [k,t] of [["deductions","deductions"],["net_pay","net"]]){const td=document.createElement("td");td.dataset.total=t;td.textContent=Number(r[k]||0).toFixed(2);tr.appendChild(td)}
+   payrollCalcRow(tr);body.appendChild(tr);
+  }
+  msg.textContent="वेतन माह "+month+" के लिए "+(emps||[]).length+" कर्मचारियों का पत्रक खुल गया। पहले से सेव रिकॉर्ड भी लोड किए गए हैं।";
+ }catch(e){body.innerHTML='<tr><td colspan="24">पत्रक लोड नहीं हुआ।</td></tr>';msg.textContent="त्रुटि: "+(e.message||e)+" — Database table/policy की जाँच आवश्यक है।"}
+}
+async function savePayrollSheet(){
+ const month=document.getElementById("payrollMonth").value;const msg=document.getElementById("payrollSheetMsg");if(!month||month<"2019-01"){msg.textContent="कृपया सही वेतन माह चुनें।";return}
+ const user=window.salaryDb?.auth?await window.salaryDb.auth.getUser():{data:{user:null}};const uid=user.data?.user?.id||null;const rows=[];
+ document.querySelectorAll("#payrollSheetBody tr[data-employee-id]").forEach(tr=>{
+  const row={employee_id:tr.dataset.employeeId,month_start:month+"-01",designation:tr.querySelector('[data-field="designation"]')?.value||null,updated_by:uid};
+  [...PAYROLL_EARN_FIELDS,...PAYROLL_DED_FIELDS].forEach(k=>row[k]=payrollNum(tr.querySelector('[data-field="'+k+'"]')?.value));
+  row.total_earnings=PAYROLL_EARN_FIELDS.reduce((s,k)=>s+row[k],0);row.total_deductions=PAYROLL_DED_FIELDS.reduce((s,k)=>s+row[k],0);row.net_pay=Math.max(0,row.total_earnings-row.total_deductions);rows.push(row);
+ });
+ if(!rows.length){msg.textContent="सेव करने के लिए कोई कर्मचारी रिकॉर्ड नहीं है।";return}
+ msg.textContent="वेतन पत्रक सेव हो रहा है…";
+ try{const {error}=await window.salaryDb.from("payroll_sheets").upsert(rows,{onConflict:"employee_id,month_start"});if(error)throw error;msg.textContent="सफलतापूर्वक सेव: "+month+" — "+rows.length+" कर्मचारी।";}catch(e){msg.textContent="सेव नहीं हुआ: "+(e.message||e)}
+}
+function exportPayrollSheet(){
+ if(!window.XLSX){alert("Excel library उपलब्ध नहीं है।");return}
+ const month=document.getElementById("payrollMonth").value;const headers=["Employee Number","Name","Designation",...PAYROLL_EARN_FIELDS.map(k=>PAYROLL_LABELS[k]),"Total Earnings",...PAYROLL_DED_FIELDS.map(k=>PAYROLL_LABELS[k]),"Total Deductions","Net Pay"];
+ const rows=[headers];document.querySelectorAll("#payrollSheetBody tr[data-employee-id]").forEach(tr=>{const vals=[tr.dataset.code,tr.dataset.name,tr.querySelector('[data-field="designation"]')?.value||""];PAYROLL_EARN_FIELDS.forEach(k=>vals.push(payrollNum(tr.querySelector('[data-field="'+k+'"]')?.value)));vals.push(Number(tr.querySelector('[data-total="earnings"]')?.textContent||0));PAYROLL_DED_FIELDS.forEach(k=>vals.push(payrollNum(tr.querySelector('[data-field="'+k+'"]')?.value)));vals.push(Number(tr.querySelector('[data-total="deductions"]')?.textContent||0),Number(tr.querySelector('[data-total="net"]')?.textContent||0));rows.push(vals)});
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"Payroll");XLSX.writeFile(wb,"salary-sheet-"+month+".xlsx");
+}
+
 </script></body></html>
