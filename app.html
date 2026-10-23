@@ -226,7 +226,7 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 <div id="payrollBulkPreview" style="overflow:auto;max-width:100%"></div>
 <div class="toolbar" style="margin-top:14px;padding-top:12px;border-top:1px solid #edf1f6">
 <label for="payrollFilterMonth">माह:</label><input id="payrollFilterMonth" type="month" min="2019-01" onchange="syncPayrollFilterMonth()" />
-<label for="payrollEmployeeCategory">कर्मचारी श्रेणी:</label><select id="payrollEmployeeCategory" onchange="filterPayrollEmployees()"><option value="all">सभी कर्मचारी</option><option value="daily">Daily Wages</option><option value="sathai">Sathaikarmi / स्थाईकर्मी</option><option value="other">बाकी सभी कर्मचारी</option></select>
+<label for="payrollEmployeeCategory">कर्मचारी श्रेणी:</label><select id="payrollEmployeeCategory" onchange="filterPayrollEmployees()"><option value="all">सभी कर्मचारी</option><option value="other">नियमित कर्मचारी</option><option value="sathai">स्थाईकर्मी</option><option value="daily">Daily Wages</option></select>
 <button class="btn" type="button" onclick="resetPayrollFilters()">फ़िल्टर हटाएँ</button>
 </div>
 <div id="payrollFilterMsg" class="muted" style="margin:4px 0 8px">कर्मचारी श्रेणी चुनकर सूची फ़िल्टर करें।</div>
