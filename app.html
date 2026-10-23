@@ -1254,7 +1254,7 @@ const PAYROLL_LABELS={band_pay:"Pay Band Pay",grade_pay:"Grade Pay",dearness_all
 function payrollNum(v){const n=Number(v);return Number.isFinite(n)&&n>=0?n:0}
 function payrollCalcRow(tr){const earnings=PAYROLL_EARN_FIELDS.reduce((s,k)=>s+payrollNum(tr.querySelector('[data-field="'+k+'"]')?.value),0);const deductions=PAYROLL_DED_FIELDS.reduce((s,k)=>s+payrollNum(tr.querySelector('[data-field="'+k+'"]')?.value),0);tr.querySelector('[data-total="earnings"]').textContent=earnings.toFixed(2);tr.querySelector('[data-total="deductions"]').textContent=deductions.toFixed(2);tr.querySelector('[data-total="net"]').textContent=Math.max(0,earnings-deductions).toFixed(2)}
 function payrollEmployeeCategory(e, designation){
- const s=String(designation||e?.post||e?.department||"").toLocaleLowerCase().replace(/[\\s._-]+/g,"");
+ const s=String(designation||e?.post||e?.department||"").toLocaleLowerCase().replace(/[\s._-]+/g,"");
  if(s.includes("dailywage")||s.includes("दैनिकवेतन"))return "daily";
  if(s.includes("sathaikarmi")||s.includes("स्थाईकर्मी")||s.includes("स्थायीकर्मी")||s.includes("स्थाईकर्म"))return "sathai";
  return "other";
