@@ -670,20 +670,14 @@ body.innerHTML=rows.length?rows.join(""):'<tr><td colspan="7">दिए गए �
 msg.textContent='कुल '+all.length+' वेतन रिकॉर्ड में से फ़िल्टर से मेल खाने वाले भुगतान दिखाए गए हैं।';
 }catch(err){console.error("Payment date/voucher report error",err);body.innerHTML='<tr><td colspan="7">सूची दिखाने में त्रुटि हुई। कृपया पेज रिफ्रेश करें।</td></tr>';msg.textContent='रिपोर्ट त्रुटि: '+String(err?.message||err)}
 }function clearPaymentDateFilter(){document.getElementById("paymentDateFilter").value="";const v=document.getElementById("paymentVoucherFilter");if(v)v.value="";document.getElementById("paymentDateSummary").innerHTML="";document.getElementById("paymentDateMsg").textContent="";document.getElementById("paymentDateRows").innerHTML='<tr><td colspan="6">दिनांक या वाउचर नंबर डालकर रिकॉर्ड देखें।</td></tr>'}function updateDash(){let t=records.reduce((a,x)=>{a.m+=Number(x.payable_amount||0)>0||Number(x.amount||0)>0?1:0;a.p+=Number(x.payable_amount||0);a.s+=Number(x.amount||0);return a},{m:0,p:0,s:0});cntEmp.textContent=employees.length;cntRec.textContent=t.m;sumPayable.textContent="₹"+t.p.toLocaleString("en-IN");sumRec.textContent="₹"+t.s.toLocaleString("en-IN");sumPending.textContent="₹"+(t.p-t.s).toLocaleString("en-IN");period.textContent=periodMonths().length+" माह"}
-function renderEmployees(){let q=(search.value||"").toLowerCase();empBody.innerHTML=employees.filter(e=>(e.code+" "+e.name).toLowerCase().includes(q)).map(e=>{let s=stats(e);return `<tr><td>${e.code}</td><td>${e.name}</td><td>${s.months}</td><td>₹${s.payable.toLocaleString("en-IN")}</td><td>₹${s.total.toLocaleString("en-IN")}</td><td>₹${s.pending.toLocaleString("en-IN")}</td><td><span class="link" onclick="openEmp('${e.id}')">खोलें</span></td></tr>`}).join("")}
-
-function addEmployeeEditButtons(){
- document.querySelectorAll("#empBody tr").forEach(tr=>{
-  const cell=tr.lastElementChild;if(!cell||cell.querySelector("[data-employee-edit]"))return;
-  const opener=cell.querySelector(".link[onclick^='openEmp']");
-  const match=opener?.getAttribute("onclick")?.match(/openEmp\('([^']+)'\)/);
-  if(!match)return;
-  const button=document.createElement("button");button.className="btn";button.type="button";button.dataset.employeeEdit="1";button.textContent="संपादित करें";button.style.marginLeft="6px";
-  button.addEventListener("click",()=>editEmployeeBasic(match[1]));cell.appendChild(button);
- });
+function renderEmployees(){
+ let q=(search.value||"").toLowerCase();
+ empBody.innerHTML=employees.filter(e=>(e.code+" "+e.name).toLowerCase().includes(q)).map(e=>{
+  let s=stats(e);
+  return `<tr><td>${e.code}</td><td>${e.name}</td><td>${s.months}</td><td>₹${s.payable.toLocaleString("en-IN")}</td><td>₹${s.total.toLocaleString("en-IN")}</td><td>₹${s.pending.toLocaleString("en-IN")}</td><td><span class="link" onclick="openEmp(&quot;${e.id}&quot;)">खोलें</span> <button class="btn" type="button" onclick="editEmployeeBasic(&quot;${e.id}&quot;)">संपादित करें</button></td></tr>`;
+ }).join("");
 }
-const _renderEmployeesWithoutEditButton=renderEmployees;
-renderEmployees=function(){_renderEmployeesWithoutEditButton();addEmployeeEditButtons()};
+
 function editEmployeeBasic(id){
  const e=employees.find(x=>String(x.id)===String(id));
  if(!e){alert("कर्मचारी रिकॉर्ड नहीं मिला। सूची रिफ्रेश करके दोबारा प्रयास करें।");return}
