@@ -119,6 +119,24 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
   <div style="text-align:center;margin-top:20px"><button class="btn" onclick="openOffice()">← Office पर वापस</button></div>
 </section><section id="dash" class="page"><div class="grid"><div class="card"><div class="muted">कुल कर्मचारी</div><div class="stat" id="cntEmp">0</div></div><div class="card"><div class="muted">अवधि</div><div class="stat" id="period">0 माह</div></div><div class="card"><div class="muted">दर्ज महीने</div><div class="stat" id="cntRec">0</div></div><div class="card"><div class="muted">भुगतान योग्य</div><div class="stat" id="sumPayable">₹0</div></div><div class="card"><div class="muted">भुगतान की गई राशि</div><div class="stat" id="sumRec">₹0</div></div><div class="card"><div class="muted">कुल लंबित राशि</div><div class="stat" id="sumPending">₹0</div></div></div><div class="card" style="margin-top:14px"><h3>तारीख के अनुसार भुगतान खोजें</h3><p class="muted">कोई तारीख चुनें। उस दिन भुगतान दर्ज जिन कर्मचारियों का है, उनकी सूची और कुल भुगतान नीचे दिखेगा।</p><div class="toolbar"><label for="paymentDateFilter">भुगतान दिनांक</label><input id="paymentDateFilter" type="date" onchange="filterPaymentsByDate()"><label for="paymentVoucherFilter">वाउचर नं.</label><input id="paymentVoucherFilter" type="search" placeholder="Voucher No. खोजें" oninput="filterPaymentsByDate()" style="width:180px;min-width:150px"><button class="btn primary" type="button" onclick="filterPaymentsByDate()">रिकॉर्ड देखें</button><button class="btn" type="button" onclick="clearPaymentDateFilter()">साफ़ करें</button></div><div id="paymentDateSummary" class="grid" style="margin:12px 0"></div><div class="scroll"><table style="min-width:650px"><thead><tr><th>क्र.</th><th>Employee ID</th><th>कर्मचारी का नाम</th><th>भुगतान दिनांक</th><th>Voucher No.</th><th>भुगतान माह एवं वर्ष</th><th>भुगतान राशि</th></tr></thead><tbody id="paymentDateRows"><tr><td colspan="7">दिनांक या वाउचर नंबर डालकर रिकॉर्ड देखें।</td></tr></tbody></table></div><p id="paymentDateMsg" class="muted"></p></div><div class="card" style="margin-top:14px"><h3>सिस्टम स्थिति</h3><p class="ok">● Cloud Database connected</p><p class="ok">● Login protected</p><p class="ok">● Backup / Export available</p></div></section>
 <section id="employees" class="page"><div class="card"><div class="toolbar"><input id="search" placeholder="कोड/नाम खोजें" oninput="renderEmployees()"><button class="btn primary" onclick="newEmployee()">+ कर्मचारी</button><a class="btn" href="employee_documents.html">📁 कर्मचारी दस्तावेज़ / स्कैन कॉपी</a></div><p id="employeeEditResult" class="muted" style="margin:4px 0 10px"></p><details style="margin-bottom:12px"><summary class="link">Bulk Upload / एक बार कर्मचारी सूची जोड़ें</summary><div class="notice" style="margin-top:10px">Excel में <b>Employee ID/Code, Employee Name/Name</b> अनिवार्य हैं। <b>Post</b> और <b>Department</b> वैकल्पिक हैं। ये दोनों जानकारी कर्मचारी के साथ database में सुरक्षित रहेगी, लेकिन सामान्य स्क्रीन पर अलग से नहीं दिखाई जाएगी।</div><div class="toolbar" style="margin-top:10px"><input id="bulkFile" type="file" accept=".xlsx,.xls,.csv"><button class="btn primary" onclick="bulkUpload()">Excel से जोड़ें</button><button class="btn" onclick="downloadBulkTemplate()">Template डाउनलोड</button></div><p id="bulkMsg" class="muted"></p></details><details style="margin-bottom:12px"><summary class="link">Bulk Payment Upload / भुगतान राशि व दिनांक अपलोड करें</summary><div class="notice" style="margin-top:10px"><b>Fixed Excel Format:</b> Bulk Payment के लिए केवल निर्धारित Template इस्तेमाल करें। Columns क्रम/नाम: <b>Employee Code, Employee Name, Salary Month, Payable Amount, Paid Amount, Payment Date, Voucher No., Remarks</b>। <b>Salary Month हमेशा Excel के Salary Month column से ही लिया जाएगा</b>; Payment Date से महीना नहीं बदलेगा। उदाहरण: Salary Month <b>2026-05</b> और Payment Date <b>06-08-2026</b> होने पर रिकॉर्ड <b>May 2026</b> में ही जाएगा। पहले Preview बनेगा; Confirm के बाद ही Database में सेव होगा।</div><div class="toolbar" style="margin-top:10px"><input id="paymentFile" type="file" accept=".xlsx,.xls,.csv"><button class="btn" onclick="downloadPaymentTemplate()">📥 Payment Template डाउनलोड</button><button class="btn primary" onclick="previewPaymentUpload()">Preview / जाँचें</button><button id="confirmPaymentBtn" class="btn" onclick="confirmPaymentUpload()" disabled>Confirm & Upload</button></div><p id="paymentMsg" class="muted"></p><div id="paymentPreview" class="scroll" style="margin-top:10px"></div></details><div class="scroll"><table><thead><tr><th>कोड</th><th>नाम</th><th>दर्ज माह</th><th>भुगतान योग्य</th><th>भुगतान किया</th><th>लंबित राशि</th><th>कार्यवाही</th></tr></thead><tbody id="empBody"></tbody></table></div></div></section>
+<section id="paymentDuplicateReviewPage" class="page">
+<div class="card">
+<div class="toolbar" style="justify-content:space-between">
+<div><h2 style="margin:0">Duplicate भुगतान रिकॉर्ड का मिलान</h2><p class="muted" style="margin:6px 0 0">Excel की राशि और डेटाबेस में पहले से सुरक्षित भुगतान जानकारी की तुलना करें।</p></div>
+<button class="btn" type="button" onclick="closePaymentDuplicateReview()">← वापस Bulk Payment Upload</button>
+</div>
+<div id="paymentDuplicateReviewSummary" class="muted" style="margin:12px 0"></div>
+<div class="notice" style="margin:10px 0;color:#8a4b08">
+<b>ध्यान दें:</b> “Excel से Duplicate रिकॉर्ड अपडेट करें” चुनने पर Excel में दी गई Payable Amount, Paid Amount, Payment Date, Voucher No. और Remarks मौजूदा रिकॉर्ड पर लिखे जाएँगे। यदि Excel में इनमें कोई फ़ील्ड खाली है, तो मौजूदा मान खाली/शून्य से बदल सकता है। “अपडेट न करें” चुनने पर पुराने Duplicate रिकॉर्ड जस के तस रहेंगे और केवल नए, non-duplicate रिकॉर्ड अपलोड होंगे।
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;margin:14px 0">
+<label style="display:flex;gap:8px;align-items:flex-start"><input type="radio" name="paymentDuplicateAction" value="update" onchange="toggleExistingPaymentOverwrite()" style="margin-top:5px"><span><b>Excel से Duplicate रिकॉर्ड अपडेट करें</b><br><span class="muted">पुराने रिकॉर्ड Excel के संबंधित फ़ील्ड से बदलें।</span></span></label>
+<label style="display:flex;gap:8px;align-items:flex-start"><input type="radio" name="paymentDuplicateAction" value="skip" checked onchange="toggleExistingPaymentOverwrite()" style="margin-top:5px"><span><b>Duplicate रिकॉर्ड अपडेट न करें</b><br><span class="muted">मौजूदा रिकॉर्ड सुरक्षित रखें; केवल नए रिकॉर्ड अपलोड करें।</span></span></label>
+</div>
+<div class="toolbar"><button class="btn primary" type="button" onclick="closePaymentDuplicateReview()">चयन लागू करें और वापस जाएँ</button></div>
+<div id="paymentDuplicateComparisonTableWrap" style="max-height:65vh;overflow:auto;margin-top:14px"></div>
+</div>
+</section>
 <section id="employeeBasicEditPage" class="page">
 <div class="card" style="max-width:850px;margin:0 auto">
 <div class="toolbar" style="justify-content:space-between">
@@ -797,7 +815,7 @@ function downloadPaymentTemplate(){
 }
 async function previewPaymentUpload(){
   let file=document.getElementById("paymentFile").files[0],msgEl=document.getElementById("paymentMsg"),box=document.getElementById("paymentPreview"),btn=document.getElementById("confirmPaymentBtn");
-  pendingPaymentRows=[];pendingPaymentRejectedRows=[];pendingPaymentDatabaseDuplicates=[];pendingPaymentInternalDuplicates=0;pendingPaymentDbLookupFailed=false;btn.disabled=true;box.innerHTML="";
+  pendingPaymentRows=[];pendingPaymentRejectedRows=[];pendingPaymentDatabaseDuplicates=[];pendingPaymentInternalDuplicates=0;pendingPaymentDbLookupFailed=false;document.querySelectorAll('input[name="paymentDuplicateAction"]').forEach(x=>x.checked=x.value==="skip");btn.disabled=true;box.innerHTML="";
   if(!file)return msgEl.textContent="पहले fixed Payment Template वाली Excel फ़ाइल चुनें।";
   try{
     let data=await file.arrayBuffer(),wb=XLSX.read(data,{type:"array",cellDates:false}),codes=new Map(employees.map(e=>[normalizeCode(e.code),e]));
@@ -864,7 +882,7 @@ async function previewPaymentUpload(){
     const matchedIds=[...new Set(pendingPaymentRows.filter(x=>x.employee_id).map(x=>x.employee_id))];
     const matchedMonths=[...new Set(pendingPaymentRows.filter(x=>x.employee_id).map(x=>x.month_start))];
     if(matchedIds.length&&matchedMonths.length){
-      const {data:existingRecords,error:existingError}=await window.salaryDb.from("salary_records").select("employee_id,month_start,amount,payable_amount,voucher_no,payment_date").in("employee_id",matchedIds).in("month_start",matchedMonths);
+      const {data:existingRecords,error:existingError}=await window.salaryDb.from("salary_records").select("employee_id,month_start,amount,payable_amount,voucher_no,payment_date,remarks").in("employee_id",matchedIds).in("month_start",matchedMonths);
       if(existingError){
         pendingPaymentDbLookupFailed=true;
         msgEl.textContent="Duplicate जाँच पूरी नहीं हो सकी, इसलिए सुरक्षित रखने के लिए Upload रोक दिया गया है: "+existingError.message;
@@ -874,7 +892,7 @@ async function previewPaymentUpload(){
       pendingPaymentRows.forEach(x=>{
         if(!x.employee_id)return;
         const existing=existingMap.get(x.employee_id+"|"+String(x.month_start).slice(0,7));
-        if(existing){x._existingDuplicate=existing;pendingPaymentDatabaseDuplicates.push({code:x.matched_code||x.code,name:x.name,month:x.month_start,existing});}
+        if(existing){x._existingDuplicate=existing;pendingPaymentDatabaseDuplicates.push({employee_id:x.employee_id,code:x.matched_code||x.code,name:x.name,month:x.month_start,incoming:x,existing});}
       });
     }
     let dupKeys=new Set(dups.map(x=>x.key)),total=pendingPaymentRows.reduce((s,x)=>s+x.amount,0);
@@ -889,19 +907,91 @@ async function previewPaymentUpload(){
       }).join("")+"</tbody></table>"+
       (pendingPaymentRejectedRows.length ? "<div class=\"notice\" style=\"margin-top:12px;border-color:#dc2626;color:#991b1b\"><b>अस्वीकार किए गए " + pendingPaymentRejectedRows.length + " रिकॉर्ड:</b><ul>" + pendingPaymentRejectedRows.map(function(x){return "<li>Sheet " + escHtml(x.sheet) + ", Excel पंक्ति " + x.rowNumber + ", Code " + escHtml(x.code) + ", नाम " + escHtml(x.name) + ", Salary Month " + escHtml(x.monthRaw) + " — " + escHtml(x.reason) + "</li>";}).join("") + "</ul></div>" : "");
     if(pendingPaymentDatabaseDuplicates.length){
-      const dupList=pendingPaymentDatabaseDuplicates.map(x=>"<li>"+String(x.code||"")+" — "+String(x.name||"")+" — "+String(x.month||"")+" (पहले से भुगतान ₹"+Number(x.existing.amount||0).toLocaleString("en-IN")+")</li>").join("");
-      box.insertAdjacentHTML("afterbegin",'<div class="notice" style="margin-bottom:10px;border-color:#dc2626;color:#991b1b"><b>⚠️ Duplicate Alert:</b> '+pendingPaymentDatabaseDuplicates.length+' रिकॉर्ड में वही कर्मचारी और महीना पहले से Database में है। पुराने रिकॉर्ड गलती से बदलने से बचाने के लिए Upload रोका गया है।<ul>'+dupList+'</ul><label><input id="allowExistingPaymentOverwrite" type="checkbox" onchange="toggleExistingPaymentOverwrite()"> मैंने पुराने रिकॉर्ड जाँच लिए हैं; इन Duplicate रिकॉर्ड को Excel से अपडेट करने दें।</label></div>');
+      box.insertAdjacentHTML("afterbegin",'<div class="notice" style="margin-bottom:10px;border-color:#dc2626;color:#991b1b"><b>⚠️ Duplicate Alert:</b> '+pendingPaymentDatabaseDuplicates.length+' रिकॉर्ड में वही कर्मचारी और महीना पहले से Database में है। Excel और मौजूदा Database की राशि/भुगतान जानकारी की तुलना देखने और अपडेट का विकल्प चुनने के लिए <button class="btn" type="button" onclick="openPaymentDuplicateReview()">Duplicate मिलान देखें / विकल्प चुनें</button></div>');
     }
     toggleExistingPaymentOverwrite();
   }catch(e){msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
 }
-function toggleExistingPaymentOverwrite(){
-  const btn=document.getElementById("confirmPaymentBtn");
-  const allow=!!document.getElementById("allowExistingPaymentOverwrite")?.checked;
-  const bad=pendingPaymentRows.some(x=>!x.employee_id);
-  btn.disabled=!pendingPaymentRows.length||pendingPaymentRejectedRows.length>0||bad||pendingPaymentInternalDuplicates>0||pendingPaymentDbLookupFailed||(pendingPaymentDatabaseDuplicates.length>0&&!allow);
+function selectedPaymentDuplicateAction(){
+ return document.querySelector('input[name="paymentDuplicateAction"]:checked')?.value||"skip";
 }
-async function confirmPaymentUpload(){if(!pendingPaymentRows.length)return;if(pendingPaymentDatabaseDuplicates.length&&!document.getElementById("allowExistingPaymentOverwrite")?.checked){alert("Duplicate रिकॉर्ड मिले हैं। पहले पुराने रिकॉर्ड जाँचें; अपडेट करना हो तो सहमति checkbox चुनें।");return}let msgEl=document.getElementById("paymentMsg"),btn=document.getElementById("confirmPaymentBtn");btn.disabled=true;let u=(await window.salaryDb.auth.getUser()).data.user;if(!u){msgEl.textContent="Login session समाप्त हो गई है।";btn.disabled=false;return}let rows=pendingPaymentRows.filter(x=>x.employee_id).map(x=>({employee_id:x.employee_id,month_start:x.month_start,payable_amount:x.payable_amount||0,amount:x.amount,payment_date:x.payment_date,voucher_no:String(x.voucher_no??"").trim()||null,remarks:String(x.remarks??"").trim()||null,updated_by:u.id}));let{error}=await window.salaryDb.from("salary_records").upsert(rows,{onConflict:"employee_id,month_start"});if(error){msgEl.textContent="Upload error: "+error.message;btn.disabled=false;return}await refresh();renderEmployees();updateDash();setupRecord();msgEl.textContent=rows.length+" भुगतान रिकॉर्ड Database में सफलतापूर्वक सेव हो गए।";pendingPaymentRows=[];document.getElementById("paymentFile").value="";document.getElementById("paymentPreview").innerHTML=""}
+function toggleExistingPaymentOverwrite(){
+ const btn=document.getElementById("confirmPaymentBtn");
+ const bad=pendingPaymentRows.some(x=>!x.employee_id);
+ btn.disabled=!pendingPaymentRows.length||pendingPaymentRejectedRows.length>0||bad||pendingPaymentInternalDuplicates>0||pendingPaymentDbLookupFailed;
+ const s=document.getElementById("paymentDuplicateReviewSummary");
+ if(s&&pendingPaymentDatabaseDuplicates.length){
+  s.textContent="Database में Duplicate: "+pendingPaymentDatabaseDuplicates.length+" | चयनित विकल्प: "+(selectedPaymentDuplicateAction()==="update"?"Excel से अपडेट करें":"अपडेट न करें; पुराने रिकॉर्ड सुरक्षित रखें");
+ }
+}
+function paymentCompareEscape(v){
+ return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+}
+function paymentCompareMoney(v){return "₹"+Number(v||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2})}
+function paymentCompareDate(v){
+ if(!v)return "—";
+ const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+ return m?m[3]+"-"+m[2]+"-"+m[1]:String(v);
+}
+function openPaymentDuplicateReview(){
+ const page=document.getElementById("paymentDuplicateReviewPage");
+ document.querySelectorAll("#app .page").forEach(x=>x.classList.remove("active"));
+ page.classList.add("active");
+ document.getElementById("officeModuleNav").style.display="flex";
+ document.getElementById("salarySubNav").style.display="none";
+ const wrap=document.getElementById("paymentDuplicateComparisonTableWrap");
+ const summary=document.getElementById("paymentDuplicateReviewSummary");
+ if(!pendingPaymentDatabaseDuplicates.length){
+  summary.textContent="इस Preview में Database duplicate रिकॉर्ड नहीं हैं.";
+  wrap.innerHTML="";
+ }else{
+  summary.textContent="कुल Duplicate रिकॉर्ड: "+pendingPaymentDatabaseDuplicates.length+". हर पंक्ति में पहले Database और बाद में Excel की वैल्यू दिखाई गई है.";
+  const rows=pendingPaymentDatabaseDuplicates.map(d=>{
+   const db=d.existing||{}, x=d.incoming||{};
+   const dbPay=Number(db.payable_amount||0), upPay=Number(x.payable_amount||0);
+   const dbPaid=Number(db.amount||0), upPaid=Number(x.amount||0);
+   const dbPending=dbPay-dbPaid, upPending=upPay-upPaid;
+   const cellPair=(a,b)=>'<td>'+paymentCompareEscape(a)+'<div class="muted">Excel: '+paymentCompareEscape(b)+'</div></td>';
+   const moneyPair=(a,b)=>'<td>'+paymentCompareMoney(a)+'<div class="muted">Excel: '+paymentCompareMoney(b)+'</div></td>';
+   return '<tr><td>'+paymentCompareEscape(d.code)+'</td><td>'+paymentCompareEscape(d.name)+'</td><td>'+paymentCompareEscape(d.month)+'</td>'+moneyPair(dbPay,upPay)+moneyPair(dbPaid,upPaid)+moneyPair(dbPending,upPending)+cellPair(paymentCompareDate(db.payment_date),paymentCompareDate(x.payment_date))+cellPair(db.voucher_no||"—",x.voucher_no||"—")+cellPair(db.remarks||"—",x.remarks||"—")+'</tr>';
+  }).join("");
+  wrap.innerHTML='<table style="width:100%;min-width:1200px;border-collapse:collapse"><thead><tr><th>Employee ID</th><th>कर्मचारी</th><th>माह</th><th>Payable Amount (Database / Excel)</th><th>Paid Amount (Database / Excel)</th><th>Pending (Database / Excel)</th><th>Payment Date (Database / Excel)</th><th>Voucher No. (Database / Excel)</th><th>Remarks (Database / Excel)</th></tr></thead><tbody>'+rows+'</tbody></table>';
+ }
+ toggleExistingPaymentOverwrite();
+ resetInactivityTimer();
+}
+function closePaymentDuplicateReview(){
+ openOfficeModule("employees");
+ const pay=document.getElementById("paymentPreview");
+ if(pay)pay.scrollIntoView({behavior:"smooth",block:"start"});
+}
+async function confirmPaymentUpload(){
+ if(!pendingPaymentRows.length)return;
+ const mode=selectedPaymentDuplicateAction();
+ const msgEl=document.getElementById("paymentMsg"),btn=document.getElementById("confirmPaymentBtn");
+ if(pendingPaymentInternalDuplicates>0){alert("Excel फ़ाइल के अंदर ही एक कर्मचारी और महीने के duplicate रिकॉर्ड हैं। इन्हें पहले Excel में ठीक करके Preview दोबारा करें.");return}
+ btn.disabled=true;
+ try{
+  const auth=await window.salaryDb.auth.getUser(),u=auth.data?.user;
+  if(!u){msgEl.textContent="Login session समाप्त हो गई है।";btn.disabled=false;return}
+  const duplicateKeys=new Set(pendingPaymentDatabaseDuplicates.map(d=>d.employee_id+"|"+String(d.month).slice(0,7)));
+  const allMatched=pendingPaymentRows.filter(x=>x.employee_id);
+  const rowsToUpload=mode==="skip"?allMatched.filter(x=>!duplicateKeys.has(x.employee_id+"|"+String(x.month_start).slice(0,7))):allMatched;
+  const skipped=allMatched.length-rowsToUpload.length;
+  if(!rowsToUpload.length){
+   msgEl.textContent="इस फ़ाइल में कोई नया रिकॉर्ड नहीं है। "+skipped+" Duplicate रिकॉर्ड अपडेट नहीं किए गए; Database का पुराना डेटा सुरक्षित है। यदि Excel से अपडेट करना हो तो Duplicate मिलान पेज पर विकल्प बदलें.";
+   btn.disabled=false;return;
+  }
+  const rows=rowsToUpload.map(x=>({employee_id:x.employee_id,month_start:x.month_start,payable_amount:x.payable_amount||0,amount:x.amount,payment_date:x.payment_date,voucher_no:String(x.voucher_no??"").trim()||null,remarks:String(x.remarks??"").trim()||null,updated_by:u.id}));
+  msgEl.textContent="Upload हो रहा है…";
+  const {error}=await window.salaryDb.from("salary_records").upsert(rows,{onConflict:"employee_id,month_start"});
+  if(error)throw error;
+  await refresh();renderEmployees();updateDash();setupRecord();
+  msgEl.textContent=rows.length+" भुगतान रिकॉर्ड सफलतापूर्वक सेव हुए। "+(mode==="update"&&pendingPaymentDatabaseDuplicates.length?"Excel से Duplicate अपडेट: "+pendingPaymentDatabaseDuplicates.length+". ":mode==="skip"&&skipped?"Duplicate अपडेट नहीं किए: "+skipped+"; पुराने रिकॉर्ड सुरक्षित रहे. ":"")+(pendingPaymentRejectedRows.length?" अस्वीकार: "+pendingPaymentRejectedRows.length+".":"");
+  pendingPaymentRows=[];pendingPaymentDatabaseDuplicates=[];pendingPaymentRejectedRows=[];pendingPaymentInternalDuplicates=0;
+  document.getElementById("paymentFile").value="";document.getElementById("paymentPreview").innerHTML="";btn.disabled=true;
+ }catch(e){msgEl.textContent="Upload error: "+(e?.message||e);btn.disabled=false}
+}
 function downloadBulkTemplate(){let rows=[["Employee ID","Employee Name","Post","Department"],["EMP-001","कर्मचारी 1","",""],["EMP-002","कर्मचारी 2","",""]];let ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Employees");XLSX.writeFile(wb,"employee-bulk-upload-template.xlsx")}
 async function bulkUpload(){
   const file=document.getElementById("bulkFile").files[0],out=document.getElementById("bulkMsg");
