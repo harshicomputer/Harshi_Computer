@@ -913,7 +913,7 @@ async function previewPaymentUpload(){
           '<b>'+paymentCompareEscape(d.code)+' — '+paymentCompareEscape(d.name)+'</b> · '+paymentCompareEscape(d.month)+
           '<div style="margin-top:4px">पहले से भुगतान: <b>'+paymentCompareMoney(oldPaid)+'</b> &nbsp; | &nbsp; Excel से अपलोड: <b>'+paymentCompareMoney(newPaid)+'</b> &nbsp; <b>('+label+')</b></div></li>';
       }).join("");
-      box.insertAdjacentHTML("afterbegin",'<div class="notice" style="margin-bottom:10px;border-color:#dc2626;color:#991b1b"><b>⚠️ '+pendingPaymentDatabaseDuplicates.length+' रिकॉर्ड पहले से मौजूद हैं।</b><p style="margin:6px 0">हरा = दोनों Paid Amount समान। लाल = राशि अलग है। नीचे पहले से भुगतान राशि और Excel से आने वाली राशि मिलाएँ।</p><div style="max-height:340px;overflow:auto"><ul style="padding-left:18px;margin:6px 0">'+duplicateItems+'</ul></div><div class="toolbar" style="margin-top:12px"><button class="btn primary" type="button" onclick="confirmPaymentUpload(\\'update\\')">Excel से Duplicate रिकॉर्ड अपडेट करें</button><button class="btn" type="button" onclick="confirmPaymentUpload(\\'skip\\')">Duplicate रिकॉर्ड अपडेट न करें</button></div><p class="muted" style="margin-top:6px">“अपडेट न करें” चुनने पर केवल नए रिकॉर्ड अपलोड होंगे और पुराने Duplicate रिकॉर्ड सुरक्षित रहेंगे। “अपडेट करें” में Excel की Paid Amount, दिनांक, वाउचर और Remarks भी बदल सकते हैं।</p></div>');
+      box.insertAdjacentHTML("afterbegin",'<div class="notice" style="margin-bottom:10px;border-color:#dc2626;color:#991b1b"><b>⚠️ '+pendingPaymentDatabaseDuplicates.length+' रिकॉर्ड पहले से मौजूद हैं।</b><p style="margin:6px 0">हरा = दोनों Paid Amount समान। लाल = राशि अलग है। नीचे पहले से भुगतान राशि और Excel से आने वाली राशि मिलाएँ।</p><div style="max-height:340px;overflow:auto"><ul style="padding-left:18px;margin:6px 0">'+duplicateItems+'</ul></div><div class="toolbar" style="margin-top:12px"><button class="btn primary" type="button" onclick="confirmPaymentUpload(confirmPaymentUploadModeUpdate)">Excel से Duplicate रिकॉर्ड अपडेट करें</button><button class="btn" type="button" onclick="confirmPaymentUpload(confirmPaymentUploadModeSkip)">Duplicate रिकॉर्ड अपडेट न करें</button></div><p class="muted" style="margin-top:6px">“अपडेट न करें” चुनने पर केवल नए रिकॉर्ड अपलोड होंगे और पुराने Duplicate रिकॉर्ड सुरक्षित रहेंगे। “अपडेट करें” में Excel की Paid Amount, दिनांक, वाउचर और Remarks भी बदल सकते हैं।</p></div>');
     }
     toggleExistingPaymentOverwrite();
   }catch(e){msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
@@ -967,6 +967,8 @@ function closePaymentDuplicateReview(){
  const pay=document.getElementById("paymentPreview");
  if(pay)pay.scrollIntoView({behavior:"smooth",block:"start"});
 }
+function confirmPaymentUploadModeUpdate(){return confirmPaymentUpload("update")}
+function confirmPaymentUploadModeSkip(){return confirmPaymentUpload("skip")}
 async function confirmPaymentUpload(modeOverride){
  if(!pendingPaymentRows.length)return;
  const mode=modeOverride||"skip";
