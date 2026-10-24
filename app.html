@@ -227,6 +227,7 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 <div class="toolbar" style="margin-top:14px;padding-top:12px;border-top:1px solid #edf1f6">
 <label for="payrollFilterMonth">माह:</label><input id="payrollFilterMonth" type="month" min="2019-01" onchange="syncPayrollFilterMonth()" />
 <label for="payrollEmployeeCategory">कर्मचारी श्रेणी:</label><select id="payrollEmployeeCategory" onchange="filterPayrollEmployees()"><option value="all">सभी कर्मचारी</option><option value="other">नियमित कर्मचारी</option><option value="sathai">स्थाईकर्मी</option><option value="daily">Daily Wages</option></select>
+<label for="payrollDesignationFilter">पद:</label><select id="payrollDesignationFilter" onchange="filterPayrollEmployees()"><option value="all">सभी पद</option></select>
 <button class="btn" type="button" onclick="resetPayrollFilters()">फ़िल्टर हटाएँ</button>
 </div>
 <div id="payrollFilterMsg" class="muted" style="margin:4px 0 8px">कर्मचारी श्रेणी चुनकर सूची फ़िल्टर करें।</div>
@@ -1259,13 +1260,22 @@ function payrollEmployeeCategory(e, designation){
  if(s.includes("sathaikarmi")||s.includes("स्थाईकर्मी")||s.includes("स्थायीकर्मी")||s.includes("स्थाईकर्म"))return "sathai";
  return "other";
 }
+function populatePayrollDesignationFilter(){
+ const select=document.getElementById("payrollDesignationFilter");if(!select)return;
+ const current=select.value||"all";
+ const posts=[...new Set([...document.querySelectorAll("#payrollSheetBody tr[data-employee-id]")].map(tr=>String(tr.dataset.designation||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"hi"));
+ select.innerHTML='<option value="all">सभी पद</option>'+posts.map(p=>'<option value="'+p.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;")+'">'+p.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")+'</option>').join("");
+ if(posts.includes(current))select.value=current;
+}
 function filterPayrollEmployees(){
  const wanted=document.getElementById("payrollEmployeeCategory")?.value||"all";
+ const wantedPost=document.getElementById("payrollDesignationFilter")?.value||"all";
  let shown=0,total=0;
  document.querySelectorAll("#payrollSheetBody tr[data-employee-id]").forEach(tr=>{
   total++;
   const cat=tr.dataset.category||"other";
-  const visible=wanted==="all"||cat===wanted;
+  const post=tr.dataset.designation||"";
+  const visible=(wanted==="all"||cat===wanted)&&(wantedPost==="all"||post===wantedPost);
   tr.style.display=visible?"":"none";
   if(visible)shown++;
  });
@@ -1300,7 +1310,7 @@ async function loadPayrollSheet(){
   body.innerHTML="";
   for(const e of (emps||[])){
    const r=map.get(e.id)||{};const tr=document.createElement("tr");tr.dataset.employeeId=e.id;tr.dataset.code=e.code||"";tr.dataset.name=e.name||"";tr.dataset.category=payrollEmployeeCategory(e,r.designation);
-   const identity=[e.code||"",e.name||"",r.designation??e.post??e.department??""];
+   const identity=[e.code||"",e.name||"",r.designation??e.post??e.department??""];tr.dataset.designation=String(identity[2]||"").trim();
    identity.forEach((v,i)=>{const td=document.createElement("td");if(i===2){const inp=document.createElement("input");inp.value=v;inp.dataset.field="designation";inp.style.minWidth="130px";td.appendChild(inp)}else td.textContent=v;tr.appendChild(td)});
    for(const k of PAYROLL_EARN_FIELDS){const td=document.createElement("td");const inp=document.createElement("input");inp.type="number";inp.min="0";inp.step="0.01";inp.value=r[k]??0;inp.dataset.field=k;inp.style.width="110px";inp.addEventListener("input",()=>payrollCalcRow(tr));td.appendChild(inp);tr.appendChild(td)}
    for(const [k,t] of [["earnings","earnings"]]){const td=document.createElement("td");td.dataset.total=t;td.textContent=Number(r.total_earnings||0).toFixed(2);tr.appendChild(td)}
@@ -1308,7 +1318,7 @@ async function loadPayrollSheet(){
    for(const [k,t] of [["deductions","deductions"],["net_pay","net"]]){const td=document.createElement("td");td.dataset.total=t;td.textContent=Number(r[k]||0).toFixed(2);tr.appendChild(td)}
    payrollCalcRow(tr);body.appendChild(tr);
   }
-  const filterMonth=document.getElementById("payrollFilterMonth");if(filterMonth)filterMonth.value=month;filterPayrollEmployees();
+  const filterMonth=document.getElementById("payrollFilterMonth");if(filterMonth)filterMonth.value=month;populatePayrollDesignationFilter();filterPayrollEmployees();
   msg.textContent="वेतन माह "+month+" के लिए "+(emps||[]).length+" कर्मचारियों का पत्रक खुल गया। पहले से सेव रिकॉर्ड भी लोड किए गए हैं।";
  }catch(e){body.innerHTML='<tr><td colspan="24">पत्रक लोड नहीं हुआ।</td></tr>';msg.textContent="त्रुटि: "+(e.message||e)+" — Database table/policy की जाँच आवश्यक है।"}
 }
