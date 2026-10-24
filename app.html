@@ -233,8 +233,22 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 <div id="payrollFilterMsg" class="muted" style="margin:4px 0 8px">कर्मचारी श्रेणी चुनकर सूची फ़िल्टर करें।</div>
 </div>
 <div id="payrollSheetMsg" class="muted" style="margin:8px 0">माह चुनकर पत्रक खोलें।</div>
-<div style="overflow:auto;max-width:100%"><table id="payrollSheetTable" style="min-width:2200px"><thead><tr><th>Employee Number</th><th>Name</th><th>Designation</th><th>Pay Band Pay</th><th>Grade Pay</th><th>Dearness Allowance</th><th>DA Arrear</th><th>House Rent Allowance</th><th>Medical Allowance</th><th>Physically Handicapped Allowance</th><th>Vehicle Allowance</th><th>Special Allowance</th><th>Special Allowance 10 Yrs</th><th>Other Allowance (W)</th><th>Cust. Sp. Annual Exmp.</th><th>Arrears Salary Payment</th><th>Basic Salary Arrear</th><th>Basic (Daily Wages)</th><th>Total Earnings</th><th>GPF</th><th>GPF Loan</th><th>Family Benefit Plan</th><th>NPS Deduction</th><th>Income Tax</th><th>Professional Tax</th><th>LIC Deduction</th><th>Water Charges</th><th>Salary Recovery</th><th>Group Insurance</th><th>Group Insurance Scheme</th><th>Total Deductions</th><th>Net Pay</th></tr></thead><tbody id="payrollSheetBody"><tr><td colspan="24">पत्रक लोड हो रहा है…</td></tr></tbody></table></div>\n<div id="payrollSummaryReport" class="card" style="display:none;margin-top:16px;border:1px solid #b8c9e3"><div class="toolbar"><h3 style="margin:0">वेतन सारांश रिपोर्ट</h3><button class="btn" onclick="exportPayrollSummaryReport()">Excel रिपोर्ट डाउनलोड</button><button class="btn" onclick="printPayrollSummaryReport()">प्रिंट / PDF</button><button class="btn" onclick="closePayrollSummaryReport()">रिपोर्ट बंद करें</button></div><p id="payrollSummaryMeta" class="muted"></p><div id="payrollSummaryContent" style="overflow:auto;max-width:100%"></div></div>
+<div style="overflow:auto;max-width:100%"><table id="payrollSheetTable" style="min-width:2200px"><thead><tr><th>Employee Number</th><th>Name</th><th>Designation</th><th>Pay Band Pay</th><th>Grade Pay</th><th>Dearness Allowance</th><th>DA Arrear</th><th>House Rent Allowance</th><th>Medical Allowance</th><th>Physically Handicapped Allowance</th><th>Vehicle Allowance</th><th>Special Allowance</th><th>Special Allowance 10 Yrs</th><th>Other Allowance (W)</th><th>Cust. Sp. Annual Exmp.</th><th>Arrears Salary Payment</th><th>Basic Salary Arrear</th><th>Basic (Daily Wages)</th><th>Total Earnings</th><th>GPF</th><th>GPF Loan</th><th>Family Benefit Plan</th><th>NPS Deduction</th><th>Income Tax</th><th>Professional Tax</th><th>LIC Deduction</th><th>Water Charges</th><th>Salary Recovery</th><th>Group Insurance</th><th>Group Insurance Scheme</th><th>Total Deductions</th><th>Net Pay</th></tr></thead><tbody id="payrollSheetBody"><tr><td colspan="24">पत्रक लोड हो रहा है…</td></tr></tbody></table></div>
 </div></section>
+<section id="payrollSummaryPage" class="page">
+<div class="card">
+<div class="toolbar" style="justify-content:space-between">
+<div><h2 style="margin:0">वेतन सारांश रिपोर्ट</h2><p class="muted" style="margin:6px 0 0">कुल आय, GPF, NPS और Net Pay — चयनित माह के अनुसार</p></div>
+<button class="btn" onclick="closePayrollSummaryReport()">← वापस वेतन पत्रक पर</button>
+</div>
+<div class="toolbar" style="margin-top:14px">
+<button class="btn" onclick="exportPayrollSummaryReport()">Excel रिपोर्ट डाउनलोड</button>
+<button class="btn" onclick="printPayrollSummaryReport()">प्रिंट / PDF</button>
+</div>
+<p id="payrollSummaryMeta" class="muted"></p>
+<div id="payrollSummaryContent" style="overflow:auto;max-width:100%"></div>
+</div>
+</section>
 <section id="reports" class="page"><div class="card"><h2>कर्मचारी रिपोर्ट</h2><div class="toolbar"><select id="reportEmp" onchange="renderReport()"></select><button class="btn primary" onclick="window.print()">Print / PDF</button></div><div id="reportBox"></div></div></section>
 <section id="backup" class="page"><div class="card"><h2>🔐 Data Security + Backup</h2>
 <p class="notice"><b>Full Site Backup:</b> Admin के लिए एक क्लिक में सभी application database tables और private Storage में रखे दस्तावेज़ों का ZIP Cloud Backup बनेगा। ZIP में database JSON, document files और manifest रहेगा। वेबसाइट का source code GitHub repository में है। Auth passwords/MFA seeds और API secrets शामिल नहीं होते। पूरा disaster-recovery सत्यापन करने के लिए अलग test project में Restore Test भी आवश्यक है।</p>
@@ -1393,15 +1407,29 @@ function getPayrollSummaryRows(){
 }
 function payrollSummaryMoney(v){return Number(v||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2})}
 function payrollSummaryEscape(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
-function closePayrollSummaryReport(){document.getElementById("payrollSummaryReport").style.display="none"}
+function closePayrollSummaryReport(){
+ document.querySelectorAll("#app .page").forEach(x=>x.classList.remove("active"));
+ document.getElementById("payrollSheet").classList.add("active");
+ document.getElementById("officeModuleNav").style.display="flex";
+ document.getElementById("salarySubNav").style.display="inline-flex";
+ resetInactivityTimer();saveWorkspaceState();
+}
 function showPayrollSummaryReport(){
  const {month,rows}=getPayrollSummaryRows();
- const panel=document.getElementById("payrollSummaryReport"),meta=document.getElementById("payrollSummaryMeta"),content=document.getElementById("payrollSummaryContent");
- if(!rows.length){meta.textContent="रिपोर्ट बनाने के लिए पहले वेतन पत्रक खोलें।";panel.style.display="block";content.innerHTML="";return}
+ const meta=document.getElementById("payrollSummaryMeta"),content=document.getElementById("payrollSummaryContent");
+ document.querySelectorAll("#app .page").forEach(x=>x.classList.remove("active"));
+ document.getElementById("payrollSummaryPage").classList.add("active");
+ document.getElementById("officeModuleNav").style.display="flex";
+ document.getElementById("salarySubNav").style.display="none";
+ if(!rows.length){
+  meta.textContent="रिपोर्ट बनाने के लिए पहले वेतन पत्रक खोलें।";
+  content.innerHTML="";
+  resetInactivityTimer();saveWorkspaceState();return;
+ }
  const totals=rows.reduce((a,r)=>({income:a.income+r.total_income,gpf:a.gpf+r.gpf,nps:a.nps+r.nps,net:a.net+r.net_pay}),{income:0,gpf:0,nps:0,net:0});
- meta.textContent="वेतन माह: "+month+" | कर्मचारी: "+rows.length+" (मौजूदा फ़िल्टर के अनुसार)। रिपोर्ट में कुल आय, GPF, NPS और Net Pay शामिल हैं।";
+ meta.textContent="वेतन माह: "+month+" | कर्मचारी: "+rows.length+" (मौजूदा फ़िल्टर के अनुसार)।";
  content.innerHTML='<table style="width:100%;border-collapse:collapse;min-width:760px"><thead><tr><th>Employee Number</th><th>कर्मचारी का नाम</th><th>पद</th><th style="text-align:right">कुल आय</th><th style="text-align:right">GPF</th><th style="text-align:right">NPS</th><th style="text-align:right">Net Pay</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+payrollSummaryEscape(r.code)+'</td><td>'+payrollSummaryEscape(r.name)+'</td><td>'+payrollSummaryEscape(r.designation)+'</td><td style="text-align:right">'+payrollSummaryMoney(r.total_income)+'</td><td style="text-align:right">'+payrollSummaryMoney(r.gpf)+'</td><td style="text-align:right">'+payrollSummaryMoney(r.nps)+'</td><td style="text-align:right;font-weight:700">'+payrollSummaryMoney(r.net_pay)+'</td></tr>').join("")+'<tr style="font-weight:700;background:#f7f9fc"><td colspan="3">कुल योग</td><td style="text-align:right">'+payrollSummaryMoney(totals.income)+'</td><td style="text-align:right">'+payrollSummaryMoney(totals.gpf)+'</td><td style="text-align:right">'+payrollSummaryMoney(totals.nps)+'</td><td style="text-align:right">'+payrollSummaryMoney(totals.net)+'</td></tr></tbody></table>';
- panel.style.display="block";panel.scrollIntoView({behavior:"smooth",block:"start"});
+ resetInactivityTimer();saveWorkspaceState();
 }
 function exportPayrollSummaryReport(){
  if(!window.XLSX){alert("Excel library उपलब्ध नहीं है।");return}
