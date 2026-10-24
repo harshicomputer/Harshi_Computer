@@ -905,7 +905,15 @@ async function previewPaymentUpload(){
       }).join("")+"</tbody></table>"+
       (pendingPaymentRejectedRows.length ? "<div class=\"notice\" style=\"margin-top:12px;border-color:#dc2626;color:#991b1b\"><b>अस्वीकार किए गए " + pendingPaymentRejectedRows.length + " रिकॉर्ड:</b><ul>" + pendingPaymentRejectedRows.map(function(x){return "<li>Sheet " + escHtml(x.sheet) + ", Excel पंक्ति " + x.rowNumber + ", Code " + escHtml(x.code) + ", नाम " + escHtml(x.name) + ", Salary Month " + escHtml(x.monthRaw) + " — " + escHtml(x.reason) + "</li>";}).join("") + "</ul></div>" : "");
     if(pendingPaymentDatabaseDuplicates.length){
-      box.insertAdjacentHTML("afterbegin",'<div class="notice" style="margin-bottom:10px;border-color:#dc2626;color:#991b1b"><b>⚠️ Duplicate Alert:</b> '+pendingPaymentDatabaseDuplicates.length+' रिकॉर्ड में वही कर्मचारी और महीना पहले से Database में है। Excel और मौजूदा Database की राशि/भुगतान जानकारी की तुलना देखने और अपडेट का विकल्प चुनने के लिए <button class="btn" type="button" onclick="openPaymentDuplicateReview()">Duplicate मिलान देखें / विकल्प चुनें</button></div>');
+      const duplicateItems=pendingPaymentDatabaseDuplicates.map(d=>{
+        const oldPaid=Number(d.existing?.amount||0),newPaid=Number(d.incoming?.amount||0);
+        const same=Math.abs(oldPaid-newPaid)<0.005;
+        const tone=same?"#166534":"#b42318",bg=same?"#f0fdf4":"#fff1f2",label=same?"राशि समान":"राशि अलग";
+        return '<li style="padding:9px 10px;margin:5px 0;border:1px solid '+(same?'#86efac':'#fca5a5')+';border-radius:8px;background:'+bg+';color:'+tone+'">'+
+          '<b>'+paymentCompareEscape(d.code)+' — '+paymentCompareEscape(d.name)+'</b> · '+paymentCompareEscape(d.month)+
+          '<div style="margin-top:4px">पहले से भुगतान: <b>'+paymentCompareMoney(oldPaid)+'</b> &nbsp; | &nbsp; Excel से अपलोड: <b>'+paymentCompareMoney(newPaid)+'</b> &nbsp; <b>('+label+')</b></div></li>';
+      }).join("");
+      box.insertAdjacentHTML("afterbegin",'<div class="notice" style="margin-bottom:10px;border-color:#dc2626;color:#991b1b"><b>⚠️ '+pendingPaymentDatabaseDuplicates.length+' रिकॉर्ड पहले से मौजूद हैं।</b><p style="margin:6px 0">हरा = दोनों Paid Amount समान। लाल = राशि अलग है। नीचे पहले से भुगतान राशि और Excel से आने वाली राशि मिलाएँ।</p><div style="max-height:340px;overflow:auto"><ul style="padding-left:18px;margin:6px 0">'+duplicateItems+'</ul></div><div class="toolbar" style="margin-top:12px"><button class="btn primary" type="button" onclick="confirmPaymentUpload(\\'update\\')">Excel से Duplicate रिकॉर्ड अपडेट करें</button><button class="btn" type="button" onclick="confirmPaymentUpload(\\'skip\\')">Duplicate रिकॉर्ड अपडेट न करें</button></div><p class="muted" style="margin-top:6px">“अपडेट न करें” चुनने पर केवल नए रिकॉर्ड अपलोड होंगे और पुराने Duplicate रिकॉर्ड सुरक्षित रहेंगे। “अपडेट करें” में Excel की Paid Amount, दिनांक, वाउचर और Remarks भी बदल सकते हैं।</p></div>');
     }
     toggleExistingPaymentOverwrite();
   }catch(e){msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
