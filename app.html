@@ -217,7 +217,7 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 <div class="card">
 <h2>मासिक वेतन पत्रक (जनवरी 2019 से)</h2>
 <p class="muted">माह चुनें, सभी कर्मचारियों का वेतन विवरण भरें और रिकॉर्ड सेव करें। Total Earnings, Total Deductions और Net Pay अपने-आप गणना होंगे।</p>
-<div class="toolbar"><label>वेतन माह <input id="payrollMonth" type="month" min="2019-01" value="2026-10" onchange="loadPayrollSheet()"></label><button class="btn primary" onclick="loadPayrollSheet()">पत्रक खोलें</button><button class="btn primary" onclick="savePayrollSheet()">वेतन पत्रक सेव करें</button><button class="btn" onclick="exportPayrollSheet()">Excel Export</button></div>
+<div class="toolbar"><label>वेतन माह <input id="payrollMonth" type="month" min="2019-01" value="2026-10" onchange="loadPayrollSheet()"></label><button class="btn primary" onclick="loadPayrollSheet()">पत्रक खोलें</button><button class="btn primary" onclick="savePayrollSheet()">वेतन पत्रक सेव करें</button><button class="btn" onclick="showPayrollSummaryReport()">वेतन सारांश रिपोर्ट</button><button class="btn" onclick="exportPayrollSheet()">Excel Export</button></div>
 <div class="card" style="margin-top:14px;border:1px solid #b8c9e3">
 <h3>📥 चारों Excel शीटों का Bulk Upload</h3>
 <p class="muted">अप्रैल 2019, फरवरी 2019, जून 2025 और दिसंबर 2025 की संयुक्त Excel फ़ाइल चुनें। पहले Preview में कर्मचारी नंबर, वेतन माह और कुल राशियों की जाँच करें; उसके बाद ही डेटाबेस में सेव करें। कर्मचारी नंबर का निश्चित मिलान न होने पर रिकॉर्ड अपलोड नहीं होगा।</p>
@@ -233,7 +233,7 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 <div id="payrollFilterMsg" class="muted" style="margin:4px 0 8px">कर्मचारी श्रेणी चुनकर सूची फ़िल्टर करें।</div>
 </div>
 <div id="payrollSheetMsg" class="muted" style="margin:8px 0">माह चुनकर पत्रक खोलें।</div>
-<div style="overflow:auto;max-width:100%"><table id="payrollSheetTable" style="min-width:2200px"><thead><tr><th>Employee Number</th><th>Name</th><th>Designation</th><th>Pay Band Pay</th><th>Grade Pay</th><th>Dearness Allowance</th><th>DA Arrear</th><th>House Rent Allowance</th><th>Medical Allowance</th><th>Physically Handicapped Allowance</th><th>Vehicle Allowance</th><th>Special Allowance</th><th>Special Allowance 10 Yrs</th><th>Other Allowance (W)</th><th>Cust. Sp. Annual Exmp.</th><th>Arrears Salary Payment</th><th>Basic Salary Arrear</th><th>Basic (Daily Wages)</th><th>Total Earnings</th><th>GPF</th><th>GPF Loan</th><th>Family Benefit Plan</th><th>NPS Deduction</th><th>Income Tax</th><th>Professional Tax</th><th>LIC Deduction</th><th>Water Charges</th><th>Salary Recovery</th><th>Group Insurance</th><th>Group Insurance Scheme</th><th>Total Deductions</th><th>Net Pay</th></tr></thead><tbody id="payrollSheetBody"><tr><td colspan="24">पत्रक लोड हो रहा है…</td></tr></tbody></table></div>
+<div style="overflow:auto;max-width:100%"><table id="payrollSheetTable" style="min-width:2200px"><thead><tr><th>Employee Number</th><th>Name</th><th>Designation</th><th>Pay Band Pay</th><th>Grade Pay</th><th>Dearness Allowance</th><th>DA Arrear</th><th>House Rent Allowance</th><th>Medical Allowance</th><th>Physically Handicapped Allowance</th><th>Vehicle Allowance</th><th>Special Allowance</th><th>Special Allowance 10 Yrs</th><th>Other Allowance (W)</th><th>Cust. Sp. Annual Exmp.</th><th>Arrears Salary Payment</th><th>Basic Salary Arrear</th><th>Basic (Daily Wages)</th><th>Total Earnings</th><th>GPF</th><th>GPF Loan</th><th>Family Benefit Plan</th><th>NPS Deduction</th><th>Income Tax</th><th>Professional Tax</th><th>LIC Deduction</th><th>Water Charges</th><th>Salary Recovery</th><th>Group Insurance</th><th>Group Insurance Scheme</th><th>Total Deductions</th><th>Net Pay</th></tr></thead><tbody id="payrollSheetBody"><tr><td colspan="24">पत्रक लोड हो रहा है…</td></tr></tbody></table></div>\n<div id="payrollSummaryReport" class="card" style="display:none;margin-top:16px;border:1px solid #b8c9e3"><div class="toolbar"><h3 style="margin:0">वेतन सारांश रिपोर्ट</h3><button class="btn" onclick="exportPayrollSummaryReport()">Excel रिपोर्ट डाउनलोड</button><button class="btn" onclick="printPayrollSummaryReport()">प्रिंट / PDF</button><button class="btn" onclick="closePayrollSummaryReport()">रिपोर्ट बंद करें</button></div><p id="payrollSummaryMeta" class="muted"></p><div id="payrollSummaryContent" style="overflow:auto;max-width:100%"></div></div>
 </div></section>
 <section id="reports" class="page"><div class="card"><h2>कर्मचारी रिपोर्ट</h2><div class="toolbar"><select id="reportEmp" onchange="renderReport()"></select><button class="btn primary" onclick="window.print()">Print / PDF</button></div><div id="reportBox"></div></div></section>
 <section id="backup" class="page"><div class="card"><h2>🔐 Data Security + Backup</h2>
@@ -1380,6 +1380,46 @@ async function savePayrollSheet(){
    msg.textContent="वेतन पत्रक सेव हो गया, लेकिन Salary Records का Payable Amount लिंक पूरा नहीं हुआ: "+(syncError.message||syncError)+". कृपया नीचे दिया संदेश देखकर जाँचें।";
   }
  }catch(e){msg.textContent="वेतन पत्रक सेव नहीं हुआ: "+(e.message||e)}
+}
+function getPayrollSummaryRows(){
+ const month=document.getElementById("payrollMonth")?.value||"";
+ const rows=[];
+ document.querySelectorAll("#payrollSheetBody tr[data-employee-id]").forEach(tr=>{
+  if(tr.style.display==="none")return;
+  const field=k=>payrollNum(tr.querySelector('[data-field="'+k+'"]')?.value);
+  rows.push({code:tr.dataset.code||"",name:tr.dataset.name||"",designation:tr.querySelector('[data-field="designation"]')?.value||"",total_income:payrollNum(tr.querySelector('[data-total="earnings"]')?.textContent),gpf:field("gpf"),nps:field("nps_deduction"),net_pay:payrollNum(tr.querySelector('[data-total="net"]')?.textContent)});
+ });
+ return {month,rows};
+}
+function payrollSummaryMoney(v){return Number(v||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2})}
+function payrollSummaryEscape(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function closePayrollSummaryReport(){document.getElementById("payrollSummaryReport").style.display="none"}
+function showPayrollSummaryReport(){
+ const {month,rows}=getPayrollSummaryRows();
+ const panel=document.getElementById("payrollSummaryReport"),meta=document.getElementById("payrollSummaryMeta"),content=document.getElementById("payrollSummaryContent");
+ if(!rows.length){meta.textContent="रिपोर्ट बनाने के लिए पहले वेतन पत्रक खोलें।";panel.style.display="block";content.innerHTML="";return}
+ const totals=rows.reduce((a,r)=>({income:a.income+r.total_income,gpf:a.gpf+r.gpf,nps:a.nps+r.nps,net:a.net+r.net_pay}),{income:0,gpf:0,nps:0,net:0});
+ meta.textContent="वेतन माह: "+month+" | कर्मचारी: "+rows.length+" (मौजूदा फ़िल्टर के अनुसार)। रिपोर्ट में कुल आय, GPF, NPS और Net Pay शामिल हैं।";
+ content.innerHTML='<table style="width:100%;border-collapse:collapse;min-width:760px"><thead><tr><th>Employee Number</th><th>कर्मचारी का नाम</th><th>पद</th><th style="text-align:right">कुल आय</th><th style="text-align:right">GPF</th><th style="text-align:right">NPS</th><th style="text-align:right">Net Pay</th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+payrollSummaryEscape(r.code)+'</td><td>'+payrollSummaryEscape(r.name)+'</td><td>'+payrollSummaryEscape(r.designation)+'</td><td style="text-align:right">'+payrollSummaryMoney(r.total_income)+'</td><td style="text-align:right">'+payrollSummaryMoney(r.gpf)+'</td><td style="text-align:right">'+payrollSummaryMoney(r.nps)+'</td><td style="text-align:right;font-weight:700">'+payrollSummaryMoney(r.net_pay)+'</td></tr>').join("")+'<tr style="font-weight:700;background:#f7f9fc"><td colspan="3">कुल योग</td><td style="text-align:right">'+payrollSummaryMoney(totals.income)+'</td><td style="text-align:right">'+payrollSummaryMoney(totals.gpf)+'</td><td style="text-align:right">'+payrollSummaryMoney(totals.nps)+'</td><td style="text-align:right">'+payrollSummaryMoney(totals.net)+'</td></tr></tbody></table>';
+ panel.style.display="block";panel.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function exportPayrollSummaryReport(){
+ if(!window.XLSX){alert("Excel library उपलब्ध नहीं है।");return}
+ const {month,rows}=getPayrollSummaryRows();if(!rows.length){alert("पहले वेतन पत्रक खोलें।");return}
+ const data=[["Employee Number","Employee Name","Designation","Total Income","GPF","NPS","Net Pay"],...rows.map(r=>[r.code,r.name,r.designation,r.total_income,r.gpf,r.nps,r.net_pay])];
+ const totals=rows.reduce((a,r)=>({income:a.income+r.total_income,gpf:a.gpf+r.gpf,nps:a.nps+r.nps,net:a.net+r.net_pay}),{income:0,gpf:0,nps:0,net:0});
+ data.push(["","","कुल योग",totals.income,totals.gpf,totals.nps,totals.net]);
+ const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet([["वेतन सारांश रिपोर्ट"],["वेतन माह",month],[],...data]);
+ ws["!cols"]=[{wch:18},{wch:28},{wch:26},{wch:18},{wch:15},{wch:15},{wch:18}];
+ XLSX.utils.book_append_sheet(wb,ws,"वेतन सारांश");XLSX.writeFile(wb,"vetan-saransh-"+month+".xlsx");
+}
+function printPayrollSummaryReport(){
+ const panel=document.getElementById("payrollSummaryReport");
+ if(!panel||panel.style.display==="none"){alert("पहले वेतन सारांश रिपोर्ट खोलें।");return}
+ const {month}=getPayrollSummaryRows(),content=document.getElementById("payrollSummaryContent").innerHTML,meta=document.getElementById("payrollSummaryMeta").textContent;
+ const win=window.open("","_blank");if(!win){alert("प्रिंट विंडो ब्लॉक हो गई। कृपया इस साइट के लिए pop-up की अनुमति दें।");return}
+ win.document.write('<!doctype html><html lang="hi"><head><meta charset="utf-8"><title>वेतन सारांश '+payrollSummaryEscape(month)+'</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#111}h2{margin-bottom:8px}p{color:#444}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:7px;border:1px solid #bbb;text-align:left}th{background:#f2f4f7}td:nth-child(n+4){text-align:right}@media print{body{padding:0}}</style></head><body><h2>Harshi Computer — वेतन सारांश रिपोर्ट</h2><p>'+payrollSummaryEscape(meta)+'</p>'+content+'</body></html>');
+ win.document.close();setTimeout(()=>{try{win.print()}catch(e){}},500);
 }
 function exportPayrollSheet(){
  if(!window.XLSX){alert("Excel library उपलब्ध नहीं है।");return}
