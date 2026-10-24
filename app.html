@@ -1322,6 +1322,40 @@ async function loadPayrollSheet(){
   msg.textContent="वेतन माह "+month+" के लिए "+(emps||[]).length+" कर्मचारियों का पत्रक खुल गया। पहले से सेव रिकॉर्ड भी लोड किए गए हैं।";
  }catch(e){body.innerHTML='<tr><td colspan="24">पत्रक लोड नहीं हुआ।</td></tr>';msg.textContent="त्रुटि: "+(e.message||e)+" — Database table/policy की जाँच आवश्यक है।"}
 }
+async function syncPayrollNetPayToSalaryRecords(rows,month){
+ const eligible=rows.filter(r=>Number(r.net_pay)>0);
+ if(!eligible.length)return {updated:0,created:0,skipped:true};
+ const employeeIds=eligible.map(r=>r.employee_id);
+ const {data:existing,error}=await window.salaryDb.from("salary_records")
+  .select("employee_id,month_start").eq("month_start",month+"-01").in("employee_id",employeeIds);
+ if(error)throw new Error("Payable Amount लिंक जाँच नहीं सका: "+error.message);
+ const existingKeys=new Set((existing||[]).map(r=>r.employee_id+"|"+r.month_start));
+ const toUpdate=eligible.filter(r=>existingKeys.has(r.employee_id+"|"+month+"-01"));
+ const toCreate=eligible.filter(r=>!existingKeys.has(r.employee_id+"|"+month+"-01"));
+ let updated=0,created=0;
+ // Existing payment rows: change ONLY payable_amount. Paid amount, payment date,
+ // voucher number and remarks are deliberately not included in this update.
+ for(let i=0;i<toUpdate.length;i+=10){
+  const batch=toUpdate.slice(i,i+10);
+  const results=await Promise.all(batch.map(async r=>{
+   const {error:updateError}=await window.salaryDb.from("salary_records")
+    .update({payable_amount:r.net_pay})
+    .eq("employee_id",r.employee_id).eq("month_start",month+"-01");
+   if(updateError)throw new Error("Payable Amount अपडेट नहीं हुआ ("+r.employee_id+"): "+updateError.message);
+   return 1;
+  }));
+  updated+=results.length;
+ }
+ // Missing monthly records are created as unpaid: DB defaults keep amount=0;
+ // payment_date, voucher_no and remarks remain empty until a payment is entered.
+ for(let i=0;i<toCreate.length;i+=50){
+  const batch=toCreate.slice(i,i+50).map(r=>({employee_id:r.employee_id,month_start:month+"-01",payable_amount:r.net_pay}));
+  const {error:insertError}=await window.salaryDb.from("salary_records").insert(batch);
+  if(insertError)throw new Error("नए मासिक Payable रिकॉर्ड नहीं बने: "+insertError.message);
+  created+=batch.length;
+ }
+ return {updated,created,skipped:false};
+}
 async function savePayrollSheet(){
  const month=document.getElementById("payrollMonth").value;const msg=document.getElementById("payrollSheetMsg");if(!month||month<"2019-01"){msg.textContent="कृपया सही वेतन माह चुनें।";return}
  const user=window.salaryDb?.auth?await window.salaryDb.auth.getUser():{data:{user:null}};const uid=user.data?.user?.id||null;const rows=[];
@@ -1332,7 +1366,20 @@ async function savePayrollSheet(){
  });
  if(!rows.length){msg.textContent="सेव करने के लिए कोई कर्मचारी रिकॉर्ड नहीं है।";return}
  msg.textContent="वेतन पत्रक सेव हो रहा है…";
- try{const {error}=await window.salaryDb.from("payroll_sheets").upsert(rows,{onConflict:"employee_id,month_start"});if(error)throw error;msg.textContent="सफलतापूर्वक सेव: "+month+" — "+rows.length+" कर्मचारी।";}catch(e){msg.textContent="सेव नहीं हुआ: "+(e.message||e)}
+ try{
+  const {error}=await window.salaryDb.from("payroll_sheets").upsert(rows,{onConflict:"employee_id,month_start"});
+  if(error)throw error;
+  try{
+   const sync=await syncPayrollNetPayToSalaryRecords(rows,month);
+   if(sync.skipped){
+    msg.textContent="वेतन पत्रक सेव हो गया: "+month+" — "+rows.length+" कर्मचारी। Net Pay अभी शून्य है, इसलिए मौजूदा Payable Amount सुरक्षित रखने के लिए Salary Records में कोई बदलाव नहीं किया गया।";
+   }else{
+    msg.textContent="वेतन पत्रक सेव: "+month+" — "+rows.length+" कर्मचारी। Salary Records में केवल Payable Amount अपडेट: "+sync.updated+"; नए Payable रिकॉर्ड: "+sync.created+". वास्तविक भुगतान, दिनांक, वाउचर नंबर और Remarks अलग से भरें।";
+   }
+  }catch(syncError){
+   msg.textContent="वेतन पत्रक सेव हो गया, लेकिन Salary Records का Payable Amount लिंक पूरा नहीं हुआ: "+(syncError.message||syncError)+". कृपया नीचे दिया संदेश देखकर जाँचें।";
+  }
+ }catch(e){msg.textContent="वेतन पत्रक सेव नहीं हुआ: "+(e.message||e)}
 }
 function exportPayrollSheet(){
  if(!window.XLSX){alert("Excel library उपलब्ध नहीं है।");return}
