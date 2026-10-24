@@ -126,9 +126,7 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 <button class="btn" type="button" onclick="closePaymentDuplicateReview()">← वापस Bulk Payment Upload</button>
 </div>
 <div id="paymentDuplicateReviewSummary" class="muted" style="margin:12px 0"></div>
-<div class="notice" style="margin:10px 0;color:#8a4b08">
-<b>ध्यान दें:</b> “Excel से Duplicate रिकॉर्ड अपडेट करें” चुनने पर Excel में दी गई Payable Amount, Paid Amount, Payment Date, Voucher No. और Remarks मौजूदा रिकॉर्ड पर लिखे जाएँगे। यदि Excel में इनमें कोई फ़ील्ड खाली है, तो मौजूदा मान खाली/शून्य से बदल सकता है। “अपडेट न करें” चुनने पर पुराने Duplicate रिकॉर्ड जस के तस रहेंगे और केवल नए, non-duplicate रिकॉर्ड अपलोड होंगे।
-</div>
+<div class="notice" style="margin:10px 0;color:#8a4b08"><b>कौन-सा विकल्प चुनें?</b> सुरक्षित रखने के लिए पहला विकल्प चुनें। दूसरा विकल्प तभी चुनें जब आपने नीचे Database और Excel की जानकारी मिलाकर देख ली हो; उसमें पुराने भुगतान विवरण Excel से बदल सकते हैं।</div>
 <div class="toolbar" style="margin:16px 0">
 <button class="btn primary" type="button" onclick="confirmPaymentUpload('skip')">Duplicate अपडेट न करें — केवल नए अपलोड करें</button>
 <button class="btn" type="button" onclick="confirmPaymentUpload('update')">Excel से Duplicate अपडेट करें</button>
@@ -979,7 +977,7 @@ async function confirmPaymentUpload(modeOverride){
   const rowsToUpload=mode==="skip"?allMatched.filter(x=>!duplicateKeys.has(x.employee_id+"|"+String(x.month_start).slice(0,7))):allMatched;
   const skipped=allMatched.length-rowsToUpload.length;
   if(!rowsToUpload.length){
-   msgEl.textContent="इस फ़ाइल में कोई नया रिकॉर्ड नहीं है। "+skipped+" Duplicate रिकॉर्ड अपडेट नहीं किए गए; Database का पुराना डेटा सुरक्षित है। यदि Excel से अपडेट करना हो तो Duplicate मिलान पेज पर विकल्प बदलें.";
+   msgEl.textContent="कोई नया रिकॉर्ड अपलोड नहीं हुआ। "+skipped+" Duplicate रिकॉर्ड अपडेट नहीं किए गए; Database का पुराना डेटा सुरक्षित है।";
    btn.disabled=false;return;
   }
   const rows=rowsToUpload.map(x=>({employee_id:x.employee_id,month_start:x.month_start,payable_amount:x.payable_amount||0,amount:x.amount,payment_date:x.payment_date,voucher_no:String(x.voucher_no??"").trim()||null,remarks:String(x.remarks??"").trim()||null,updated_by:u.id}));
