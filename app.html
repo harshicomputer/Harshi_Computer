@@ -1022,46 +1022,68 @@ async function bulkUpload(){
   if(!file){out.textContent="पहले Employee Excel/CSV फ़ाइल चुनें।";return}
   try{
     const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true});
-    const rows=[];
+    const parsed=[];
     for(const sn of wb.SheetNames){
       const raw=XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:""});
       for(const r of raw){
-        const keys=Object.keys(r), norm=k=>String(k).toLowerCase().replace(/[ _.-]/g,"");
+        const keys=Object.keys(r),norm=k=>String(k).toLowerCase().replace(/[ _.-]/g,"");
         const get=names=>{const k=keys.find(x=>names.includes(norm(x)));return k===undefined?"":r[k]};
         const code=String(get(["employeeid","employeecode","employeenumber","code"])).trim();
         const name=String(get(["employeename","name","employee"])).trim();
-        if(code&&name)rows.push({code,name,post:String(get(["post","designation"])).trim()||null,department:String(get(["department","dept"])).trim()||null});
+        if(code&&name)parsed.push({code,name,post:String(get(["post","designation"])).trim()||null,department:String(get(["department","dept"])).trim()||null,sheet:sn});
       }
     }
-    const unique=[...new Map(rows.map(x=>[x.code.toUpperCase(),x])).values()];
-    if(!unique.length){out.textContent="कोई Employee record नहीं मिला।";return}
-    out.textContent="मौजूदा कर्मचारी IDs से मिलान किया जा रहा है…";
+    if(!parsed.length){out.textContent="कोई Employee record नहीं मिला। Employee ID/Code और Employee Name/Name कॉलम जाँचें।";return}
+    const normCode=v=>String(v||"").trim().toLocaleUpperCase().replace(/\s+/g,"");
+    const normName=v=>String(v||"").trim().replace(/\s+/g," ").toLocaleLowerCase();
+    const seenCodes=new Set(),seenNames=new Set(),fileDuplicates=[];
+    const unique=[];
+    for(const row of parsed){
+      const ck=normCode(row.code),nk=normName(row.name);
+      if(seenCodes.has(ck)||seenNames.has(nk)){fileDuplicates.push({...row,reason:seenCodes.has(ck)?"Excel में Employee ID दोबारा है":"Excel में कर्मचारी का नाम दोबारा है"});continue}
+      seenCodes.add(ck);seenNames.add(nk);unique.push(row);
+    }
+    out.textContent="मौजूदा कर्मचारी सूची से ID और नाम का मिलान किया जा रहा है…";
     const {data:existing,error:lookupError}=await window.salaryDb.from("employees").select("id,code,name,post,department");
     if(lookupError){out.textContent="मौजूदा कर्मचारी सूची नहीं पढ़ सके: "+lookupError.message;return}
+    const normExistingNames=new Map();
+    for(const e of existing||[]){const k=normName(e.name);if(!normExistingNames.has(k))normExistingNames.set(k,[]);normExistingNames.get(k).push(e)}
     const legacyPrefixes=["168","8168","188","213","446"];
     const mapped=[],ambiguous=[];
     for(const row of unique){
-      const isLegacy=legacyPrefixes.some(prefix=>row.code.startsWith(prefix))&&!/^(NR|R)/i.test(row.code);
+      const isLegacy=legacyPrefixes.some(prefix=>normCode(row.code).startsWith(prefix))&&!/^(NR|R)/i.test(row.code);
       if(!isLegacy){mapped.push(row);continue}
-      const exactNameMatches=(existing||[]).filter(e=>String(e.name||"").trim()===row.name&&/^(NR|R)/i.test(String(e.code||"").trim()));
-      if(exactNameMatches.length===1){
-        const target=exactNameMatches[0];
-        mapped.push({...row,code:target.code,post:row.post||target.post||null,department:row.department||target.department||null});
-      }else if(exactNameMatches.length>1){
-        ambiguous.push({oldCode:row.code,name:row.name,candidates:exactNameMatches.map(e=>e.code)});
-      }else mapped.push(row);
+      const matches=(existing||[]).filter(e=>normName(e.name)===normName(row.name)&&/^(NR|R)/i.test(String(e.code||"").trim()));
+      if(matches.length>1)ambiguous.push({oldCode:row.code,name:row.name,candidates:matches.map(e=>e.code)});
+      else if(matches.length===1)mapped.push({...row,code:matches[0].code});
+      else mapped.push(row);
     }
-    if(ambiguous.length){
-      out.textContent="अपलोड रोका गया: कुछ नामों के लिए एक से अधिक NR/R IDs मिलीं। पहले इनका मिलान ठीक करें: "+ambiguous.map(x=>x.oldCode+" (“"+x.name+"”): "+x.candidates.join(", ")).join(" | ");
+    if(ambiguous.length){out.textContent="अपलोड रोक दिया गया: कुछ नामों के लिए एक से अधिक NR/R IDs मिलीं। पहले इनका मिलान ठीक करें: "+ambiguous.map(x=>x.oldCode+" (“"+x.name+"”): "+x.candidates.join(", ")).join(" | ");return}
+    const existingCodes=new Set((existing||[]).map(e=>normCode(e.code)));
+    const safeRows=[],databaseDuplicates=[];
+    for(const row of mapped){
+      const ck=normCode(row.code),nk=normName(row.name),codeExists=existingCodes.has(ck),nameMatches=normExistingNames.get(nk)||[];
+      if(codeExists||nameMatches.length){
+        databaseDuplicates.push({code:row.code,name:row.name,reason:codeExists&&nameMatches.length?"Employee ID और नाम पहले से मौजूद":codeExists?"Employee ID पहले से मौजूद":"कर्मचारी का नाम पहले से मौजूद"});
+        continue;
+      }
+      safeRows.push({code:row.code,name:row.name,post:row.post,department:row.department});
+      existingCodes.add(ck);
+      if(!normExistingNames.has(nk))normExistingNames.set(nk,[]);
+      normExistingNames.get(nk).push({code:row.code,name:row.name});
+    }
+    if(!safeRows.length){
+      const skipped=fileDuplicates.length+databaseDuplicates.length;
+      out.innerHTML="कोई नया कर्मचारी अपलोड नहीं हुआ। "+skipped+" Duplicate रिकॉर्ड छोड़ दिए गए; पुराने रिकॉर्ड सुरक्षित हैं।";
       return;
     }
-    const finalRows=[...new Map(mapped.map(x=>[x.code.toUpperCase(),x])).values()];
-    const {error}=await window.salaryDb.from("employees").upsert(finalRows,{onConflict:"code"});
+    const {error}=await window.salaryDb.from("employees").insert(safeRows);
     if(error){out.textContent="Upload error: "+error.message;return}
     await refresh();init();
-    const merged=unique.length-finalRows.length;
-    out.textContent=finalRows.length+" कर्मचारी Database में सेव/अपडेट हुए। "+(merged>0?merged+" पुरानी ID रिकॉर्ड नाम के सटीक मिलान पर मौजूदा NR/R ID में मर्ज किए गए।":"पुरानी ID का कोई सुरक्षित NR/R नाम-मिलान नहीं मिला; कोई गलत मर्ज नहीं किया गया।");
-  }catch(e){out.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
+    const skipped=fileDuplicates.length+databaseDuplicates.length;
+    const details=[...fileDuplicates.map(x=>x.code+" — "+x.name+" ("+x.reason+")"),...databaseDuplicates.map(x=>x.code+" — "+x.name+" ("+x.reason+")")];
+    out.textContent=safeRows.length+" नए कर्मचारी सफलतापूर्वक अपलोड हुए। "+skipped+" Duplicate रिकॉर्ड छोड़ दिए गए; पुराने रिकॉर्ड अपडेट या बदले नहीं गए।"+(details.length?" Duplicate विवरण: "+details.slice(0,12).join(" | ")+(details.length>12?" | और "+(details.length-12)+" रिकॉर्ड":""):"");
+  }catch(e){out.textContent="Excel पढ़ने/अपलोड करने में समस्या: "+(e?.message||e)}
 }
 function newEmployee(){
   const code=prompt("Employee Code / ID दर्ज करें:"); if(!code)return;
