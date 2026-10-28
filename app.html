@@ -126,11 +126,13 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 #personalDocumentsSection .family-member-btn.active{background:#1d5ca8;color:#fff}
 #personalDocumentsSection .family-docs-table{width:100%;border-collapse:collapse;margin-top:14px}
 #personalDocumentsSection .family-docs-table th,#personalDocumentsSection .family-docs-table td{padding:9px;border-bottom:1px solid #e4eaf3;text-align:left}
-#personalDocumentsSection .family-doc-entry-row{display:grid;grid-template-columns:minmax(115px,1.05fr) minmax(130px,1.35fr) minmax(120px,1fr) minmax(155px,1.55fr) auto auto;gap:8px;margin-top:14px;align-items:end}
-#personalDocumentsSection .family-doc-entry-row label{display:block;min-width:0;white-space:nowrap}
-#personalDocumentsSection .family-doc-entry-row select,#personalDocumentsSection .family-doc-entry-row input{width:100%;min-width:0;max-width:100%;display:block;margin-top:5px}
-#personalDocumentsSection .family-doc-entry-row input[type=file]{font-size:12px;padding:8px}
-#personalDocumentsSection .family-doc-entry-row .btn{white-space:nowrap;padding:10px 11px}
+#personalDocumentsSection .family-doc-entry-row{display:grid;grid-template-columns:minmax(105px,0.95fr) minmax(105px,0.95fr) minmax(115px,1fr) minmax(175px,1.55fr) auto auto;gap:8px;margin-top:14px;align-items:end;width:100%}
+#personalDocumentsSection .family-doc-entry-row label{display:block;min-width:0;white-space:nowrap;font-size:14px}
+#personalDocumentsSection .family-doc-entry-row select,#personalDocumentsSection .family-doc-entry-row input{width:100%;min-width:0;max-width:100%;display:block;margin-top:5px;padding:9px 8px;font-size:14px}
+#personalDocumentsSection .family-doc-entry-row input[type=file]{font-size:12px;padding:8px 5px;overflow:hidden}
+#personalDocumentsSection .family-doc-entry-row .btn{white-space:nowrap;padding:10px 9px;font-size:14px;min-width:0}
+#personalDocumentsSection .family-doc-entry-row label:nth-of-type(2){min-width:0}
+@media(max-width:1050px){#personalDocumentsSection .family-doc-entry-row{grid-template-columns:minmax(100px,1fr) minmax(110px,1fr) minmax(115px,1fr) minmax(155px,1.4fr)}#personalDocumentsSection .family-doc-entry-row .btn{justify-self:start}}
 @media(max-width:900px){#personalDocumentsSection .family-doc-entry-row{grid-template-columns:repeat(2,minmax(0,1fr))}#personalDocumentsSection .family-doc-entry-row label:nth-of-type(4){grid-column:span 2}}
 @media(max-width:700px){#personalDocumentsSection .family-docs-layout{grid-template-columns:1fr;min-height:0}#personalDocumentsSection .family-list{max-height:300px;overflow:auto}}
 @media(max-width:430px){#personalDocumentsSection .family-doc-entry-row{grid-template-columns:1fr}#personalDocumentsSection .family-doc-entry-row label:nth-of-type(4){grid-column:auto}}
