@@ -126,18 +126,25 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 #personalDocumentsSection .family-member-btn.active{background:#1d5ca8;color:#fff}
 #personalDocumentsSection .family-docs-table{width:100%;border-collapse:collapse;margin-top:14px}
 #personalDocumentsSection .family-docs-table th,#personalDocumentsSection .family-docs-table td{padding:9px;border-bottom:1px solid #e4eaf3;text-align:left}
+#personalDocumentsSection .family-doc-entry-row{display:grid;grid-template-columns:minmax(115px,1.05fr) minmax(130px,1.35fr) minmax(120px,1fr) minmax(155px,1.55fr) auto auto;gap:8px;margin-top:14px;align-items:end}
+#personalDocumentsSection .family-doc-entry-row label{display:block;min-width:0;white-space:nowrap}
+#personalDocumentsSection .family-doc-entry-row select,#personalDocumentsSection .family-doc-entry-row input{width:100%;min-width:0;max-width:100%;display:block;margin-top:5px}
+#personalDocumentsSection .family-doc-entry-row input[type=file]{font-size:12px;padding:8px}
+#personalDocumentsSection .family-doc-entry-row .btn{white-space:nowrap;padding:10px 11px}
+@media(max-width:900px){#personalDocumentsSection .family-doc-entry-row{grid-template-columns:repeat(2,minmax(0,1fr))}#personalDocumentsSection .family-doc-entry-row label:nth-of-type(4){grid-column:span 2}}
 @media(max-width:700px){#personalDocumentsSection .family-docs-layout{grid-template-columns:1fr;min-height:0}#personalDocumentsSection .family-list{max-height:300px;overflow:auto}}
+@media(max-width:430px){#personalDocumentsSection .family-doc-entry-row{grid-template-columns:1fr}#personalDocumentsSection .family-doc-entry-row label:nth-of-type(4){grid-column:auto}}
 </style>
 <div class="card"><h2>📁 परिवार एवं दस्तावेज़ प्रबंधन</h2><p class="muted">बाईं ओर परिवार के सदस्य का नाम चुनें। उसके दस्तावेज़ों का भाग दाईं ओर खुलेगा।</p>
 <div class="family-docs-layout">
 <aside class="family-list"><h3 style="margin:0 0 8px">परिवार के सदस्य</h3><button type="button" class="family-member-btn active" data-family-index="0" onclick="selectFamilyMember(0)">MADANLAL DINDOR</button><button type="button" class="family-member-btn" data-family-index="1" onclick="selectFamilyMember(1)">BASANTI BAI DINDOR</button><button type="button" class="family-member-btn" data-family-index="2" onclick="selectFamilyMember(2)">SUBHASH DINDOD</button><button type="button" class="family-member-btn" data-family-index="3" onclick="selectFamilyMember(3)">MANGLA DINDOR</button><button type="button" class="family-member-btn" data-family-index="4" onclick="selectFamilyMember(4)">HARSH DINDOR</button><button type="button" class="family-member-btn" data-family-index="5" onclick="selectFamilyMember(5)">ROHAN DINDOR</button><button type="button" class="family-member-btn" data-family-index="6" onclick="selectFamilyMember(6)">DEEPAK DINDOD</button><button type="button" class="family-member-btn" data-family-index="7" onclick="selectFamilyMember(7)">HARSHITA DINDOD</button><button type="button" class="family-member-btn" data-family-index="8" onclick="selectFamilyMember(8)">PRISHA DINDOD</button><button type="button" class="family-member-btn" data-family-index="9" onclick="selectFamilyMember(9)">KIYARA DINDOD</button><button type="button" class="family-member-btn" data-family-index="10" onclick="selectFamilyMember(10)">MUKESH DAWAR</button><button type="button" class="family-member-btn" data-family-index="11" onclick="selectFamilyMember(11)">MAYA DAWAR</button><button type="button" class="family-member-btn" data-family-index="12" onclick="selectFamilyMember(12)">TANMAY DAWAR</button><button type="button" class="family-member-btn" data-family-index="13" onclick="selectFamilyMember(13)">HARSHITA DAWAR</button></aside>
 <section class="family-detail" id="familyDocumentDetail"><h3 id="familySelectedName" style="margin-top:0">MADANLAL DINDOR — दस्तावेज़</h3><p class="muted">चुने गए सदस्य के दस्तावेज़ यहाँ दिखेंगे।</p>
 <div class="notice">दस्तावेज़ Private Supabase Storage में सेव होंगे। केवल Login किया हुआ वही उपयोगकर्ता अपने दस्तावेज़ देख, डाउनलोड या हटा सकता है। PDF/JPG/PNG, अधिकतम 10 MB।</div>
-<div class="toolbar" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:end">
-<label>दस्तावेज़ का प्रकार<select id="familyDocType" class="input" style="display:block;min-width:170px;margin-top:5px"><option>आधार कार्ड</option><option>PAN कार्ड</option><option>जन्म प्रमाणपत्र</option><option>शैक्षणिक प्रमाणपत्र</option><option>पासपोर्ट</option><option>फोटो</option><option>विवाह प्रमाणपत्र</option><option>निवास प्रमाणपत्र</option><option>अन्य दस्तावेज़</option></select></label>
-<label>दस्तावेज़ का नाम<input id="familyDocName" class="input" placeholder="जैसे Aadhaar Front" style="display:block;min-width:160px;margin-top:5px"/></label>
-<label>दस्तावेज़ की तारीख<input id="familyDocDate" type="date" class="input" style="display:block;margin-top:5px"/></label>
-<label>फ़ाइल चुनें<input id="familyDocFile" type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:block;max-width:100%;margin-top:5px"/></label>
+<div class="family-doc-entry-row">
+<label>दस्तावेज़ का प्रकार<select id="familyDocType" class="input" ><option>आधार कार्ड</option><option>PAN कार्ड</option><option>जन्म प्रमाणपत्र</option><option>शैक्षणिक प्रमाणपत्र</option><option>पासपोर्ट</option><option>फोटो</option><option>विवाह प्रमाणपत्र</option><option>निवास प्रमाणपत्र</option><option>अन्य दस्तावेज़</option></select></label>
+<label>दस्तावेज़ का नाम<input id="familyDocName" class="input" placeholder="जैसे Aadhaar Front" /></label>
+<label>दस्तावेज़ की तारीख<input id="familyDocDate" type="date" class="input" /></label>
+<label>फ़ाइल चुनें<input id="familyDocFile" type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
 <button type="button" class="btn" onclick="previewFamilyDocument()">फ़ाइल जाँचें</button>
 <button type="button" class="btn primary" id="familyDocSaveBtn" onclick="addFamilyDocument()">सेव करें</button>
 </div><p id="familyDocPreview" class="muted" aria-live="polite">अभी कोई फ़ाइल नहीं चुनी गई है। PDF, JPG या PNG; अधिकतम 10 MB।</p>
