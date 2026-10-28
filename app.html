@@ -1513,8 +1513,10 @@ async function exportCSV(){
 let inactivityTimer=null;
 let inactivityActive=false;
 let inactivityLogoutRunning=false;
+let inactivityWarningShown=false;
 let inactivityLastActivity=Date.now();
 const INACTIVITY_LIMIT=600000;
+const INACTIVITY_WARNING_BEFORE=60000;
 const INACTIVITY_CHECK_EVERY=15000;
 const INACTIVITY_STORAGE_KEY="hc_last_activity";
 function stopInactivityTimer(){
@@ -1524,6 +1526,7 @@ function stopInactivityTimer(){
 }
 function recordInactivityActivity(){
   inactivityLastActivity=Date.now();
+  inactivityWarningShown=false;
   try{localStorage.setItem(INACTIVITY_STORAGE_KEY,String(inactivityLastActivity));}catch(e){}
   // Keep the saved workspace eligible for restoration while the user remains active.
   try{
@@ -1555,7 +1558,13 @@ function checkInactivityDeadline(){
     const shared=Number(localStorage.getItem(INACTIVITY_STORAGE_KEY)||0);
     if(shared>last) last=shared;
   }catch(e){}
-  if(Date.now()-last>=INACTIVITY_LIMIT) performInactivityLogout();
+  const idleFor=Date.now()-last;
+  if(idleFor>=INACTIVITY_LIMIT){performInactivityLogout();return}
+  if(idleFor>=INACTIVITY_LIMIT-INACTIVITY_WARNING_BEFORE && !inactivityWarningShown){
+    inactivityWarningShown=true;
+    const stay=confirm("आपकी वेबसाइट पर कुछ समय से गतिविधि नहीं हुई है। सुरक्षा के लिए 1 मिनट में Logout हो जाएगा।\n\nकाम जारी रखने के लिए OK दबाएँ।");
+    if(stay){recordInactivityActivity();}
+  }
 }
 function resetInactivityTimer(){
   if(!inactivityActive || inactivityLogoutRunning) return;
