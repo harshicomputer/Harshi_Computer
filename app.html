@@ -996,13 +996,19 @@ async function previewPaymentUpload(){
         const matchFields=[{label:"Employee Code",ids:codeEmp?[codeEmp.id]:[]},{label:"Employee Name",ids:nameMatches.map(e=>e.id)},{label:"Bank Account",ids:accountMatches.map(e=>e.id)}];
         // Only unique exact matches count as evidence. An ambiguous name alone must not
         // block a valid Code + Bank Account match for the same employee.
-        const usable=matchFields.filter(x=>x.ids.length===1),ids=[...new Set(usable.map(x=>x.ids[0]))],counts=new Map();usable.forEach(x=>counts.set(x.ids[0],(counts.get(x.ids[0])||0)+1));
-        const winners=[...counts.entries()].filter(x=>x[1]>=2);let employee=null,matchReason="";
+        const usable=matchFields.filter(x=>x.ids.length>0);
+        const pairCandidates=[];
+        for(let a=0;a<usable.length;a++){for(let b=a+1;b<usable.length;b++){const common=usable[a].ids.filter(id=>usable[b].ids.includes(id));if(common.length===1)pairCandidates.push({id:common[0],labels:[usable[a].label,usable[b].label]});}}
+        const candidateIds=[...new Set(pairCandidates.map(x=>x.id))];
+        let employee=null,matchReason="";
         if(bankLookupError)matchReason="बैंक विवरण जाँचे नहीं जा सके; सुरक्षित मिलान संभव नहीं";
-        else if(ids.length>1)matchReason="दिए गए सटीक पहचान विवरण अलग-अलग कर्मचारियों से मेल खाते हैं; मैन्युअल जाँच आवश्यक";
-        else if(winners.length===1){employee=employees.find(e=>e.id===winners[0][0])||null;matchReason=employee?"मिलान: "+usable.filter(x=>x.ids[0]===employee.id).map(x=>x.label).join(" + "):"";}
-        else if(nameMatches.length>1||accountMatches.length>1)matchReason="नाम या बैंक खाता एक से अधिक कर्मचारियों से मेल खाता है; अन्य दो सटीक पहचान विवरणों से पुष्टि आवश्यक";
-        else matchReason="कम-से-कम दो पहचान विवरणों का एक ही कर्मचारी से सटीक मिलान नहीं हुआ";
+        else if(candidateIds.length===1){employee=employees.find(e=>e.id===candidateIds[0])||null;const chosen=pairCandidates.find(x=>x.id===candidateIds[0]);matchReason=employee?"सटीक मिलान: "+chosen.labels.join(" + "):"";}
+        else if(candidateIds.length>1)matchReason="पहचान विवरणों के अलग-अलग जोड़ अलग कर्मचारियों से मेल खाते हैं; मैन्युअल जाँच आवश्यक";
+        else if(!usable.length)matchReason="नाम, बैंक खाता या Employee Code में कोई सटीक मिलान नहीं मिला";
+        else if(nameMatches.length>1&&accountMatches.length>1)matchReason="नाम और बैंक खाता दोनों एक से अधिक कर्मचारियों से जुड़े हैं; मैन्युअल जाँच आवश्यक";
+        else if(accountMatches.length>1)matchReason="बैंक खाता एक से अधिक कर्मचारियों से जुड़ा है; नाम/कोड से स्पष्ट पहचान नहीं हुई";
+        else if(nameMatches.length>1)matchReason="नाम एक से अधिक कर्मचारियों से मेल खाता है; बैंक खाता/कोड से स्पष्ट पहचान नहीं हुई";
+        else matchReason="कम-से-कम दो पहचान विवरण एक ही कर्मचारी से नहीं मिले";
         const ifscMismatch=employee&&ifsc&&account&&bankDetails.some(b=>b.employee_id===employee.id&&cleanAccount(b.account_number)===account)&&!bankDetails.some(b=>b.employee_id===employee.id&&cleanAccount(b.account_number)===account&&cleanIfsc(b.ifsc_code)===ifsc);
         if(ifscMismatch){employee=null;matchReason="बैंक खाता मिल गया, लेकिन IFSC Code मेल नहीं खाता; मैन्युअल जाँच आवश्यक";}
         pendingPaymentRows.push({code,name:employee?.name||nameCell,employee_id:employee?.id||null,matched_code:employee?.code||"",match_reason:matchReason,ifsc_code:ifsc,account_last4:account.slice(-4),month_start:month,payable_amount:payable,amount,payment_date:payDate||null,voucher_no:String(row[vi]??"").trim(),remarks:String(row[ri]??"").trim(),sheet:sheetName});
