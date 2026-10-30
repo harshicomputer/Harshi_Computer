@@ -994,12 +994,14 @@ async function previewPaymentUpload(){
         const accountRows=account?(bankByAccount.get(account)||[]):[];
         const accountMatches=[...new Map(accountRows.map(b=>[b.employee_id,b])).values()].map(b=>employees.find(emp=>emp.id===b.employee_id)).filter(Boolean);
         const matchFields=[{label:"Employee Code",ids:codeEmp?[codeEmp.id]:[]},{label:"Employee Name",ids:nameMatches.map(e=>e.id)},{label:"Bank Account",ids:accountMatches.map(e=>e.id)}];
+        // Only unique exact matches count as evidence. An ambiguous name alone must not
+        // block a valid Code + Bank Account match for the same employee.
         const usable=matchFields.filter(x=>x.ids.length===1),ids=[...new Set(usable.map(x=>x.ids[0]))],counts=new Map();usable.forEach(x=>counts.set(x.ids[0],(counts.get(x.ids[0])||0)+1));
         const winners=[...counts.entries()].filter(x=>x[1]>=2);let employee=null,matchReason="";
         if(bankLookupError)matchReason="बैंक विवरण जाँचे नहीं जा सके; सुरक्षित मिलान संभव नहीं";
-        else if(ids.length>1)matchReason="दिए गए पहचान विवरण अलग-अलग कर्मचारियों से मेल खाते हैं; मैन्युअल जाँच आवश्यक";
-        else if(nameMatches.length>1||accountMatches.length>1)matchReason="नाम या बैंक खाता एक से अधिक कर्मचारियों से मेल खाता है; मैन्युअल जाँच आवश्यक";
+        else if(ids.length>1)matchReason="दिए गए सटीक पहचान विवरण अलग-अलग कर्मचारियों से मेल खाते हैं; मैन्युअल जाँच आवश्यक";
         else if(winners.length===1){employee=employees.find(e=>e.id===winners[0][0])||null;matchReason=employee?"मिलान: "+usable.filter(x=>x.ids[0]===employee.id).map(x=>x.label).join(" + "):"";}
+        else if(nameMatches.length>1||accountMatches.length>1)matchReason="नाम या बैंक खाता एक से अधिक कर्मचारियों से मेल खाता है; अन्य दो सटीक पहचान विवरणों से पुष्टि आवश्यक";
         else matchReason="कम-से-कम दो पहचान विवरणों का एक ही कर्मचारी से सटीक मिलान नहीं हुआ";
         const ifscMismatch=employee&&ifsc&&account&&bankDetails.some(b=>b.employee_id===employee.id&&cleanAccount(b.account_number)===account)&&!bankDetails.some(b=>b.employee_id===employee.id&&cleanAccount(b.account_number)===account&&cleanIfsc(b.ifsc_code)===ifsc);
         if(ifscMismatch){employee=null;matchReason="बैंक खाता मिल गया, लेकिन IFSC Code मेल नहीं खाता; मैन्युअल जाँच आवश्यक";}
