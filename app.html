@@ -970,7 +970,8 @@ async function previewPaymentUpload(){
     const cleanAccount=v=>String(v??"").replace(/[^0-9]/g,"");
     const cleanIfsc=v=>String(v??"").trim().toUpperCase().replace(/\s+/g,"");
     const bankRes=await window.salaryDb.from("employee_bank_details").select("employee_id,account_number,ifsc_code");
-    const bankDetails=bankRes.error?[]:(bankRes.data||[]),bankLookupError=bankRes.error?.message||null;
+    const historyRes=await window.salaryDb.from("employee_bank_account_history").select("employee_id,account_number,ifsc_code").eq("verified",true);
+    const bankDetails=[...(bankRes.data||[]),...(historyRes.data||[])],bankLookupError=bankRes.error?.message||historyRes.error?.message||null;
     const bankByAccount=new Map();
     bankDetails.forEach(b=>{const a=cleanAccount(b.account_number);if(a){if(!bankByAccount.has(a))bankByAccount.set(a,[]);bankByAccount.get(a).push(b)}});
     const required=["employeecode","employeename","salarymonth","ifsccode","beneficiaryacno","payableamount","paidamount","paymentdate","voucherno","remarks"];
