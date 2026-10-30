@@ -951,12 +951,11 @@ function normalizeHeader(x){return String(x||"").trim().toLowerCase().replace(/[
 function normalizeCode(x){return String(x??"").toUpperCase().replace(/[^A-Z0-9]/g,"")}
 function downloadPaymentTemplate(){
   const rows=[
-    ["Employee Code","Employee Name","Salary Month","Payable Amount","Paid Amount","Payment Date","Voucher No.","Remarks"],
-    ["R16800037","Fidel Kabri","May 2026",54706,54706,"06-08-2026","V-001","May 2026 salary"],
-    ["R16800070","Suresh Sathe","June 2026",35128,35128,"06-08-2026","V-002","June 2026 salary"]
+    ["Employee Code","Employee Name","Salary Month","IFSC Code","Beneficiary A/C No","Payable Amount","Paid Amount","Payment Date","Voucher No.","Remarks"],
+    ["R16800037","Fidel Kabri","May 2026","SBIN0000000","123456789012",54706,54706,"06-08-2026","V-001","May 2026 salary"]
   ];
   const ws=XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"]=[{wch:18},{wch:24},{wch:15},{wch:16},{wch:16},{wch:16},{wch:16},{wch:30}];
+  ws["!cols"]=[{wch:18},{wch:26},{wch:15},{wch:16},{wch:22},{wch:16},{wch:16},{wch:16},{wch:16},{wch:30}];
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,"Payment Upload");
   XLSX.writeFile(wb,"salary-payment-upload-template.xlsx");
