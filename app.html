@@ -1012,7 +1012,12 @@ async function previewPaymentUpload(){
     }
     let bad=pendingPaymentRows.filter(x=>!x.employee_id),seen=new Map(),dups=[];
     pendingPaymentRows.forEach((x,i)=>{
-      const k=(x.employee_id||normalizeCode(x.code))+"|"+x.month_start;
+      // Do not treat rows with no matched employee and no Employee Code as the same person.
+      // Legacy uploads commonly have blank codes; duplicate checks become meaningful only
+      // after a stable employee_id or a non-empty normalized code is available.
+      const identity=x.employee_id||normalizeCode(x.code);
+      if(!identity)return;
+      const k=identity+"|"+x.month_start;
       if(seen.has(k)){const first=seen.get(k);dups.push({key:k,code:x.code,name:x.name||first.name||"—",month:x.month_start,firstIndex:first.index+1,secondIndex:i+1,firstSheet:first.sheet,secondSheet:x.sheet})}
       else seen.set(k,{index:i,name:x.name,sheet:x.sheet});
     });
