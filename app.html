@@ -1012,12 +1012,15 @@ async function previewPaymentUpload(){
           }else if(accountIfscEmployees.length===1){
             const bankEmployee=accountIfscEmployees[0];
             const similarity=nameSimilarity(nameCell,bankEmployee.name);
+            // A unique exact bank-account + IFSC match is the strongest identity check.
+            // Accept the employee even when the payroll name differs, but keep a visible warning.
+            employee=bankEmployee;
             if(similarity>=0.82){
-              employee=bankEmployee;
               matchCategory="name_minor_bank_ifsc";
-              matchReason="श्रेणी 2: नाम में मामूली अंतर; बैंक खाता + IFSC सटीक मेल";
+              matchReason="श्रेणी 2: नाम में मामूली अंतर; बैंक खाता + IFSC एक कर्मचारी से सटीक मेल";
             }else{
-              matchReason="बैंक खाता + IFSC मेल खाते हैं, लेकिन नाम में बड़ा अंतर है; मैन्युअल जाँच आवश्यक";
+              matchCategory="bank_ifsc_unique_name_warning";
+              matchReason="✓ बैंक खाता + IFSC केवल एक कर्मचारी से सटीक मेल; नाम में बड़ा अंतर है — कृपया नाम की पुष्टि करें";
             }
           }else if(accountIfscEmployees.length>1){
             matchReason="यह बैंक खाता + IFSC एक से अधिक कर्मचारियों से जुड़ा है; मैन्युअल जाँच आवश्यक";
