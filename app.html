@@ -989,29 +989,59 @@ async function previewPaymentUpload(){
         let month=monthISO(row[mi]);
         if(!month){pendingPaymentRejectedRows.push({sheet:sheetName,rowNumber:hi+ri0+2,code,name:nameCell,monthRaw:String(row[mi]??""),reason:"Salary Month पढ़ा नहीं जा सका; YYYY-MM या मान्य Excel date डालें"});continue;}
         let payDate=dateISO(row[di]),payable=Number(String(row[pi]??"").replace(/,/g,""));if(!isFinite(payable)||payable<0)payable=0;
+        const compactName=v=>String(v||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+        const editDistance=(a,b)=>{const dp=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){let prev=dp[0];dp[0]=i;for(let j=1;j<=b.length;j++){const old=dp[j];dp[j]=Math.min(dp[j]+1,dp[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=old;}}return dp[b.length];};
+        const nameSimilarity=(a,b)=>{const x=compactName(a),y=compactName(b);if(!x||!y)return 0;return 1-editDistance(x,y)/Math.max(x.length,y.length);};
         const codeEmp=codes.get(normalizeCode(code))||null;
         const nameMatches=employees.filter(emp=>cleanName(emp.name)===cleanName(nameCell));
+        const exactNameMatches=employees.filter(emp=>compactName(emp.name)===compactName(nameCell));
         const accountRows=account?(bankByAccount.get(account)||[]):[];
         const accountMatches=[...new Map(accountRows.map(b=>[b.employee_id,b])).values()].map(b=>employees.find(emp=>emp.id===b.employee_id)).filter(Boolean);
-        const matchFields=[{label:"Employee Code",ids:codeEmp?[codeEmp.id]:[]},{label:"Employee Name",ids:nameMatches.map(e=>e.id)},{label:"Bank Account",ids:accountMatches.map(e=>e.id)}];
-        // Only unique exact matches count as evidence. An ambiguous name alone must not
-        // block a valid Code + Bank Account match for the same employee.
-        const usable=matchFields.filter(x=>x.ids.length>0);
-        const pairCandidates=[];
-        for(let a=0;a<usable.length;a++){for(let b=a+1;b<usable.length;b++){const common=usable[a].ids.filter(id=>usable[b].ids.includes(id));if(common.length===1)pairCandidates.push({id:common[0],labels:[usable[a].label,usable[b].label]});}}
-        const candidateIds=[...new Set(pairCandidates.map(x=>x.id))];
-        let employee=null,matchReason="";
-        if(bankLookupError)matchReason="बैंक विवरण जाँचे नहीं जा सके; सुरक्षित मिलान संभव नहीं";
-        else if(candidateIds.length===1){employee=employees.find(e=>e.id===candidateIds[0])||null;const chosen=pairCandidates.find(x=>x.id===candidateIds[0]);matchReason=employee?"सटीक मिलान: "+chosen.labels.join(" + "):"";}
-        else if(candidateIds.length>1)matchReason="पहचान विवरणों के अलग-अलग जोड़ अलग कर्मचारियों से मेल खाते हैं; मैन्युअल जाँच आवश्यक";
-        else if(!usable.length)matchReason="नाम, बैंक खाता या Employee Code में कोई सटीक मिलान नहीं मिला";
-        else if(nameMatches.length>1&&accountMatches.length>1)matchReason="नाम और बैंक खाता दोनों एक से अधिक कर्मचारियों से जुड़े हैं; मैन्युअल जाँच आवश्यक";
-        else if(accountMatches.length>1)matchReason="बैंक खाता एक से अधिक कर्मचारियों से जुड़ा है; नाम/कोड से स्पष्ट पहचान नहीं हुई";
-        else if(nameMatches.length>1)matchReason="नाम एक से अधिक कर्मचारियों से मेल खाता है; बैंक खाता/कोड से स्पष्ट पहचान नहीं हुई";
-        else matchReason="कम-से-कम दो पहचान विवरण एक ही कर्मचारी से नहीं मिले";
-        const ifscMismatch=employee&&ifsc&&account&&bankDetails.some(b=>b.employee_id===employee.id&&cleanAccount(b.account_number)===account)&&!bankDetails.some(b=>b.employee_id===employee.id&&cleanAccount(b.account_number)===account&&cleanIfsc(b.ifsc_code)===ifsc);
-        if(ifscMismatch){employee=null;matchReason="बैंक खाता मिल गया, लेकिन IFSC Code मेल नहीं खाता; मैन्युअल जाँच आवश्यक";}
-        pendingPaymentRows.push({code,name:employee?.name||nameCell,employee_id:employee?.id||null,matched_code:employee?.code||"",match_reason:matchReason,ifsc_code:ifsc,account_last4:account.slice(-4),month_start:month,payable_amount:payable,amount,payment_date:payDate||null,voucher_no:String(row[vi]??"").trim(),remarks:String(row[ri]??"").trim(),sheet:sheetName});
+        const accountIfscRows=accountRows.filter(b=>cleanIfsc(b.ifsc_code)===ifsc);
+        const accountIfscEmployees=[...new Map(accountIfscRows.map(b=>[b.employee_id,b])).values()].map(b=>employees.find(emp=>emp.id===b.employee_id)).filter(Boolean);
+        let employee=null,matchReason="",matchCategory="manual_review";
+        if(bankLookupError)matchReason="बैंक विवरण जाँचे नहीं जा सके; मैन्युअल जाँच आवश्यक";
+        else {
+          const exactPair=[...new Set(exactNameMatches.map(e=>e.id).filter(id=>accountRows.some(b=>b.employee_id===id)))];
+          if(exactPair.length===1){
+            employee=employees.find(e=>e.id===exactPair[0])||null;
+            matchCategory="name_account_exact";
+            matchReason="श्रेणी 1: पूरा नाम + बैंक खाता सटीक मेल";
+          }else if(exactPair.length>1){
+            matchReason="एक ही नाम और बैंक खाता एक से अधिक कर्मचारी रिकॉर्ड से जुड़ा है; मैन्युअल जाँच आवश्यक";
+          }else if(accountIfscEmployees.length===1){
+            const bankEmployee=accountIfscEmployees[0];
+            const similarity=nameSimilarity(nameCell,bankEmployee.name);
+            if(similarity>=0.82){
+              employee=bankEmployee;
+              matchCategory="name_minor_bank_ifsc";
+              matchReason="श्रेणी 2: नाम में मामूली अंतर; बैंक खाता + IFSC सटीक मेल";
+            }else{
+              matchReason="बैंक खाता + IFSC मेल खाते हैं, लेकिन नाम में बड़ा अंतर है; मैन्युअल जाँच आवश्यक";
+            }
+          }else if(accountIfscEmployees.length>1){
+            matchReason="यह बैंक खाता + IFSC एक से अधिक कर्मचारियों से जुड़ा है; मैन्युअल जाँच आवश्यक";
+          }else if(exactNameMatches.length===1){
+            const namedEmployee=exactNameMatches[0];
+            const employeeBankRows=bankDetails.filter(b=>b.employee_id===namedEmployee.id&&cleanAccount(b.account_number));
+            if(!employeeBankRows.length){
+              employee=namedEmployee;
+              matchCategory="name_exact_bank_missing";
+              matchReason="श्रेणी 3: पूरा नाम मेल; वेबसाइट में बैंक विवरण उपलब्ध नहीं — बैंक विवरण जोड़ने की चेतावनी";
+            }else if(account&&employeeBankRows.some(b=>cleanAccount(b.account_number)!==account)){
+              matchReason="नाम मेल खाता है, लेकिन बैंक खाता अलग है; मैन्युअल जाँच आवश्यक";
+            }else{
+              matchReason="नाम मेल खाता है, लेकिन Excel का बैंक खाता/IFSC वेबसाइट के बैंक विवरण से मेल नहीं खाता";
+            }
+          }else if(nameMatches.length>1||exactNameMatches.length>1){
+            matchReason="एक ही नाम एक से अधिक कर्मचारियों में मिला; बैंक खाते से स्पष्ट पहचान नहीं हुई";
+          }else if(codeEmp&&accountRows.some(b=>b.employee_id===codeEmp.id)){
+            employee=codeEmp;matchCategory="code_account_exact";matchReason="Employee Code + बैंक खाता सटीक मेल";
+          }else{
+            matchReason="श्रेणी 4: नाम/बैंक विवरण में अंतर या विरोध; मैन्युअल जाँच आवश्यक";
+          }
+        }
+                pendingPaymentRows.push({code,name:employee?.name||nameCell,employee_id:employee?.id||null,matched_code:employee?.code||"",match_reason:matchReason,match_category:matchCategory,ifsc_code:ifsc,account_last4:account.slice(-4),month_start:month,payable_amount:payable,amount,payment_date:payDate||null,voucher_no:String(row[vi]??"").trim(),remarks:String(row[ri]??"").trim(),sheet:sheetName});
       }
     }
     if(invalidSheets.length&&!pendingPaymentRows.length){
