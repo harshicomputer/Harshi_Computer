@@ -15,7 +15,7 @@ The protected Supabase Edge Function `full-site-backup`:
 
 ## Included application tables
 
-`employees`, `salary_records`, `loan_accounts`, `loan_installments`, `loan_payments`, `loans`, `fdr_records`, `account_heads`, `account_transactions`, `bank_accounts`, `bank_transactions`, `employee_documents`, `employee_aadhaar_private`, `employee_contact_credentials`, `employee_bank_details`, `employee_personal_details`, `important_orders`, `business_customers`, `business_customer_documents`, `important_documents`, and `app_admins`.
+`employees`, `salary_records`, `loan_accounts`, `loan_installments`, `loan_payments`, `loans`, `fdr_records`, `account_heads`, `account_transactions`, `bank_accounts`, `bank_transactions`, `employee_documents`, `employee_aadhaar_private`, `employee_contact_credentials`, `employee_bank_details`, `employee_personal_details`, `important_orders`, `business_customers`, `business_customer_documents`, `important_documents`, `payroll_sheets`, `personal_family_documents`, and `app_admins`.
 
 `system_backups` itself is excluded from its own embedded snapshot to avoid recursive backups; the new backup entry is recorded separately in that table.
 
@@ -33,3 +33,8 @@ Before claiming disaster-recovery readiness, restore the archive into a separate
 ## Security
 
 The ZIP is stored in a private bucket and the app generates a short-lived signed download URL for an authenticated admin. Keep downloaded copies encrypted and in a restricted location. Never publish a backup archive or share its signed URL publicly.
+
+
+## Audit log
+
+The production database now records INSERT, UPDATE, and DELETE events for the main employee, salary, loan, FDR, accounting, bank, document, order, business-customer, payroll, and family-document tables in `public.admin_audit_logs`. The log stores the acting user ID, operation, table, record identifier, changed field names, and timestamp; it deliberately does not copy sensitive before/after field values. Row-level security restricts reading the log to authorized admins. The Backup / Export page includes an Audit Log viewer (latest 200 events).
