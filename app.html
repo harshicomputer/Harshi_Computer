@@ -364,6 +364,7 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 </div>
 <div id="backupMsg" class="muted" style="margin-top:10px"></div>
 <div id="backupList" style="margin-top:14px"></div>
+<hr style="margin:22px 0;border:0;border-top:1px solid #e5e7eb"><div class="toolbar"><h3 style="margin:0">🧾 Audit Log / बदलाव का रिकॉर्ड</h3><button class="btn" onclick="renderAuditLogs()">Audit Log देखें</button></div><p class="muted">महत्वपूर्ण रिकॉर्ड में किसने, कब और किस प्रकार का बदलाव किया—इसका विवरण। निजी रिकॉर्ड की वास्तविक संवेदनशील जानकारी यहाँ नहीं दिखाई जाती।</p><div id="auditLogBox" style="margin-top:10px"></div>
 </div></section>
 </main></div>
 <script>
@@ -1509,6 +1510,18 @@ async function downloadCloudBackup(id){
     saveJsonFile(data.snapshot,"harshi-computer-cloud-backup-"+String(data.created_at).slice(0,10)+".json");
     document.getElementById("backupMsg").textContent="पुराने backup का JSON snapshot डाउनलोड हुआ। इसमें Storage document files शामिल नहीं हैं।";
   }catch(e){document.getElementById("backupMsg").textContent="Backup download error: "+(e?.message||e);}
+}
+function auditEscape(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+async function renderAuditLogs(){
+  const box=document.getElementById("auditLogBox");if(!box)return;
+  box.textContent="Audit Log लोड हो रहा है...";
+  try{
+    const {data,error}=await window.salaryDb.from("admin_audit_logs").select("id,actor_id,action,table_name,record_id,changed_fields,created_at").order("created_at",{ascending:false}).limit(200);
+    if(error)throw error;
+    if(!data?.length){box.textContent="अभी कोई बदलाव दर्ज नहीं हुआ है।";return;}
+    const rows=data.map(x=>"<tr><td>"+auditEscape(new Date(x.created_at).toLocaleString("en-IN"))+"</td><td>"+auditEscape(x.actor_id?x.actor_id.slice(0,8)+"…":"System")+"</td><td>"+auditEscape(x.action)+"</td><td>"+auditEscape(x.table_name)+"</td><td>"+auditEscape(x.record_id||"—")+"</td><td>"+auditEscape((x.changed_fields||[]).join(", ")||"—")+"</td></tr>").join("");
+    box.innerHTML="<div class='scroll'><table><thead><tr><th>तारीख / समय</th><th>User ID</th><th>Action</th><th>Module / Table</th><th>Record</th><th>बदले गए Fields</th></tr></thead><tbody>"+rows+"</tbody></table></div><p class='muted'>नवीनतम 200 बदलाव दिखाए गए हैं।</p>";
+  }catch(e){box.textContent="Audit Log पढ़ने में समस्या: "+(e?.message||e);}
 }
 async function exportExcelBackup(){
   try{
