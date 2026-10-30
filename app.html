@@ -992,7 +992,8 @@ async function previewPaymentUpload(){
         const compactName=v=>String(v||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"");
         const editDistance=(a,b)=>{const dp=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){let prev=dp[0];dp[0]=i;for(let j=1;j<=b.length;j++){const old=dp[j];dp[j]=Math.min(dp[j]+1,dp[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=old;}}return dp[b.length];};
         const nameSimilarity=(a,b)=>{const x=compactName(a),y=compactName(b);if(!x||!y)return 0;return 1-editDistance(x,y)/Math.max(x.length,y.length);};
-        const codeEmp=codes.get(normalizeCode(code))||null;
+        const codeMatches=employees.filter(emp=>normalizeCode(emp.code)===normalizeCode(code));
+        const codeEmp=codeMatches.length===1?codeMatches[0]:null;
         const nameMatches=employees.filter(emp=>cleanName(emp.name)===cleanName(nameCell));
         const exactNameMatches=employees.filter(emp=>compactName(emp.name)===compactName(nameCell));
         const accountRows=account?(bankByAccount.get(account)||[]):[];
@@ -1000,7 +1001,34 @@ async function previewPaymentUpload(){
         const accountIfscRows=accountRows.filter(b=>cleanIfsc(b.ifsc_code)===ifsc);
         const accountIfscEmployees=[...new Map(accountIfscRows.map(b=>[b.employee_id,b])).values()].map(b=>employees.find(emp=>emp.id===b.employee_id)).filter(Boolean);
         let employee=null,matchReason="",matchCategory="manual_review";
-        if(bankLookupError)matchReason="बैंक विवरण जाँचे नहीं जा सके; मैन्युअल जाँच आवश्यक";
+        // Employee Code is primary. When exactly one employee has this code,
+        // accept identity and surface name/bank discrepancies as warnings.
+        if(codeMatches.length>1){
+          matchReason="यह Employee Code एक से अधिक कर्मचारी रिकॉर्ड में मिला; मैन्युअल जाँच आवश्यक";
+        }else if(codeEmp){
+          employee=codeEmp;
+          const employeeBankRows=bankDetails.filter(b=>b.employee_id===codeEmp.id&&cleanAccount(b.account_number));
+          const exactEmployeeBank=employeeBankRows.some(b=>cleanAccount(b.account_number)===account&&cleanIfsc(b.ifsc_code)===ifsc);
+          const nameDiff=compactName(codeEmp.name)!==compactName(nameCell);
+          const accountUsedByOthers=accountRows.some(b=>b.employee_id!==codeEmp.id);
+          matchCategory="code_first";
+          if(bankLookupError){
+            matchReason="✓ Employee Code से कर्मचारी की पहचान हुई; बैंक विवरण जाँचे नहीं जा सके — बैंक सत्यापन बाकी";
+          }else if(account&&ifsc&&exactEmployeeBank){
+            matchReason=nameDiff
+              ?"✓ Employee Code + बैंक खाता + IFSC मेल; Excel नाम अलग है — नाम की पुष्टि करें"
+              :"✓ Employee Code और बैंक खाता + IFSC सटीक मेल";
+          }else if(accountUsedByOthers){
+            matchReason="✓ Employee Code से कर्मचारी की पहचान हुई; बैंक खाता दूसरे कर्मचारी से भी जुड़ा है — बैंक विवरण की मैन्युअल पुष्टि करें";
+          }else if(employeeBankRows.length){
+            matchReason="✓ Employee Code से कर्मचारी की पहचान हुई; Excel का बैंक खाता/IFSC वेबसाइट के बैंक विवरण से अलग है — बैंक सत्यापन आवश्यक";
+          }else{
+            matchReason="✓ Employee Code से कर्मचारी की पहचान हुई; वेबसाइट में बैंक विवरण उपलब्ध नहीं — बैंक विवरण की पुष्टि करें";
+          }
+          if(nameDiff&&!matchReason.includes("नाम अलग")){
+            matchReason+="; Excel नाम और कर्मचारी रिकॉर्ड के नाम में अंतर है";
+          }
+        }else if(bankLookupError)matchReason="Employee Code नहीं मिला और बैंक विवरण जाँचे नहीं जा सके; मैन्युअल जाँच आवश्यक";
         else {
           const exactPair=[...new Set(exactNameMatches.map(e=>e.id).filter(id=>accountRows.some(b=>b.employee_id===id)))];
           if(exactPair.length===1){
