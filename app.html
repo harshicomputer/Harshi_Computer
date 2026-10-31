@@ -1010,7 +1010,7 @@ async function previewPaymentUpload(){
         const bankByAccountForMonth=new Map();
         rowBankDetails.forEach(b=>{const a=cleanAccount(b.account_number);if(a){if(!bankByAccountForMonth.has(a))bankByAccountForMonth.set(a,[]);bankByAccountForMonth.get(a).push(b)}});
         let payDate=dateISO(row[di]),payable=Number(String(row[pi]??"").replace(/,/g,""));if(!isFinite(payable)||payable<0)payable=0;
-        const compactName=v=>String(v||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+        const compactName=v=>String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"");
         const editDistance=(a,b)=>{const dp=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){let prev=dp[0];dp[0]=i;for(let j=1;j<=b.length;j++){const old=dp[j];dp[j]=Math.min(dp[j]+1,dp[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=old;}}return dp[b.length];};
         const nameSimilarity=(a,b)=>{const x=compactName(a),y=compactName(b);if(!x||!y)return 0;return 1-editDistance(x,y)/Math.max(x.length,y.length);};
         const normalizedExcelCode=normalizeCode(code);let codeMatches=normalizedExcelCode?employees.filter(emp=>normalizeCode(emp.code)===normalizedExcelCode):[];
