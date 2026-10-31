@@ -1014,6 +1014,21 @@ async function previewPaymentUpload(){
         const editDistance=(a,b)=>{const dp=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){let prev=dp[0];dp[0]=i;for(let j=1;j<=b.length;j++){const old=dp[j];dp[j]=Math.min(dp[j]+1,dp[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=old;}}return dp[b.length];};
         const nameSimilarity=(a,b)=>{const x=compactName(a),y=compactName(b);if(!x||!y)return 0;return 1-editDistance(x,y)/Math.max(x.length,y.length);};
         let codeMatches=employees.filter(emp=>normalizeCode(emp.code)===normalizeCode(code));
+        // Explicit employee identities confirmed by the user for historical payroll imports.
+        // Apply only when the Excel Employee Code is blank; never override a supplied code.
+        const confirmedNameAliases={
+          "INDERGHARU":"R16800168",
+          "ARUNMOYDE":"R16800009",
+          "NAWABMOHAMMAD":"R16800034",
+          "SHIVNARAYANKHARADE":"R16800086",
+          "SIKANDARMULTHANI":"R16800153",
+          "PUNAMKISHANMEWATI":"R16800103",
+          "AARIFRAFIKKHA":"R16800104"
+        };
+        const confirmedAliasCode=!normalizeCode(code)?confirmedNameAliases[compactName(nameCell)]||"": "";
+        if(!codeMatches.length&&confirmedAliasCode){
+          codeMatches=employees.filter(emp=>normalizeCode(emp.code)===normalizeCode(confirmedAliasCode));
+        }
         // Legacy voucher files may contain the numeric part of an NR-series code only.
         // Match 81680113 to NR81680113 only when that prefixed employee code is unique.
         if(!codeMatches.length && /^\d+$/.test(normalizeCode(code))){
@@ -1036,6 +1051,19 @@ async function previewPaymentUpload(){
         if(codeMatches.length>1){
           matchReason="यह Employee Code एक से अधिक कर्मचारी रिकॉर्ड में मिला; मैन्युअल जाँच आवश्यक";
         }else if(codeEmp){
+          if(confirmedAliasCode&&normalizeCode(codeEmp.code)===normalizeCode(confirmedAliasCode)){
+            // The user explicitly confirmed this historical name-to-employee identity.
+            // Keep bank discrepancies visible as warnings; do not silently change bank data.
+            employee=codeEmp;
+            matchCategory="user_confirmed_name_alias";
+            const aliasBankRows=rowBankDetails.filter(b=>b.employee_id===codeEmp.id&&cleanAccount(b.account_number));
+            const aliasBankExact=!!(account&&ifsc&&aliasBankRows.some(b=>cleanAccount(b.account_number)===account&&cleanIfsc(b.ifsc_code)===ifsc));
+            matchReason=aliasBankExact
+              ?"✓ उपयोगकर्ता द्वारा नाम + Employee Code की पुष्टि; बैंक खाता + IFSC भी मेल"
+              :aliasBankRows.length
+                ?"✓ उपयोगकर्ता द्वारा नाम + Employee Code की पुष्टि; बैंक विवरण अलग है — बैंक सत्यापन आवश्यक"
+                :"✓ उपयोगकर्ता द्वारा नाम + Employee Code की पुष्टि; इस कर्मचारी का ऐतिहासिक बैंक विवरण उपलब्ध नहीं — बैंक सत्यापन आवश्यक";
+          }else{
           const employeeBankRows=rowBankDetails.filter(b=>b.employee_id===codeEmp.id&&cleanAccount(b.account_number));
           const exactEmployeeBank=!!(account&&ifsc&&employeeBankRows.some(b=>cleanAccount(b.account_number)===account&&cleanIfsc(b.ifsc_code)===ifsc));
           const accountUsedByOthers=accountRows.some(b=>b.employee_id!==codeEmp.id);
@@ -1069,6 +1097,7 @@ async function previewPaymentUpload(){
               :"✓ Employee Code + नाम से कर्मचारी की पहचान हुई; वेबसाइट में बैंक विवरण उपलब्ध नहीं — बैंक विवरण की पुष्टि करें";
           }else{
             matchReason="Employee Code मिला, लेकिन Excel नाम कर्मचारी रिकॉर्ड से मेल नहीं खाता; बैंक खाता + IFSC से भी पुष्टि नहीं हुई — मैन्युअल जाँच आवश्यक";
+          }
           }
         }else if(bankLookupError)matchReason="Employee Code नहीं मिला और बैंक विवरण जाँचे नहीं जा सके; मैन्युअल जाँच आवश्यक";
         else {
