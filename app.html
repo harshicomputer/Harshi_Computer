@@ -1018,32 +1018,39 @@ async function previewPaymentUpload(){
         const accountIfscRows=accountRows.filter(b=>cleanIfsc(b.ifsc_code)===ifsc);
         const accountIfscEmployees=[...new Map(accountIfscRows.map(b=>[b.employee_id,b])).values()].map(b=>employees.find(emp=>emp.id===b.employee_id)).filter(Boolean);
         let employee=null,matchReason="",matchCategory="manual_review";
-        // Employee Code is primary. When exactly one employee has this code,
-        // accept identity and surface name/bank discrepancies as warnings.
+        // Employee Code is the first lookup, but never trust a code-only match
+        // when the supplied name conflicts. Accept only a corroborated identity:
+        // close name match OR exact unique bank account + IFSC match.
         if(codeMatches.length>1){
           matchReason="यह Employee Code एक से अधिक कर्मचारी रिकॉर्ड में मिला; मैन्युअल जाँच आवश्यक";
         }else if(codeEmp){
-          employee=codeEmp;
           const employeeBankRows=bankDetails.filter(b=>b.employee_id===codeEmp.id&&cleanAccount(b.account_number));
-          const exactEmployeeBank=employeeBankRows.some(b=>cleanAccount(b.account_number)===account&&cleanIfsc(b.ifsc_code)===ifsc);
-          const nameDiff=compactName(codeEmp.name)!==compactName(nameCell);
+          const exactEmployeeBank=!!(account&&ifsc&&employeeBankRows.some(b=>cleanAccount(b.account_number)===account&&cleanIfsc(b.ifsc_code)===ifsc));
           const accountUsedByOthers=accountRows.some(b=>b.employee_id!==codeEmp.id);
-          matchCategory="code_first";
+          const nameSimilarityScore=nameSimilarity(nameCell,codeEmp.name);
+          const nameMatchesCode=nameSimilarityScore>=0.82;
+          const exactBankIsUnique=exactEmployeeBank&&!accountUsedByOthers&&accountIfscEmployees.length===1&&accountIfscEmployees[0].id===codeEmp.id;
           if(bankLookupError){
-            matchReason="✓ Employee Code से कर्मचारी की पहचान हुई; बैंक विवरण जाँचे नहीं जा सके — बैंक सत्यापन बाकी";
-          }else if(account&&ifsc&&exactEmployeeBank){
-            matchReason=nameDiff
-              ?"✓ Employee Code + बैंक खाता + IFSC मेल; Excel नाम अलग है — नाम की पुष्टि करें"
-              :"✓ Employee Code और बैंक खाता + IFSC सटीक मेल";
+            if(nameMatchesCode){
+              employee=codeEmp;matchCategory="code_name_bank_unverified";
+              matchReason="✓ Employee Code + नाम से कर्मचारी की पहचान हुई; बैंक विवरण जाँचे नहीं जा सके — बैंक सत्यापन बाकी";
+            }else{
+              matchReason="Employee Code मिला, लेकिन Excel नाम से पुष्टि नहीं हुई और बैंक जाँच उपलब्ध नहीं — मैन्युअल जाँच आवश्यक";
+            }
+          }else if(exactBankIsUnique){
+            employee=codeEmp;matchCategory="code_bank_ifsc_exact";
+            matchReason=nameMatchesCode
+              ?"✓ Employee Code + नाम + बैंक खाता + IFSC मेल"
+              :"✓ Employee Code और बैंक खाता + IFSC सटीक मेल; नाम में बड़ा अंतर — नाम की पुष्टि करें";
           }else if(accountUsedByOthers){
-            matchReason="✓ Employee Code से कर्मचारी की पहचान हुई; बैंक खाता दूसरे कर्मचारी से भी जुड़ा है — बैंक विवरण की मैन्युअल पुष्टि करें";
-          }else if(employeeBankRows.length){
-            matchReason="✓ Employee Code से कर्मचारी की पहचान हुई; Excel का बैंक खाता/IFSC वेबसाइट के बैंक विवरण से अलग है — बैंक सत्यापन आवश्यक";
+            matchReason="Employee Code मिला, लेकिन बैंक खाता दूसरे कर्मचारी से भी जुड़ा है — मैन्युअल जाँच आवश्यक";
+          }else if(nameMatchesCode){
+            employee=codeEmp;matchCategory="code_name_confirmed";
+            matchReason=employeeBankRows.length
+              ?"✓ Employee Code + नाम से कर्मचारी की पहचान हुई; Excel का बैंक खाता/IFSC अलग है — बैंक सत्यापन आवश्यक"
+              :"✓ Employee Code + नाम से कर्मचारी की पहचान हुई; वेबसाइट में बैंक विवरण उपलब्ध नहीं — बैंक विवरण की पुष्टि करें";
           }else{
-            matchReason="✓ Employee Code से कर्मचारी की पहचान हुई; वेबसाइट में बैंक विवरण उपलब्ध नहीं — बैंक विवरण की पुष्टि करें";
-          }
-          if(nameDiff&&!matchReason.includes("नाम अलग")){
-            matchReason+="; Excel नाम और कर्मचारी रिकॉर्ड के नाम में अंतर है";
+            matchReason="Employee Code मिला, लेकिन Excel नाम कर्मचारी रिकॉर्ड से मेल नहीं खाता; बैंक खाता + IFSC से भी पुष्टि नहीं हुई — मैन्युअल जाँच आवश्यक";
           }
         }else if(bankLookupError)matchReason="Employee Code नहीं मिला और बैंक विवरण जाँचे नहीं जा सके; मैन्युअल जाँच आवश्यक";
         else {
