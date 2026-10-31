@@ -219,7 +219,7 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 <div><label for="employeeEditPost">पद (Post / Designation)</label><input id="employeeEditPost" style="display:block;width:100%;box-sizing:border-box;margin-top:6px" autocomplete="off"></div>
 <div><label for="employeeEditDepartment">विभाग (Department)</label><input id="employeeEditDepartment" style="display:block;width:100%;box-sizing:border-box;margin-top:6px" autocomplete="off"></div>
 </div>
-<div id="employeeBasicEditMsg" class="muted" style="margin-top:12px"></div>
+<div class="card" style="margin-top:14px"><h3>बैंक विवरण संपादित करें</h3><div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div><label>बैंक खाता संख्या</label><input id="employeeEditBankAccount" style="width:100%" inputmode="numeric"></div><div><label>IFSC Code</label><input id="employeeEditIfsc" style="width:100%;text-transform:uppercase"></div><div><label>बैंक का नाम</label><input id="employeeEditBankName" style="width:100%"></div></div><div id="employeeBankEditMsg" class="muted"></div></div><div id="employeeBasicEditMsg" class="muted" style="margin-top:12px"></div>
 <div class="toolbar" style="margin-top:14px"><button id="employeeBasicSaveBtn" class="btn primary" type="button" onclick="saveEmployeeBasicEdit()">बदलाव सेव करें</button><button class="btn" type="button" onclick="cancelEmployeeBasicEdit()">रद्द करें</button></div>
 </div>
 </section>
@@ -838,9 +838,12 @@ function renderEmployees(){
  }).join("");
 }
 
-function editEmployeeBasic(id){
+async function editEmployeeBasic(id){
  const e=employees.find(x=>String(x.id)===String(id));
  if(!e){alert("कर्मचारी रिकॉर्ड नहीं मिला। सूची रिफ्रेश करके दोबारा प्रयास करें।");return}
+ for(const [field,value] of [["employeeEditBankAccount",""],["employeeEditIfsc",""],["employeeEditBankName",""]])document.getElementById(field).value=value;
+ document.getElementById("employeeBankEditMsg").textContent="बैंक विवरण लोड हो रहे हैं…";
+ try{const db=await window.salaryDbReady;const q=await db.from("employee_bank_details").select("account_number,ifsc_code,bank_name").eq("employee_id",e.id).limit(1).maybeSingle();if(q.error)throw q.error;document.getElementById("employeeEditBankAccount").value=q.data?.account_number||"";document.getElementById("employeeEditIfsc").value=q.data?.ifsc_code||"";document.getElementById("employeeEditBankName").value=q.data?.bank_name||"";document.getElementById("employeeBankEditMsg").textContent=q.data?"मौजूदा बैंक विवरण लोड हो गए।":"बैंक विवरण उपलब्ध नहीं; नया विवरण भर सकते हैं।"}catch(err){document.getElementById("employeeBankEditMsg").textContent="बैंक विवरण लोड नहीं हुए: "+(err.message||err)}
  document.getElementById("employeeEditId").value=e.id;
  document.getElementById("employeeEditCode").value=e.code||"";
  document.getElementById("employeeEditName").value=e.name||"";
@@ -868,8 +871,13 @@ async function saveEmployeeBasicEdit(){
  btn.disabled=true;msg.textContent="कर्मचारी विवरण सेव हो रहा है…";
  try{
   await window.salaryDbReady;
-  const {error}=await window.salaryDb.from("employees").update({code,name,post:post||null,department:department||null}).eq("id",id);
+  const db=await window.salaryDbReady;
+  const {error}=await db.from("employees").update({code,name,post:post||null,department:department||null}).eq("id",id);
   if(error)throw error;
+  const account=document.getElementById("employeeEditBankAccount").value.replace(/[^0-9]/g,"");
+  const ifsc=document.getElementById("employeeEditIfsc").value.trim().toUpperCase();
+  const bankName=document.getElementById("employeeEditBankName").value.trim();
+  if(account||ifsc||bankName){if(!account||!ifsc)throw new Error("बैंक खाता संख्या और IFSC दोनों भरें।");if(!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc))throw new Error("IFSC Code सही नहीं है।");const oldBank=await db.from("employee_bank_details").select("employee_id").eq("employee_id",id).limit(1).maybeSingle();if(oldBank.error)throw oldBank.error;const payload={employee_id:id,employee_code:code,account_number:account,ifsc_code:ifsc,bank_name:bankName||null};const saved=oldBank.data?await db.from("employee_bank_details").update(payload).eq("employee_id",id):await db.from("employee_bank_details").insert(payload);if(saved.error)throw saved.error;document.getElementById("employeeBankEditMsg").textContent="बैंक विवरण सेव हो गए।"}
   await refresh();
   document.getElementById("employeeEditResult").textContent="कर्मचारी विवरण सफलतापूर्वक अपडेट हुआ: "+code+" — "+name+". ऐतिहासिक वेतन और भुगतान रिकॉर्ड की लिंक सुरक्षित रखी गई है।";
   document.getElementById("search").value=code;
