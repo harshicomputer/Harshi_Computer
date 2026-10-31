@@ -1001,7 +1001,14 @@ async function previewPaymentUpload(){
         const compactName=v=>String(v||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"");
         const editDistance=(a,b)=>{const dp=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){let prev=dp[0];dp[0]=i;for(let j=1;j<=b.length;j++){const old=dp[j];dp[j]=Math.min(dp[j]+1,dp[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=old;}}return dp[b.length];};
         const nameSimilarity=(a,b)=>{const x=compactName(a),y=compactName(b);if(!x||!y)return 0;return 1-editDistance(x,y)/Math.max(x.length,y.length);};
-        const codeMatches=employees.filter(emp=>normalizeCode(emp.code)===normalizeCode(code));
+        let codeMatches=employees.filter(emp=>normalizeCode(emp.code)===normalizeCode(code));
+        // Legacy voucher files may contain the numeric part of an NR-series code only.
+        // Match 81680113 to NR81680113 only when that prefixed employee code is unique.
+        if(!codeMatches.length && /^\d+$/.test(normalizeCode(code))){
+          const nrCode="NR"+normalizeCode(code);
+          const nrMatches=employees.filter(emp=>normalizeCode(emp.code)===nrCode);
+          if(nrMatches.length===1)codeMatches=nrMatches;
+        }
         const codeEmp=codeMatches.length===1?codeMatches[0]:null;
         const nameMatches=employees.filter(emp=>cleanName(emp.name)===cleanName(nameCell));
         const exactNameMatches=employees.filter(emp=>compactName(emp.name)===compactName(nameCell));
