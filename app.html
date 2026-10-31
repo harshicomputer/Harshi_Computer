@@ -978,10 +978,8 @@ async function previewPaymentUpload(){
     const cleanAccount=v=>String(v??"").replace(/[^0-9]/g,"");
     const cleanIfsc=v=>String(v??"").trim().toUpperCase().replace(/\s+/g,"");
     const bankRes=await window.salaryDb.from("employee_bank_details").select("employee_id,account_number,ifsc_code");
-    const historyRes=await window.salaryDb.from("employee_bank_account_history").select("employee_id,account_number,ifsc_code").eq("verified",true);
-    const bankDetails=[...(bankRes.data||[]),...(historyRes.data||[])],bankLookupError=bankRes.error?.message||historyRes.error?.message||null;
-    const bankByAccount=new Map();
-    bankDetails.forEach(b=>{const a=cleanAccount(b.account_number);if(a){if(!bankByAccount.has(a))bankByAccount.set(a,[]);bankByAccount.get(a).push(b)}});
+    const historyRes=await window.salaryDb.from("employee_bank_account_history").select("employee_id,account_number,ifsc_code,applicable_month").eq("verified",true);
+    const bankDetails=[...(bankRes.data||[]).map(b=>({...b,_source:"current"})),...(historyRes.data||[]).map(b=>({...b,_source:"history"}))],bankLookupError=bankRes.error?.message||historyRes.error?.message||null;
     const required=["employeecode","employeename","salarymonth","ifsccode","beneficiaryacno","payableamount","paidamount","paymentdate","voucherno","remarks"];
     let invalidSheets=[];
     for(let si=0;si<wb.SheetNames.length;si++){
@@ -997,6 +995,20 @@ async function previewPaymentUpload(){
         if(!isFinite(amount)||amount<0){pendingPaymentRejectedRows.push({sheet:sheetName,rowNumber:hi+ri0+2,code,name:nameCell,monthRaw:String(row[mi]??""),reason:"Paid Amount खाली, गलत या ऋणात्मक है"});continue;}
         let month=monthISO(row[mi]);
         if(!month){pendingPaymentRejectedRows.push({sheet:sheetName,rowNumber:hi+ri0+2,code,name:nameCell,monthRaw:String(row[mi]??""),reason:"Salary Month पढ़ा नहीं जा सका; YYYY-MM या मान्य Excel date डालें"});continue;}
+        // For a historical salary month, prefer the latest verified bank account
+        // whose applicable_month is on/before that salary month. Do not mix a
+        // later/current account into the historical identity check.
+        const rowBankDetails=[];
+        const bankEmployeeIds=[...new Set(bankDetails.map(b=>b.employee_id).filter(Boolean))];
+        bankEmployeeIds.forEach(employeeId=>{
+          const history=bankDetails.filter(b=>b.employee_id===employeeId&&b._source==="history"&&b.applicable_month&&String(b.applicable_month).slice(0,7)<=String(month).slice(0,7));
+          if(history.length){
+            const latestMonth=history.reduce((latest,b)=>String(b.applicable_month).slice(0,7)>latest?String(b.applicable_month).slice(0,7):latest,"");
+            rowBankDetails.push(...history.filter(b=>String(b.applicable_month).slice(0,7)===latestMonth));
+          }else rowBankDetails.push(...bankDetails.filter(b=>b.employee_id===employeeId&&b._source==="current"));
+        });
+        const bankByAccountForMonth=new Map();
+        rowBankDetails.forEach(b=>{const a=cleanAccount(b.account_number);if(a){if(!bankByAccountForMonth.has(a))bankByAccountForMonth.set(a,[]);bankByAccountForMonth.get(a).push(b)}});
         let payDate=dateISO(row[di]),payable=Number(String(row[pi]??"").replace(/,/g,""));if(!isFinite(payable)||payable<0)payable=0;
         const compactName=v=>String(v||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"");
         const editDistance=(a,b)=>{const dp=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){let prev=dp[0];dp[0]=i;for(let j=1;j<=b.length;j++){const old=dp[j];dp[j]=Math.min(dp[j]+1,dp[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=old;}}return dp[b.length];};
@@ -1013,7 +1025,7 @@ async function previewPaymentUpload(){
         const codeEmp=codeMatches.length===1?codeMatches[0]:null;
         const nameMatches=employees.filter(emp=>cleanName(emp.name)===cleanName(nameCell));
         const exactNameMatches=employees.filter(emp=>compactName(emp.name)===compactName(nameCell));
-        const accountRows=account?(bankByAccount.get(account)||[]):[];
+        const accountRows=account?(bankByAccountForMonth.get(account)||[]):[];
         const accountMatches=[...new Map(accountRows.map(b=>[b.employee_id,b])).values()].map(b=>employees.find(emp=>emp.id===b.employee_id)).filter(Boolean);
         const accountIfscRows=accountRows.filter(b=>cleanIfsc(b.ifsc_code)===ifsc);
         const accountIfscEmployees=[...new Map(accountIfscRows.map(b=>[b.employee_id,b])).values()].map(b=>employees.find(emp=>emp.id===b.employee_id)).filter(Boolean);
@@ -1024,7 +1036,7 @@ async function previewPaymentUpload(){
         if(codeMatches.length>1){
           matchReason="यह Employee Code एक से अधिक कर्मचारी रिकॉर्ड में मिला; मैन्युअल जाँच आवश्यक";
         }else if(codeEmp){
-          const employeeBankRows=bankDetails.filter(b=>b.employee_id===codeEmp.id&&cleanAccount(b.account_number));
+          const employeeBankRows=rowBankDetails.filter(b=>b.employee_id===codeEmp.id&&cleanAccount(b.account_number));
           const exactEmployeeBank=!!(account&&ifsc&&employeeBankRows.some(b=>cleanAccount(b.account_number)===account&&cleanIfsc(b.ifsc_code)===ifsc));
           const accountUsedByOthers=accountRows.some(b=>b.employee_id!==codeEmp.id);
           const nameSimilarityScore=nameSimilarity(nameCell,codeEmp.name);
@@ -1084,7 +1096,7 @@ async function previewPaymentUpload(){
             matchReason="यह बैंक खाता + IFSC एक से अधिक कर्मचारियों से जुड़ा है; मैन्युअल जाँच आवश्यक";
           }else if(exactNameMatches.length===1){
             const namedEmployee=exactNameMatches[0];
-            const employeeBankRows=bankDetails.filter(b=>b.employee_id===namedEmployee.id&&cleanAccount(b.account_number));
+            const employeeBankRows=rowBankDetails.filter(b=>b.employee_id===namedEmployee.id&&cleanAccount(b.account_number));
             if(!employeeBankRows.length){
               employee=namedEmployee;
               matchCategory="name_exact_bank_missing";
