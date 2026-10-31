@@ -1013,7 +1013,7 @@ async function previewPaymentUpload(){
         const compactName=v=>String(v||"").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"");
         const editDistance=(a,b)=>{const dp=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){let prev=dp[0];dp[0]=i;for(let j=1;j<=b.length;j++){const old=dp[j];dp[j]=Math.min(dp[j]+1,dp[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=old;}}return dp[b.length];};
         const nameSimilarity=(a,b)=>{const x=compactName(a),y=compactName(b);if(!x||!y)return 0;return 1-editDistance(x,y)/Math.max(x.length,y.length);};
-        let codeMatches=employees.filter(emp=>normalizeCode(emp.code)===normalizeCode(code));
+        const normalizedExcelCode=normalizeCode(code);let codeMatches=normalizedExcelCode?employees.filter(emp=>normalizeCode(emp.code)===normalizedExcelCode):[];
         // Explicit employee identities confirmed by the user for historical payroll imports.
         // Apply only when the Excel Employee Code is blank; never override a supplied code.
         const confirmedNameAliases={
@@ -1023,7 +1023,8 @@ async function previewPaymentUpload(){
           "SHIVNARAYANKHARADE":"R16800086",
           "SIKANDARMULTHANI":"R16800153",
           "PUNAMKISHANMEWATI":"R16800103",
-          "AARIFRAFIKKHA":"R16800104"
+          "AARIFRAFIKKHA":"R16800104",
+          "VIKASHBHABAR":"R10900023"
         };
         const confirmedAliasCode=!normalizeCode(code)?confirmedNameAliases[compactName(nameCell)]||"": "";
         if(!codeMatches.length&&confirmedAliasCode){
