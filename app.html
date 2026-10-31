@@ -978,7 +978,7 @@ async function previewPaymentUpload(){
     const cleanAccount=v=>String(v??"").replace(/[^0-9]/g,"");
     const cleanIfsc=v=>String(v??"").trim().toUpperCase().replace(/\s+/g,"");
     const bankRes=await window.salaryDb.from("employee_bank_details").select("employee_id,account_number,ifsc_code");
-    const historyRes=await window.salaryDb.from("employee_bank_account_history").select("employee_id,account_number,ifsc_code,applicable_month").eq("verified",true);
+    const historyRes=await window.salaryDb.from("employee_bank_account_history").select("employee_id,account_number,ifsc_code,applicable_month,verified").eq("verified",true);
     const bankDetails=[...(bankRes.data||[]).map(b=>({...b,_source:"current"})),...(historyRes.data||[]).map(b=>({...b,_source:"history"}))],bankLookupError=bankRes.error?.message||historyRes.error?.message||null;
     const required=["employeecode","employeename","salarymonth","ifsccode","beneficiaryacno","payableamount","paidamount","paymentdate","voucherno","remarks"];
     let invalidSheets=[];
