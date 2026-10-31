@@ -1005,7 +1005,14 @@ async function previewPaymentUpload(){
           if(history.length){
             const latestMonth=history.reduce((latest,b)=>String(b.applicable_month).slice(0,7)>latest?String(b.applicable_month).slice(0,7):latest,"");
             rowBankDetails.push(...history.filter(b=>String(b.applicable_month).slice(0,7)===latestMonth));
-          }else rowBankDetails.push(...bankDetails.filter(b=>b.employee_id===employeeId&&b._source==="current"));
+          }else{
+            // Older verified bank-history rows may predate applicable_month tracking.
+            // For historical salary imports, prefer these verified legacy accounts
+            // over the employee's current account instead of silently ignoring them.
+            const undatedVerifiedHistory=bankDetails.filter(b=>b.employee_id===employeeId&&b._source==="history"&&!b.applicable_month&&b.verified===true);
+            if(undatedVerifiedHistory.length)rowBankDetails.push(...undatedVerifiedHistory);
+            else rowBankDetails.push(...bankDetails.filter(b=>b.employee_id===employeeId&&b._source==="current"));
+          }
         });
         const bankByAccountForMonth=new Map();
         rowBankDetails.forEach(b=>{const a=cleanAccount(b.account_number);if(a){if(!bankByAccountForMonth.has(a))bankByAccountForMonth.set(a,[]);bankByAccountForMonth.get(a).push(b)}});
