@@ -1042,6 +1042,12 @@ async function previewPaymentUpload(){
             matchReason=nameMatchesCode
               ?"✓ Employee Code + नाम + बैंक खाता + IFSC मेल"
               :"✓ Employee Code और बैंक खाता + IFSC सटीक मेल; नाम में बड़ा अंतर — नाम की पुष्टि करें";
+          }else if(accountIfscEmployees.length===1&&accountIfscEmployees[0].id!==codeEmp.id&&nameSimilarity(nameCell,accountIfscEmployees[0].name)>=0.82){
+            // When a legacy numeric code incorrectly points to another NR-series employee,
+            // a unique verified bank account + IFSC and matching employee name take precedence.
+            employee=accountIfscEmployees[0];
+            matchCategory="bank_ifsc_overrides_legacy_code";
+            matchReason="✓ नाम + बैंक खाता + IFSC से सही कर्मचारी की पहचान हुई; Excel का पुराना Employee Code दूसरे कर्मचारी से जुड़ा है — सही ID "+employee.code;
           }else if(accountUsedByOthers){
             matchReason="Employee Code मिला, लेकिन बैंक खाता दूसरे कर्मचारी से भी जुड़ा है — मैन्युअल जाँच आवश्यक";
           }else if(nameMatchesCode){
