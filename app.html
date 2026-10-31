@@ -1027,8 +1027,17 @@ async function previewPaymentUpload(){
           "VIKASHBHABAR":"R10900023"
         };
         const confirmedAliasCode=!normalizeCode(code)?confirmedNameAliases[compactName(nameCell)]||"": "";
-        if(!codeMatches.length&&confirmedAliasCode){
-          codeMatches=employees.filter(emp=>normalizeCode(emp.code)===normalizeCode(confirmedAliasCode));
+        // These three historical voucher identities were explicitly confirmed by the user.
+        // Their verified employee IDs take precedence over conflicting legacy numeric codes.
+        const confirmedNameCodeAliases={
+          "SUMITDINESH":"NR81680316",
+          "AKRAMKAMAL":"NR81680329",
+          "RAVIMAHESH":"NR81680149"
+        };
+        const confirmedIdentityCode=confirmedNameCodeAliases[compactName(nameCell)]||confirmedAliasCode;
+        if(confirmedIdentityCode){
+          const confirmedEmployees=employees.filter(emp=>normalizeCode(emp.code)===normalizeCode(confirmedIdentityCode));
+          if(confirmedEmployees.length===1)codeMatches=confirmedEmployees;
         }
         // Legacy voucher files may contain the numeric part of an NR-series code only.
         // Match 81680113 to NR81680113 only when that prefixed employee code is unique.
@@ -1052,7 +1061,7 @@ async function previewPaymentUpload(){
         if(codeMatches.length>1){
           matchReason="यह Employee Code एक से अधिक कर्मचारी रिकॉर्ड में मिला; मैन्युअल जाँच आवश्यक";
         }else if(codeEmp){
-          if(confirmedAliasCode&&normalizeCode(codeEmp.code)===normalizeCode(confirmedAliasCode)){
+          if(confirmedIdentityCode&&normalizeCode(codeEmp.code)===normalizeCode(confirmedIdentityCode)){
             // The user explicitly confirmed this historical name-to-employee identity.
             // Keep bank discrepancies visible as warnings; do not silently change bank data.
             employee=codeEmp;
