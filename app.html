@@ -1005,7 +1005,8 @@ async function previewPaymentUpload(){
         // Legacy voucher files may contain the numeric part of an NR-series code only.
         // Match 81680113 to NR81680113 only when that prefixed employee code is unique.
         if(!codeMatches.length && /^\d+$/.test(normalizeCode(code))){
-          const nrCode="NR"+normalizeCode(code);
+          const legacyNrAliases={"81680161":"NR81680166"};
+          const nrCode=legacyNrAliases[normalizeCode(code)]||("NR"+normalizeCode(code));
           const nrMatches=employees.filter(emp=>normalizeCode(emp.code)===nrCode);
           if(nrMatches.length===1)codeMatches=nrMatches;
         }
