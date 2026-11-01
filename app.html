@@ -1234,6 +1234,14 @@ async function previewPaymentUpload(){
       }).join("");
       box.insertAdjacentHTML("afterbegin",'<div class="notice" style="margin-bottom:10px;border-color:#dc2626;color:#991b1b"><b>⚠️ '+pendingPaymentDatabaseDuplicates.length+' रिकॉर्ड पहले से मौजूद हैं।</b><p style="margin:6px 0">हरा = दोनों Payable Amount समान। लाल = Payable Amount अलग है। नीचे पुरानी देय राशि और Excel से आने वाली देय राशि मिलाएँ।</p><div style="max-height:340px;overflow:auto"><ul style="padding-left:18px;margin:6px 0">'+duplicateItems+'</ul></div><div class="toolbar" style="margin-top:12px"><button class="btn primary" type="button" onclick="confirmPaymentUploadModeUpdate()">Excel से Duplicate रिकॉर्ड अपडेट करें</button><button class="btn" type="button" onclick="confirmPaymentUploadModeSkip()">Duplicate रिकॉर्ड अपडेट न करें</button></div><p class="muted" style="margin-top:6px">“अपडेट न करें” चुनने पर केवल नए रिकॉर्ड अपलोड होंगे और पुराने Duplicate रिकॉर्ड सुरक्षित रहेंगे। “अपडेट करें” में Excel की Payable Amount अपडेट होगी। भुगतान राशि, दिनांक, वाउचर और Remarks भुगतान दर्ज करते समय अलग से अपडेट किए जा सकते हैं।</p></div>');
     }
+    // Keep every Preview warning/error above the employee rows so users see issues before reviewing or uploading.
+    const previewNotices=[...box.querySelectorAll(".notice")];
+    if(previewNotices.length){
+      const noticeStack=document.createElement("div");
+      noticeStack.style.cssText="display:flex;flex-direction:column;gap:8px;margin-bottom:10px";
+      box.insertBefore(noticeStack,box.firstChild);
+      previewNotices.forEach(notice=>noticeStack.appendChild(notice));
+    }
     toggleExistingPaymentOverwrite();
   }catch(e){msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
 }
