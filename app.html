@@ -1005,8 +1005,7 @@ async function previewPaymentUpload(){
         let row=rows[ri0],code=String(row[ci]??"").trim(),nameCell=String(row[ni]??"").trim(),ifsc=cleanIfsc(row[fi]),account=cleanAccount(row[bi]),amount=Number(String(row[ai]??"").replace(/,/g,""));
         // Ignore explicit spreadsheet footer/summary rows (for example "PDF TOTAL").
         // They are not employee payment records and must not be counted as rejected rows.
-        const summaryLabel=(code+" "+nameCell).replace(/\\s+/g," ").trim();
-        if(!row[mi]&&!code&&/^(?:PDF\\s+)?TOTAL(?:\\s+.*)?$/i.test(nameCell))continue;
+        if(!row[mi]&&!code&&/^(?:PDF\s+)?TOTAL(?:\s+.*)?$/i.test(nameCell))continue;
         if(!code&&!nameCell&&!row[mi]&&!row[ai]&&!account)continue;
         if(!isFinite(amount)||amount<0){pendingPaymentRejectedRows.push({sheet:sheetName,rowNumber:hi+ri0+2,code,name:nameCell,monthRaw:String(row[mi]??""),reason:"Paid Amount खाली, गलत या ऋणात्मक है"});continue;}
         let month=monthISO(row[mi]);
