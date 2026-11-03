@@ -1666,7 +1666,7 @@ async function createFullSiteBackup(){
     if(sessionError)throw sessionError;
     if(!session?.access_token)throw new Error("Login session समाप्त हो गई है। कृपया फिर Login करें।");
     const {data,error}=await window.salaryDb.functions.invoke("full-site-backup",{body:{}});
-    if(error)throw new Error(error.message||"Full Site Backup request failed.");
+    if(error){let detail=error.message||"Full Site Backup request failed.";try{const ctx=error.context;if(ctx&&typeof ctx.clone==="function"){const payload=await ctx.clone().json();detail=payload?.error||payload?.message||detail;}}catch(_ctxError){}throw new Error(detail);}
     if(!data?.success)throw new Error(data?.error||"Backup पूरा नहीं हुआ।");
     const date=new Date(data.exported_at).toLocaleString("en-IN");
     msgEl.innerHTML="✅ <b>Full Site Backup Cloud में सुरक्षित है।</b><br>तारीख: "+date+"<br>Database tables: "+data.included_tables.length+" | कुल database records: "+Number(data.total_database_rows||0).toLocaleString("en-IN")+" | Storage files: "+Number(data.storage_file_count||0)+" | ZIP आकार: "+(Number(data.archive_size_bytes||0)/1024/1024).toFixed(2)+" MB<br><a href='"+data.signed_url+"' target='_blank' rel='noopener'>⬇️ पूरा ZIP Backup डाउनलोड करें (Database + Documents)</a><br><span class='muted'>Website source code GitHub पर सुरक्षित है: <a href='"+data.github_repository+"' target='_blank' rel='noopener'>Repository खोलें</a>. अलग test project में Restore Test अभी बाकी है।</span>";
