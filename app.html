@@ -357,7 +357,7 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 </section>
 <section id="reports" class="page"><div class="card"><h2>कर्मचारी रिपोर्ट</h2><div class="toolbar"><input id="reportEmployeeSearch" type="search" placeholder="कर्मचारी ID या कर्मचारी का नाम खोजें…" oninput="filterReportEmployees()" style="min-width:260px;flex:1;max-width:420px"/><select id="reportEmp" onchange="renderReport()" style="min-width:280px;max-width:520px;flex:1"></select><button class="btn primary" onclick="printEmployeeReport(&quot;portrait&quot;)">A4 Portrait — PDF डाउनलोड / Print</button><button class="btn" onclick="printEmployeeReport(&quot;landscape&quot;)">Landscape विकल्प</button></div><p id="reportSearchMsg" class="muted" style="margin:0 0 10px"></p><div id="reportBox"></div></div></section>
 <section id="backup" class="page"><div class="card"><h2>🔐 Data Security + Backup</h2>
-<p class="notice"><b>Full Site Backup:</b> Admin के लिए एक क्लिक में सभी application database tables और private Storage में रखे दस्तावेज़ों का ZIP Cloud Backup बनेगा। ZIP में database JSON, document files और manifest रहेगा। वेबसाइट का source code GitHub repository में है। Auth passwords/MFA seeds और API secrets शामिल नहीं होते। पूरा disaster-recovery सत्यापन करने के लिए अलग test project में Restore Test भी आवश्यक है।</p>
+<p class="notice"><b>Full Site Backup:</b> Admin के लिए एक क्लिक में सभी application database tables और private Storage documents चरणबद्ध तरीके से Cloud में सुरक्षित होंगे। हर table का JSON data और हर document अलग file में रहेगा; Manifest में पूरी सूची और backup विवरण होगा। वेबसाइट का source code GitHub repository में है। Auth passwords/MFA seeds और API secrets शामिल नहीं होते। पूरा disaster-recovery सत्यापन करने के लिए अलग test project में Restore Test भी आवश्यक है।</p>
 <div class="toolbar" style="margin-top:14px">
 <button class="btn primary" onclick="createFullSiteBackup()">☁️ एक क्लिक में पूरा Site Backup</button>
 <button class="btn" onclick="createCloudBackup()">☁️ केवल Cloud Backup</button>
@@ -1660,16 +1660,53 @@ async function createFullSiteBackup(){
   const msgEl=document.getElementById("backupMsg");
   const btn=[...document.querySelectorAll("button")].find(b=>b.getAttribute("onclick")==="createFullSiteBackup()");
   if(btn){btn.disabled=true;btn.dataset.originalText=btn.textContent;btn.textContent="⏳ Backup बन रहा है...";}
-  msgEl.textContent="पूरा Site Backup बनाया जा रहा है—Database की सभी tables और private Storage documents शामिल होंगे। कृपया पेज बंद न करें।";
+  const invoke=async(action,payload={})=>{
+    const {data,error}=await window.salaryDb.functions.invoke("full-site-backup",{body:{action,...payload}});
+    if(error){let detail=error.message||"Backup request failed";try{const x=error.context;if(x&&typeof x.clone==="function"){const j=await x.clone().json();detail=j?.error||j?.message||detail;}}catch(_){}throw new Error(detail);}
+    if(!data?.success)throw new Error(data?.error||"Backup चरण पूरा नहीं हुआ।");
+    return data;
+  };
   try{
     const {data:{session},error:sessionError}=await window.salaryDb.auth.getSession();
     if(sessionError)throw sessionError;
     if(!session?.access_token)throw new Error("Login session समाप्त हो गई है। कृपया फिर Login करें।");
-    const {data,error}=await window.salaryDb.functions.invoke("full-site-backup",{body:{}});
-    if(error){let detail=error.message||"Full Site Backup request failed.";try{const ctx=error.context;if(ctx&&typeof ctx.clone==="function"){const payload=await ctx.clone().json();detail=payload?.error||payload?.message||detail;}}catch(_ctxError){}throw new Error(detail);}
-    if(!data?.success)throw new Error(data?.error||"Backup पूरा नहीं हुआ।");
-    const date=new Date(data.exported_at).toLocaleString("en-IN");
-    msgEl.innerHTML="✅ <b>Full Site Backup Cloud में सुरक्षित है।</b><br>तारीख: "+date+"<br>Database tables: "+data.included_tables.length+" | कुल database records: "+Number(data.total_database_rows||0).toLocaleString("en-IN")+" | Storage files: "+Number(data.storage_file_count||0)+" | ZIP आकार: "+(Number(data.archive_size_bytes||0)/1024/1024).toFixed(2)+" MB<br><a href='"+data.signed_url+"' target='_blank' rel='noopener'>⬇️ पूरा ZIP Backup डाउनलोड करें (Database + Documents)</a><br><span class='muted'>Website source code GitHub पर सुरक्षित है: <a href='"+data.github_repository+"' target='_blank' rel='noopener'>Repository खोलें</a>. अलग test project में Restore Test अभी बाकी है।</span>";
+    msgEl.textContent="चरण 1/3: Backup शुरू किया जा रहा है...";
+    const init=await invoke("start"), backupId=init.backup_id;
+    const rowCounts={};let totalRows=0;
+    for(let ti=0;ti<init.tables.length;ti++){
+      const table=init.tables[ti];let offset=0,count=0;
+      while(true){
+        msgEl.textContent="चरण 2/3: Database सुरक्षित हो रहा है — "+table+" ("+(ti+1)+"/"+init.tables.length+"), रिकॉर्ड "+count+"...";
+        const page=await invoke("db_page",{backup_id:backupId,table,offset});
+        count+=page.count;
+        if(page.next_offset===null)break;
+        offset=page.next_offset;
+      }
+      rowCounts[table]=count;totalRows+=count;
+    }
+    const storage=await invoke("list_buckets"), files=[];
+    const walk=async(bucket,folder="")=>{
+      let offset=0;
+      while(true){
+        const listing=await invoke("list_objects",{bucket,folder,offset});
+        for(const entry of listing.entries){
+          const path=folder?folder+"/"+entry.name:entry.name;
+          if(entry.is_folder){await walk(bucket,path);}
+          else{
+            msgEl.textContent="चरण 3/3: दस्तावेज़ सुरक्षित हो रहे हैं — "+bucket+"/"+path+" ("+(files.length+1)+")...";
+            const copied=await invoke("copy_object",{backup_id:backupId,bucket,path});
+            files.push({bucket,path,backup_path:copied.path,size_bytes:copied.size_bytes});
+          }
+        }
+        if(listing.next_offset===null)break;
+        offset=listing.next_offset;
+      }
+    };
+    for(const bucket of storage.buckets)await walk(bucket);
+    msgEl.textContent="अंतिम जाँच और Manifest बनाया जा रहा है...";
+    const done=await invoke("finish",{backup_id:backupId,storage_files:files,row_counts:rowCounts});
+    const date=new Date(done.exported_at).toLocaleString("en-IN");
+    msgEl.innerHTML="✅ <b>पूरा Site Backup Cloud में सुरक्षित है।</b><br>तारीख: "+date+"<br>Database Tables: "+done.included_tables.length+" | कुल Records: "+Number(done.total_database_rows||0).toLocaleString("en-IN")+" | Documents: "+done.storage_file_count+"<br><a href='"+done.manifest_url+"' target='_blank' rel='noopener'>⬇️ Backup Manifest डाउनलोड करें</a><br><span class='muted'>Database के JSON भाग और Documents अलग-अलग Cloud files में सुरक्षित हैं। Website Source Code: <a href='"+done.github_repository+"' target='_blank' rel='noopener'>GitHub Repository</a>. Restore से पहले अलग test project में परीक्षण आवश्यक है।</span>";
     await renderBackupList();
   }catch(e){msgEl.textContent="Full Site Backup error: "+(e?.message||e);}
   finally{if(btn){btn.disabled=false;btn.textContent=btn.dataset.originalText||"☁️ एक क्लिक में पूरा Site Backup";delete btn.dataset.originalText;}}
@@ -1697,12 +1734,12 @@ async function downloadCloudBackup(id){
   try{
     const {data,error}=await window.salaryDb.from("system_backups").select("snapshot,label,created_at").eq("id",id).single();
     if(error)throw error;
-    if(data.snapshot?.archive_path){
+    if(data.snapshot?.manifest_path){
       const {data:download,error:downloadError}=await window.salaryDb.functions.invoke("full-site-backup",{body:{action:"download",backup_id:id}});
       if(downloadError)throw downloadError;
       if(!download?.success||!download?.signed_url)throw new Error(download?.error||"ZIP download link नहीं बना।");
-      const a=document.createElement("a");a.href=download.signed_url;a.target="_blank";a.rel="noopener";a.download="harshi-computer-full-site-backup.zip";document.body.appendChild(a);a.click();a.remove();
-      document.getElementById("backupMsg").textContent="पूरा ZIP Backup डाउनलोड शुरू हुआ। इसमें Database और Storage documents शामिल हैं।";
+      const a=document.createElement("a");a.href=download.signed_url;a.target="_blank";a.rel="noopener";a.download="harshi-computer-full-site-backup-manifest.json";document.body.appendChild(a);a.click();a.remove();
+      document.getElementById("backupMsg").textContent="Full Site Backup का Manifest डाउनलोड हुआ। Database pages और Storage documents Cloud में अलग-अलग सुरक्षित हैं।";
       return;
     }
     saveJsonFile(data.snapshot,"harshi-computer-cloud-backup-"+String(data.created_at).slice(0,10)+".json");
