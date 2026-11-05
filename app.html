@@ -417,11 +417,34 @@ function restoreWorkspaceState(){
   }
   return false;
 }
+function installCornerCapacityAlert(){
+ if(document.getElementById("harshiCornerCapacity"))return;
+ const el=document.createElement("div");el.id="harshiCornerCapacity";
+ el.style.cssText="position:fixed;right:14px;bottom:14px;z-index:99999;width:min(310px,calc(100vw - 28px));background:#fff;border:1px solid #d8e2ef;border-radius:12px;box-shadow:0 8px 28px #123b7326;padding:11px 13px;font:13px Arial,sans-serif;color:#17365f";
+ el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>📊 सिस्टम स्थिति</b><button id="harshiCapacityRefresh" type="button" style="border:0;background:#edf4ff;border-radius:6px;padding:4px 8px;cursor:pointer">↻</button></div><div id="harshiCapacityText" style="margin-top:7px;color:#667085">उपयोग जाँचा जा रहा है…</div><div id="harshiCapacityStamp" style="margin-top:5px;color:#98a2b3;font-size:11px"></div>';
+ document.body.appendChild(el);
+ document.getElementById("harshiCapacityRefresh").onclick=loadCornerCapacityAlert;
+ loadCornerCapacityAlert();
+}
+async function loadCornerCapacityAlert(){
+ const text=document.getElementById("harshiCapacityText"),stamp=document.getElementById("harshiCapacityStamp");if(!text)return;
+ text.textContent="Database और Documents जाँचे जा रहे हैं…";
+ try{
+  const {data,error}=await window.salaryDb.functions.invoke("full-site-backup",{body:{action:"usage_stats"}});
+  if(error)throw error;if(!data?.success||!data.usage)throw new Error(data?.error||"जाँच उपलब्ध नहीं");
+  const u=data.usage,db=Number(u.database_bytes||0)/(500*1024*1024)*100,st=Number(u.storage_bytes||0)/(1024*1024*1024)*100,p=Math.max(db,st);
+  const state=p>=95?"तत्काल ध्यान दें":p>=90?"Critical":p>=80?"Warning":"सामान्य";
+  const color=p>=90?"#b42318":p>=80?"#9a6700":"#067647";
+  text.innerHTML='<span style="color:'+color+';font-weight:700">● '+state+'</span><br>Database: '+db.toFixed(1)+'% · Documents: '+st.toFixed(1)+'%<br>Files: '+Number(u.storage_file_count||0).toLocaleString("en-IN");
+  stamp.textContent="अंतिम जाँच: "+new Date(u.measured_at||Date.now()).toLocaleString("en-IN");
+ }catch(e){text.textContent="स्थिति जाँच नहीं हो सकी: "+(e?.message||e);stamp.textContent="↻ बटन से पुनः जाँचें";}
+}
 function start(s){
   inactivityActive=true;
   resetInactivityTimer();
   document.getElementById("login").style.display="none";
   document.getElementById("portal").classList.add("show");
+  installCornerCapacityAlert();
   document.getElementById("app").style.display="none";
   document.getElementById("personal").style.display="none";
   window.currentSession=s;
