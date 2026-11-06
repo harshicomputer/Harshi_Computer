@@ -958,9 +958,9 @@ async function beginReportMfaChallenge(){
 }
 window.beginReportMfaChallenge=beginReportMfaChallenge;
 window.verifyReportMfaCode=async function(){
- const code=(document.getElementById("reportMfaCode")?.value||"").replace(/\\s/g,"");
+ const code=(document.getElementById("reportMfaCode")?.value||"").replace(/\s/g,"");
  const msg=document.getElementById("reportMfaMsg");
- if(!/^\\d{6}$/.test(code)){if(msg)msg.textContent="Authenticator का 6 अंकों का कोड दर्ज करें।";return}
+ if(!/^\d{6}$/.test(code)){if(msg)msg.textContent="Authenticator का 6 अंकों का कोड दर्ज करें।";return}
  if(!reportMfaFactorId||!reportMfaChallengeId){if(msg)msg.textContent="Verification challenge नहीं मिला। दोबारा प्रयास करें।";return}
  try{
   const db=await window.salaryDbReady;
