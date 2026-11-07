@@ -970,6 +970,7 @@ window.verifyReportMfaCode=async function(){
   renderReport();
  }catch(e){if(msg)msg.textContent="कोड सत्यापित नहीं हुआ: "+(e?.message||e)}
 };
+let reportPaymentUnlockedEmployees=new Set();
 function renderReport(){
  const e=employees[Number(document.getElementById("reportEmp")?.value)];
  const box=document.getElementById("reportBox");
@@ -982,7 +983,7 @@ function renderReport(){
  const totalPaid=months.reduce((a,m)=>a+Number(byMonth.get(m.slice(0,7))?.amount||0),0);
  const totalPending=Math.max(0,totalPayable-totalPaid);
  const summary="<div class='report-summary'><p><b>कर्मचारी ID:</b> "+safeReportText(e.code)+" &nbsp; <b>नाम:</b> "+safeReportText(e.name)+"</p><p><b>अवधि:</b> मार्च 2019 से "+formatReportMonth(months[months.length-1])+" &nbsp; <b>कुल माह:</b> "+months.length+" &nbsp; <b>भुगतान किए गए माह:</b> "+paidMonths+" &nbsp; <b>बकाया माह:</b> "+pendingMonths+"</p><p><b>भुगतान योग्य:</b> ₹"+totalPayable.toLocaleString("en-IN")+" &nbsp; <b>भुगतान किया:</b> ₹"+totalPaid.toLocaleString("en-IN")+" &nbsp; <b>लंबित राशि:</b> ₹"+totalPending.toLocaleString("en-IN")+"</p></div>";
- if(!reportMfaVerified){
+ if(!reportMfaVerified&&!reportPaymentUnlockedEmployees.has(e.id)){
   box.innerHTML=summary+"<div id='reportPaymentBox'></div><div class='notice' style='margin-top:12px'>विस्तृत माहवार वेतन विवरण और Print सुविधा ₹200 भुगतान सत्यापन के बाद उपलब्ध होगी। Admin अपने Authenticator से भी विस्तृत रिपोर्ट खोल सकते हैं।</div>";
   loadEmployeeReportPayment(e);return;
  }
@@ -997,7 +998,7 @@ async function loadEmployeeReportPayment(e){
   const db=await window.salaryDbReady,{data:rows,error}=await db.from("employee_report_payments").select("*").eq("employee_id",e.id).order("submitted_at",{ascending:false});
   if(error)throw error;
   const list=rows||[],ok=list.find(x=>x.status==="verified"),pending=list.find(x=>x.status==="pending");
-  if(ok){box.innerHTML='<div class="notice" style="background:#ecfdf3;color:#067647;border-color:#abefc6">✓ ₹200 भुगतान सत्यापित — रिपोर्ट स्थायी रूप से Unlock। UTR: '+safeReportText(ok.utr)+'</div>';return}
+  if(ok){if(!reportPaymentUnlockedEmployees.has(e.id)){reportPaymentUnlockedEmployees.add(e.id);renderReport();return}box.innerHTML='<div class="notice" style="background:#ecfdf3;color:#067647;border-color:#abefc6">✓ ₹200 भुगतान सत्यापित — रिपोर्ट स्थायी रूप से Unlock। UTR: '+safeReportText(ok.utr)+'</div>';return}
   box.innerHTML='<div class="card" style="margin:14px 0;border:1px solid #e3a16d"><h3>🔒 कर्मचारी रिपोर्ट Unlock — एकमुश्त ₹200</h3><p>कुल माह: <b>'+getReportMonthRange().length+'</b> &nbsp; | &nbsp; बकाया माह: <b>'+((document.querySelector(".report-summary")?.textContent.match(/लंबित माह:\\s*(\\d+)/)||[])[1]||"—")+'</b></p><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><div style="text-align:center"><img alt="Amazon Pay QR Code" width="210" height="210" style="object-fit:contain;border:1px solid #ddd;border-radius:8px" src="https://api.qrserver.com/v1/create-qr-code/?size=210x210&data=upi%3A%2F%2Fpay%3Fpa%3D9753537605%40amazonpay%26pn%3DSUBHASH%20DINDOD"><div><b>Amazon Pay</b><br><span class="muted">9753537605@amazonpay</span></div></div><div style="flex:1;min-width:240px"><p>QR स्कैन करके ठीक ₹200 भुगतान करें। फिर UTR दर्ज करें। Admin Amazon Pay हिस्ट्री में भुगतान मिलान करके Verify करेगा।</p><input id="reportPaymentUtr" inputmode="numeric" maxlength="30" placeholder="UTR / Transaction ID" style="display:block;width:100%;margin:7px 0"><button class="btn primary" type="button" onclick="submitEmployeeReportPayment()">UTR अनुरोध दर्ज करें</button><p id="reportPaymentMsg" class="muted"></p></div></div>'+(pending?'<p class="notice">UTR '+safeReportText(pending.utr)+' सत्यापन के लिए लंबित है।</p>':'')+'<div style="margin-top:12px"><h4>Admin Payment Verification</h4><div id="reportPaymentAdminRows"></div></div></div>';
   const host=document.getElementById("reportPaymentAdminRows"),pend=list.filter(x=>x.status==="pending");
   if(host)host.innerHTML=pend.length?pend.map(x=>'<div style="padding:8px;border-top:1px solid #eee">UTR: <b>'+safeReportText(x.utr)+'</b> — ₹'+Number(x.amount).toLocaleString("en-IN")+' <button class="btn primary" onclick="verifyEmployeeReportPayment(\''+x.id+'\')">Amazon में मिलान के बाद Verify & Unlock</button> <button class="btn" onclick="rejectEmployeeReportPayment(\''+x.id+'\')">Reject</button></div>').join(""):'<span class="muted">कोई लंबित अनुरोध नहीं।</span>';
