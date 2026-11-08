@@ -1099,22 +1099,35 @@ function downloadPaymentTemplate(){
   XLSX.utils.book_append_sheet(wb,ws,"Payment Upload");
   XLSX.writeFile(wb,"salary-payment-upload-template.xlsx");
 }
+let paymentPreviewRunId=0;
 function resetPaymentPreviewOnFileChange(){
+  paymentPreviewRunId++;
   pendingPaymentRows=[];pendingPaymentRejectedRows=[];pendingPaymentDatabaseDuplicates=[];pendingPaymentInternalDuplicates=0;pendingPaymentDbLookupFailed=false;
   const box=document.getElementById("paymentPreview"),msg=document.getElementById("paymentMsg"),btn=document.getElementById("confirmPaymentBtn");
-  if(box)box.innerHTML="";if(msg)msg.textContent="नई Excel फ़ाइल चुनी गई है। पुराना Preview साफ कर दिया गया है; अब Preview / जाँचें दबाएँ।";if(btn)btn.disabled=true;
+  const reviewSummary=document.getElementById("paymentDuplicateReviewSummary"),reviewTable=document.getElementById("paymentDuplicateComparisonTableWrap");
+  if(box)box.innerHTML="";
+  if(reviewSummary)reviewSummary.textContent="नई Excel फ़ाइल चुनने के बाद Preview चलाएँ; पुरानी Duplicate सूची साफ कर दी गई है।";
+  if(reviewTable)reviewTable.innerHTML="";
+  const reviewPage=document.getElementById("paymentDuplicateReviewPage");
+  if(reviewPage)reviewPage.classList.remove("active");
+  if(msg)msg.textContent="नई Excel फ़ाइल चुनी गई है। पुराना Preview और Duplicate विवरण साफ कर दिया गया है; अब Preview / जाँचें दबाएँ।";
+  if(btn)btn.disabled=true;
 }
 async function previewPaymentUpload(){
+  const runId=++paymentPreviewRunId;
   let file=document.getElementById("paymentFile").files[0],msgEl=document.getElementById("paymentMsg"),box=document.getElementById("paymentPreview"),btn=document.getElementById("confirmPaymentBtn");
   pendingPaymentRows=[];pendingPaymentRejectedRows=[];pendingPaymentDatabaseDuplicates=[];pendingPaymentInternalDuplicates=0;pendingPaymentDbLookupFailed=false;document.querySelectorAll('input[name="paymentDuplicateAction"]').forEach(x=>x.checked=x.value==="skip");btn.disabled=true;box.innerHTML="";
   if(!file)return msgEl.textContent="पहले fixed Payment Template वाली Excel फ़ाइल चुनें।";
   try{
-    let data=await file.arrayBuffer(),wb=XLSX.read(data,{type:"array",cellDates:false}),codes=new Map(employees.map(e=>[normalizeCode(e.code),e]));
+    let data=await file.arrayBuffer();
+    if(runId!==paymentPreviewRunId||document.getElementById("paymentFile")?.files?.[0]!==file)return;
+    let wb=XLSX.read(data,{type:"array",cellDates:false}),codes=new Map(employees.map(e=>[normalizeCode(e.code),e]));
     const cleanName=v=>String(v||"").trim().replace(/\s+/g," ").toLocaleLowerCase();
     const cleanAccount=v=>String(v??"").replace(/[^0-9]/g,"");
     const cleanIfsc=v=>String(v??"").trim().toUpperCase().replace(/\s+/g,"");
     const bankRes=await window.salaryDb.from("employee_bank_details").select("employee_id,account_number,ifsc_code");
     const historyRes=await window.salaryDb.from("employee_bank_account_history").select("employee_id,account_number,ifsc_code,applicable_month,verified").eq("verified",true);
+    if(runId!==paymentPreviewRunId||document.getElementById("paymentFile")?.files?.[0]!==file)return;
     const bankDetails=[...(bankRes.data||[]).map(b=>({...b,_source:"current"})),...(historyRes.data||[]).map(b=>({...b,_source:"history"}))],bankLookupError=bankRes.error?.message||historyRes.error?.message||null;
     const required=["employeecode","employeename","salarymonth","ifsccode","beneficiaryacno","payableamount","paidamount","paymentdate","voucherno","remarks"];
     let invalidSheets=[];
@@ -1392,7 +1405,7 @@ async function previewPaymentUpload(){
       previewNotices.forEach(notice=>noticeStack.appendChild(notice));
     }
     toggleExistingPaymentOverwrite();
-  }catch(e){msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
+  }catch(e){if(runId===paymentPreviewRunId)msgEl.textContent="Excel पढ़ने में समस्या: "+(e?.message||e)}
 }
 function selectedPaymentDuplicateAction(){
  return document.querySelector('input[name="paymentDuplicateAction"]:checked')?.value||"skip";
