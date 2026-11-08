@@ -1186,7 +1186,10 @@ async function previewPaymentUpload(){
           "ARIFRAFIKKHA":"R16800104",
           "GUDDOKARIM":"R16800143"
         };
-        const confirmedIdentityCode=confirmedNameCodeAliases[compactName(nameCell)]||confirmedAliasCode;
+        // User-confirmed historical voucher alias: May 2022 payroll printed 81680225 for SIRAJ SALIM,
+        // while the canonical employee master record is NR81680218. Keep the bank mismatch visible.
+        const sirajMayLegacyAlias=(normalizeCode(code)==="81680225"&&compactName(nameCell)==="SIRAJSALIM")?"NR81680218":"";
+        const confirmedIdentityCode=confirmedNameCodeAliases[compactName(nameCell)]||sirajMayLegacyAlias||confirmedAliasCode;
         if(confirmedIdentityCode){
           const confirmedEmployees=employees.filter(emp=>normalizeCode(emp.code)===normalizeCode(confirmedIdentityCode));
           if(confirmedEmployees.length===1)codeMatches=confirmedEmployees;
