@@ -891,7 +891,8 @@ async function editEmployeeBasic(id){
  document.getElementById("salarySubNav").style.display="none";
  resetInactivityTimer();
 }
-function autoEmployeeRetirementDate(){const dob=document.getElementById("employeeEditDob")?.value;if(!dob)return;const d=new Date(dob+"T00:00:00");if(Number.isNaN(d.getTime()))return;const y=d.getFullYear()+62,last=new Date(y,d.getMonth()+1,0);document.getElementById("employeeEditRetirementDate").value=y+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(last.getDate()).padStart(2,"0")}\nfunction cancelEmployeeBasicEdit(){openOfficeModule("employees")}
+function autoEmployeeRetirementDate(){const dob=document.getElementById("employeeEditDob")?.value;if(!dob)return;const d=new Date(dob+"T00:00:00");if(Number.isNaN(d.getTime()))return;const y=d.getFullYear()+62,last=new Date(y,d.getMonth()+1,0);document.getElementById("employeeEditRetirementDate").value=y+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(last.getDate()).padStart(2,"0")}
+function cancelEmployeeBasicEdit(){openOfficeModule("employees")}
 async function saveEmployeeBasicEdit(){
  const id=document.getElementById("employeeEditId").value;
  const code=document.getElementById("employeeEditCode").value.trim();
