@@ -219,7 +219,7 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 <div><label for="employeeEditCode">Employee ID / कर्मचारी कोड</label><input id="employeeEditCode" style="display:block;width:100%;box-sizing:border-box;margin-top:6px" autocomplete="off" required></div>
 <div><label for="employeeEditName">कर्मचारी का नाम</label><input id="employeeEditName" style="display:block;width:100%;box-sizing:border-box;margin-top:6px" autocomplete="off" required></div>
 <div><label for="employeeEditPost">पद (Post / Designation)</label><input id="employeeEditPost" style="display:block;width:100%;box-sizing:border-box;margin-top:6px" autocomplete="off"></div>
-<div><label for="employeeEditDepartment">विभाग (Department)</label><input id="employeeEditDepartment" style="display:block;width:100%;box-sizing:border-box;margin-top:6px" autocomplete="off"></div>
+<div><label for="employeeEditDepartment">विभाग (Department)</label><input id="employeeEditDepartment" style="display:block;width:100%;box-sizing:border-box;margin-top:6px" autocomplete="off"></div><div><label>Joining Date / नियुक्ति दिनांक</label><input id="employeeEditJoiningDate" type="date" style="display:block;width:100%;margin-top:6px"></div><div><label>Date of Birth / जन्म दिनांक</label><input id="employeeEditDob" type="date" style="display:block;width:100%;margin-top:6px" onchange="autoEmployeeRetirementDate()"></div><div><label>Retirement Date / सेवानिवृत्ति दिनांक</label><input id="employeeEditRetirementDate" type="date" style="display:block;width:100%;margin-top:6px"><small class="muted">62 वर्ष पूरे होने वाले माह का अंतिम दिन स्वतः भरेगा; जरूरत पर बदलें।</small></div><div><label>Death Date / मृत्यु दिनांक</label><input id="employeeEditDeathDate" type="date" style="display:block;width:100%;margin-top:6px"></div>
 </div>
 <div class="card" style="margin-top:14px"><h3>बैंक विवरण संपादित करें</h3><div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div><label>बैंक खाता संख्या</label><input id="employeeEditBankAccount" style="width:100%" inputmode="numeric"></div><div><label>IFSC Code</label><input id="employeeEditIfsc" style="width:100%;text-transform:uppercase"></div><div><label>बैंक का नाम</label><input id="employeeEditBankName" style="width:100%"></div></div><div id="employeeBankEditMsg" class="muted"></div></div><div id="employeeBasicEditMsg" class="muted" style="margin-top:12px"></div>
 <div class="toolbar" style="margin-top:14px"><button id="employeeBasicSaveBtn" class="btn primary" type="button" onclick="saveEmployeeBasicEdit()">बदलाव सेव करें</button><button class="btn" type="button" onclick="cancelEmployeeBasicEdit()">रद्द करें</button></div>
@@ -883,7 +883,7 @@ async function editEmployeeBasic(id){
  document.getElementById("employeeEditCode").value=e.code||"";
  document.getElementById("employeeEditName").value=e.name||"";
  document.getElementById("employeeEditPost").value=e.post||"";
- document.getElementById("employeeEditDepartment").value=e.department||"";
+ document.getElementById("employeeEditDepartment").value=e.department||"";document.getElementById("employeeEditJoiningDate").value=e.joining_date||"";document.getElementById("employeeEditDob").value=e.date_of_birth||"";document.getElementById("employeeEditRetirementDate").value=e.retirement_date||"";document.getElementById("employeeEditDeathDate").value=e.death_date||"";
  document.getElementById("employeeBasicEditMsg").textContent="मूल कर्मचारी कोड: "+(e.code||"—")+". नया कोड पहले से इस्तेमाल में नहीं होना चाहिए।";
  document.querySelectorAll("#app .page").forEach(x=>x.classList.remove("active"));
  document.getElementById("employeeBasicEditPage").classList.add("active");
@@ -891,13 +891,13 @@ async function editEmployeeBasic(id){
  document.getElementById("salarySubNav").style.display="none";
  resetInactivityTimer();
 }
-function cancelEmployeeBasicEdit(){openOfficeModule("employees")}
+function autoEmployeeRetirementDate(){const dob=document.getElementById("employeeEditDob")?.value;if(!dob)return;const d=new Date(dob+"T00:00:00");if(Number.isNaN(d.getTime()))return;const y=d.getFullYear()+62,last=new Date(y,d.getMonth()+1,0);document.getElementById("employeeEditRetirementDate").value=y+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(last.getDate()).padStart(2,"0")}\nfunction cancelEmployeeBasicEdit(){openOfficeModule("employees")}
 async function saveEmployeeBasicEdit(){
  const id=document.getElementById("employeeEditId").value;
  const code=document.getElementById("employeeEditCode").value.trim();
  const name=document.getElementById("employeeEditName").value.trim();
  const post=document.getElementById("employeeEditPost").value.trim();
- const department=document.getElementById("employeeEditDepartment").value.trim();
+ const department=document.getElementById("employeeEditDepartment").value.trim();const joining_date=document.getElementById("employeeEditJoiningDate").value||null,date_of_birth=document.getElementById("employeeEditDob").value||null,retirement_date=document.getElementById("employeeEditRetirementDate").value||null,death_date=document.getElementById("employeeEditDeathDate").value||null;
  const msg=document.getElementById("employeeBasicEditMsg"),btn=document.getElementById("employeeBasicSaveBtn");
  if(!id){msg.textContent="कर्मचारी रिकॉर्ड चुनें।";return}
  if(!code||!name){msg.textContent="कर्मचारी कोड और नाम अनिवार्य हैं।";return}
@@ -907,7 +907,7 @@ async function saveEmployeeBasicEdit(){
  try{
   await window.salaryDbReady;
   const db=await window.salaryDbReady;
-  const {error}=await db.from("employees").update({code,name,post:post||null,department:department||null}).eq("id",id);
+  if(joining_date&&retirement_date&&retirement_date<joining_date)throw new Error("सेवानिवृत्ति दिनांक नियुक्ति दिनांक से पहले नहीं हो सकती।");if(joining_date&&death_date&&death_date<joining_date)throw new Error("मृत्यु दिनांक नियुक्ति दिनांक से पहले नहीं हो सकती।");const {error}=await db.from("employees").update({code,name,post:post||null,department:department||null,joining_date,date_of_birth,retirement_date,death_date}).eq("id",id);
   if(error)throw error;
   const account=document.getElementById("employeeEditBankAccount").value.replace(/[^0-9]/g,"");
   const ifsc=document.getElementById("employeeEditIfsc").value.trim().toUpperCase();
@@ -931,7 +931,7 @@ function setupReport(){const search=document.getElementById("reportEmployeeSearc
 function filterReportEmployees(preferredIndex=null){const search=(document.getElementById("reportEmployeeSearch")?.value||"").trim().toLocaleLowerCase();const select=document.getElementById("reportEmp");if(!select)return;const previous=preferredIndex!==null?String(preferredIndex):select.value;const matches=employees.map((e,i)=>({e,i})).filter(x=>!search||String(x.e.code||"").toLocaleLowerCase().includes(search)||String(x.e.name||"").toLocaleLowerCase().includes(search));select.innerHTML=matches.map(x=>'<option value="'+x.i+'">'+String(x.e.code||"")+' — '+String(x.e.name||"")+'</option>').join("");const msg=document.getElementById("reportSearchMsg");if(!matches.length){if(msg)msg.textContent="इस कर्मचारी ID या नाम से कोई कर्मचारी नहीं मिला।";document.getElementById("reportBox").innerHTML="";return}const keep=matches.some(x=>String(x.i)===previous)?previous:String(matches[0].i);select.value=keep;if(msg)msg.textContent=search?matches.length+" कर्मचारी मिले।":"कुल "+employees.length+" कर्मचारी";renderReport()}
 function formatReportMonth(value){const m=String(value||"").match(/^(\d{4})-(\d{2})/);if(!m)return value||"";const names=["जनवरी","फरवरी","मार्च","अप्रैल","मई","जून","जुलाई","अगस्त","सितंबर","अक्टूबर","नवंबर","दिसंबर"];const n=Number(m[2]);return n>=1&&n<=12?names[n-1]+" "+m[1]:value}
 function formatReportDate(value){if(!value)return "";const m=String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"-"+m[2]+"-"+m[1]:value}
-function getReportMonthRange(){const now=new Date(),months=[];for(let y=2019;y<=now.getFullYear();y++){const first=y===2019?3:1,last=y===now.getFullYear()?now.getMonth()+1:12;for(let m=first;m<=last;m++)months.push(y+"-"+String(m).padStart(2,"0")+"-01")}return months}
+function employeeServiceMonthBounds(e){const now=new Date(),cur=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0"),start=e?.joining_date?String(e.joining_date).slice(0,7):"2019-03",ends=[e?.retirement_date,e?.death_date].filter(Boolean).map(x=>String(x).slice(0,7)).sort(),end=ends[0]||cur;return {start,end:end>cur?cur:end}}function employeeMonthIsInService(e,month){const b=employeeServiceMonthBounds(e);return month>=b.start&&month<=b.end}function getReportMonthRange(e){const b=employeeServiceMonthBounds(e),months=[];for(let y=Number(b.start.slice(0,4));y<=Number(b.end.slice(0,4));y++){const first=y===Number(b.start.slice(0,4))?Number(b.start.slice(5,7)):1,last=y===Number(b.end.slice(0,4))?Number(b.end.slice(5,7)):12;for(let m=first;m<=last;m++)months.push(y+"-"+String(m).padStart(2,"0")+"-01")}return months}
 let reportMfaVerified=false,reportMfaFactorId=null,reportMfaChallengeId=null,reportMfaBusy=false;
 async function beginReportMfaChallenge(){
  if(reportMfaBusy||reportMfaVerified)return;
@@ -976,7 +976,7 @@ function renderReport(){
  const box=document.getElementById("reportBox");
  if(!e){box.innerHTML="कर्मचारी चुनें।";return}
  const rr=records.filter(x=>x.employee_id===e.id),byMonth=new Map(rr.map(r=>[String(r.month_start||"").slice(0,7),r]));
- const months=getReportMonthRange();
+ const months=getReportMonthRange(e);
  const pendingMonths=months.filter(m=>Math.max(0,Number(byMonth.get(m.slice(0,7))?.payable_amount||0)-Number(byMonth.get(m.slice(0,7))?.amount||0))>0).length;
  const paidMonths=months.filter(m=>Number(byMonth.get(m.slice(0,7))?.amount||0)>0).length;
  const totalPayable=months.reduce((a,m)=>a+Number(byMonth.get(m.slice(0,7))?.payable_amount||0),0);
@@ -1000,7 +1000,7 @@ async function loadEmployeeReportPayment(e){
   if(error)throw error;
   const list=rows||[],ok=list.find(x=>x.status==="verified");
   if(ok){if(!reportPaymentUnlockedEmployees.has(e.id)){reportPaymentUnlockedEmployees.add(e.id);renderReport();return}box.innerHTML='<div class="notice" style="background:#ecfdf3;color:#067647;border-color:#abefc6">✓ ₹200 UTR '+safeReportText(ok.utr)+' दर्ज करके रिपोर्ट स्थायी रूप से Unlock है।</div>';return}
-  box.innerHTML='<div class="card" style="margin:14px 0;border:1px solid #e3a16d"><h3>🔒 कर्मचारी रिपोर्ट Unlock — एकमुश्त ₹200</h3><p>कुल माह: <b>'+getReportMonthRange().length+'</b> &nbsp; | &nbsp; बकाया माह: <b>'+((document.querySelector(".report-summary")?.textContent.match(/बकाया माह:\\s*(\\d+)/)||[])[1]||"—")+'</b></p><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><div style="text-align:center"><img alt="Amazon Pay QR Code" width="210" height="210" style="object-fit:contain;border:1px solid #ddd;border-radius:8px" src="https://api.qrserver.com/v1/create-qr-code/?size=210x210&data=upi%3A%2F%2Fpay%3Fpa%3D9753537605%40amazonpay%26pn%3DSUBHASH%20DINDOD"><div><b>Amazon Pay</b><br><span class="muted">9753537605@amazonpay</span></div></div><div style="flex:1;min-width:240px"><p>₹200 प्राप्त होने के बाद Admin भुगतान का UTR Number यहाँ दर्ज करके पुष्टि और Unlock कर सकता है।</p><label for="reportPaymentUtr"><b>भुगतान UTR Number</b></label><input id="reportPaymentUtr" inputmode="numeric" maxlength="30" placeholder="UTR / Transaction ID दर्ज करें" style="display:block;width:100%;margin:7px 0"><button class="btn primary" type="button" onclick="confirmEmployeeReportUnlock()">UTR Confirm करें और Permanent Unlock करें</button><p id="reportPaymentMsg" class="muted">Amazon Pay में ₹200 प्राप्त होने की पुष्टि के बाद UTR दर्ज करें।</p></div></div></div>';
+  box.innerHTML='<div class="card" style="margin:14px 0;border:1px solid #e3a16d"><h3>🔒 कर्मचारी रिपोर्ट Unlock — एकमुश्त ₹200</h3><p>कुल माह: <b>'+getReportMonthRange(e).length+'</b> &nbsp; | &nbsp; बकाया माह: <b>'+((document.querySelector(".report-summary")?.textContent.match(/बकाया माह:\\s*(\\d+)/)||[])[1]||"—")+'</b></p><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><div style="text-align:center"><img alt="Amazon Pay QR Code" width="210" height="210" style="object-fit:contain;border:1px solid #ddd;border-radius:8px" src="https://api.qrserver.com/v1/create-qr-code/?size=210x210&data=upi%3A%2F%2Fpay%3Fpa%3D9753537605%40amazonpay%26pn%3DSUBHASH%20DINDOD"><div><b>Amazon Pay</b><br><span class="muted">9753537605@amazonpay</span></div></div><div style="flex:1;min-width:240px"><p>₹200 प्राप्त होने के बाद Admin भुगतान का UTR Number यहाँ दर्ज करके पुष्टि और Unlock कर सकता है।</p><label for="reportPaymentUtr"><b>भुगतान UTR Number</b></label><input id="reportPaymentUtr" inputmode="numeric" maxlength="30" placeholder="UTR / Transaction ID दर्ज करें" style="display:block;width:100%;margin:7px 0"><button class="btn primary" type="button" onclick="confirmEmployeeReportUnlock()">UTR Confirm करें और Permanent Unlock करें</button><p id="reportPaymentMsg" class="muted">Amazon Pay में ₹200 प्राप्त होने की पुष्टि के बाद UTR दर्ज करें।</p></div></div></div>';
  }catch(err){box.innerHTML='<p class="error">भुगतान स्थिति नहीं पढ़ी जा सकी: '+safeReportText(err?.message||err)+'</p>'}
 }
 
@@ -2056,14 +2056,14 @@ async function loadPayrollSheet(){
  body.innerHTML='<tr><td colspan="24">लोड हो रहा है…</td></tr>';
  try{
   await window.salaryDbReady;
-  const {data:emps,error:ee}=await window.salaryDb.from("employees").select("id,code,name,post,department,active").order("code");
+  const {data:emps,error:ee}=await window.salaryDb.from("employees").select("id,code,name,post,department,active,joining_date,retirement_date,death_date").order("code");
   if(ee)throw ee;
   const start=month+"-01";
   const {data:existing,error:pe}=await window.salaryDb.from("payroll_sheets").select("*").eq("month_start",start);
   if(pe)throw pe;
   const map=new Map((existing||[]).map(r=>[r.employee_id,r]));
   body.innerHTML="";
-  for(const e of (emps||[])){
+  for(const e of (emps||[])){if(!employeeMonthIsInService(e,month))continue;
    const r=map.get(e.id)||{};const tr=document.createElement("tr");tr.dataset.employeeId=e.id;tr.dataset.code=e.code||"";tr.dataset.name=e.name||"";tr.dataset.category=payrollEmployeeCategory(e,r.designation);
    const identity=[e.code||"",e.name||"",r.designation??e.post??e.department??""];tr.dataset.designation=String(identity[2]||"").trim();
    identity.forEach((v,i)=>{const td=document.createElement("td");if(i===2){const inp=document.createElement("input");inp.value=v;inp.dataset.field="designation";inp.style.minWidth="130px";td.appendChild(inp)}else td.textContent=v;tr.appendChild(td)});
