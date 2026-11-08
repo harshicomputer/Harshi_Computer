@@ -1187,7 +1187,7 @@ async function previewPaymentUpload(){
           "ARIFRAFIKKHA":"R16800104",
           "GUDDOKARIM":"R16800143"
         };
-        // User-confirmed historical voucher alias: May 2022 payroll printed 81680225 for SIRAJ SALIM,
+        // User-confirmed historical voucher alias: legacy payroll files print 81680225 (with or without NR prefix) for SIRAJ SALIM,
         // while the canonical employee master record is NR81680218. Keep the bank mismatch visible.
         const sirajLegacyNumericCode=normalizeCode(code).replace(/^NR/,"");
         const sirajMayLegacyAlias=(sirajLegacyNumericCode==="81680225"&&compactName(nameCell)==="SIRAJSALIM")?"NR81680218":"";
