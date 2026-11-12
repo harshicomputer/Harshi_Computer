@@ -1021,17 +1021,14 @@ window.confirmEmployeeReportUnlock=async function(){
  const e=employees[Number(document.getElementById("reportEmp")?.value)],input=document.getElementById("reportPaymentUtr"),msg=document.getElementById("reportPaymentMsg"),utr=(input?.value||"").trim();
  if(!e||utr.length<8||utr.length>30){if(msg)msg.textContent="कृपया सही UTR / Transaction ID दर्ज करें।";return}
  try{
-  const db=await window.salaryDbReady,{data:u,error:ue}=await db.auth.getUser();if(ue)throw ue;if(!u?.user)throw new Error("Login session समाप्त है।");
-  const admin=await isCurrentUserReportAdmin();
-  if(admin&&!reportMfaVerified)throw new Error("Admin Unlock के लिए पहले Authenticator सत्यापन आवश्यक है।");
-  const {data:existing,error:checkError}=await db.from("employee_report_payments").select("id,status").eq("employee_id",e.id).in("status",["pending","verified"]).limit(5);if(checkError)throw checkError;
-  if(existing?.some(x=>x.status==="verified"))throw new Error("यह कर्मचारी रिपोर्ट पहले ही Unlock है।");
-  if(existing?.some(x=>x.status==="pending"))throw new Error("इस कर्मचारी का UTR पहले ही जमा है; Admin सत्यापन की प्रतीक्षा करें।");
-  const payload={employee_id:e.id,employee_code:e.code,employee_name:e.name,amount:200,utr,submitted_by:u.user.id,status:admin?"verified":"pending",verified_by:admin?u.user.id:null,verified_at:admin?new Date().toISOString():null,admin_note:admin?"Admin द्वारा Amazon Pay प्राप्ति की मैनुअल पुष्टि":null};
-  const {error}=await db.from("employee_report_payments").insert(payload);if(error)throw error;
-  if(admin){reportPaymentUnlockedEmployees.add(e.id);renderReport();alert("भुगतान सत्यापित। रिपोर्ट स्थायी रूप से Unlock कर दी गई है।")}
-  else{if(msg)msg.textContent="UTR जमा हो गया। Admin द्वारा ₹200 भुगतान सत्यापन के बाद रिपोर्ट Unlock होगी।";if(input)input.disabled=true}
- }catch(err){if(msg)msg.textContent="Unlock / UTR जमा नहीं हुआ: "+(err?.message||err)}
+  const admin=await isCurrentUserReportAdmin();if(!admin)throw new Error("भुगतान सत्यापन केवल Admin कर सकता है।");
+  if(!reportMfaVerified)throw new Error("Admin Unlock के लिए पहले Authenticator सत्यापन आवश्यक है।");
+  if(!confirm("क्या Amazon Pay में ₹200 प्राप्त होने और इस UTR का वास्तविक मिलान कर लिया है? पुष्टि के बाद रिपोर्ट स्थायी रूप से Unlock होगी।"))return;
+  const db=await window.salaryDbReady,{data:u,error:ue}=await db.auth.getUser();if(ue)throw ue;if(!u?.user)throw new Error("Admin Login session समाप्त है।");
+  const {data:existing,error:checkError}=await db.from("employee_report_payments").select("id,status").eq("employee_id",e.id).eq("status","verified").maybeSingle();if(checkError)throw checkError;if(existing)throw new Error("यह कर्मचारी रिपोर्ट पहले ही Unlock है।");
+  const {error}=await db.from("employee_report_payments").insert({employee_id:e.id,employee_code:e.code,employee_name:e.name,amount:200,utr,submitted_by:u.user.id,verified_by:u.user.id,status:"verified",verified_at:new Date().toISOString(),admin_note:"Admin द्वारा Amazon Pay प्राप्ति की मैनुअल पुष्टि"});if(error)throw error;
+  reportPaymentUnlockedEmployees.add(e.id);renderReport();alert("भुगतान सत्यापित। रिपोर्ट स्थायी रूप से Unlock कर दी गई है।");
+ }catch(err){if(msg)msg.textContent="Unlock नहीं हुआ: "+(err?.message||err)}
 };
 window.verifyEmployeeReportPayment=async function(id){
  if(!reportMfaVerified){alert("पहले Admin Authenticator सत्यापन करें।");return}
