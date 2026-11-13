@@ -106,7 +106,7 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
     <div class="portal-card"><div class="portal-icon">👤</div><h3>Personal / व्यक्तिगत</h3><p>Loan, Credit Card और Documents के व्यक्तिगत रिकॉर्ड।</p><button class="btn" onclick="openPersonal()">Personal खोलें</button></div>
   </div>
   <div class="portal-footer"><span>© Harshi Computer</span><span>Simple · Secure · Organized</span></div>
-</div><div id="personal" class="app">
+</div><div id="personalAuthGate" style="display:none;position:fixed;inset:0;z-index:100000;background:#0b2448b8;backdrop-filter:blur(4px);padding:18px;place-items:center"><section style="width:min(460px,100%);background:#fff;border-radius:16px;padding:24px;box-shadow:0 24px 70px #001b3d66"><h2 style="margin:0 0 8px;color:#123b73">🔐 Personal / व्यक्तिगत सुरक्षा</h2><p class="muted">इस सेक्शन को खोलने के लिए Admin Authenticator का वर्तमान 6 अंकों का कोड दर्ज करें।</p><input id="personalMfaCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 अंकों का कोड" style="width:100%;text-align:center;letter-spacing:6px;font-size:22px;margin:10px 0"><p id="personalMfaMessage" class="error" role="status"></p><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" type="button" onclick="cancelPersonalAuthentication()">वापस</button><button class="btn primary" id="personalMfaVerifyBtn" type="button" onclick="verifyPersonalAuthenticator()">सत्यापित करें</button></div><p class="muted" style="margin:14px 0 0">Personal से बाहर निकलने या 10 मिनट निष्क्रिय रहने पर दोबारा सत्यापन आवश्यक होगा।</p></section></div><div id="personal" class="app">
 <header class="top"><h1>Harshi Computer — Personal / व्यक्तिगत</h1><div><button class="btn" onclick="goBackOne()">← Back</button> <button class="btn" onclick="backToPortal()">मुख्य चयन</button> <button class="btn" onclick="signOut()">Logout</button></div></header>
 <nav id="personalNav">
 <button class="active" onclick="openPersonalSection('loan',this)">💳 Loan</button>
@@ -410,12 +410,7 @@ function restoreWorkspaceState(){
     }else openOfficeModule(state.page);
     return true;
   }
-  if(state.view==="personal"){
-    openPersonal();
-    const section=["loan","creditCard","documents","serviceRecord"].includes(state.section)?state.section:"loan";
-    openPersonalSection(section,document.querySelector(section==="loan"?"#personalNav button:nth-child(1)":section==="creditCard"?"#personalNav button:nth-child(2)":section==="documents"?"#personalNav button:nth-child(3)":"#personalNav button:nth-child(4)"));
-    return true;
-  }
+  if(state.view==="personal"){openPersonal();return true;}
   return false;
 }
 function installCornerCapacityAlert(){
@@ -482,6 +477,7 @@ function setOfficeActiveMenu(key){
   });
 }
 function openOffice(){
+  lockPersonalAccess(false);
   document.getElementById("portal").classList.remove("show");
   document.getElementById("app").style.display="block";
   document.getElementById("personal").style.display="none";
@@ -582,7 +578,33 @@ function exportServiceRecord(){
   const quote=v=>'"'+String(v??"").replace(/"/g,'""')+'"',csv="\uFEFF"+[labels,...rows.map(r=>keys.map(k=>r[k]??""))].map(r=>r.map(quote).join(",")).join("\r\n"),url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"})),a=document.createElement("a");a.href=url;a.download="Service_Record.csv";a.click();URL.revokeObjectURL(url);
 }
 function openBusiness(){window.location.href="business_customers.html";}
-function openPersonal(){document.getElementById("portal").classList.remove("show");document.getElementById("app").style.display="none";document.getElementById("personal").style.display="block";saveWorkspaceState()} function openPersonalSection(id,b){
+let personalMfaVerified=false,personalMfaFactorId=null,personalMfaBusy=false,personalMfaLastActivity=0;
+const PERSONAL_MFA_LOCK_KEY="hc_personal_mfa_lock_v1",PERSONAL_MFA_FAIL_KEY="hc_personal_mfa_fail_v1";
+function getPersonalMfaLock(){try{return JSON.parse(localStorage.getItem(PERSONAL_MFA_LOCK_KEY)||"null")}catch(e){return null}}
+function clearPersonalMfaFailures(){try{localStorage.removeItem(PERSONAL_MFA_FAIL_KEY);localStorage.removeItem(PERSONAL_MFA_LOCK_KEY)}catch(e){}}
+function countPersonalMfaFailure(){let state={count:0,startedAt:Date.now()};try{state=JSON.parse(localStorage.getItem(PERSONAL_MFA_FAIL_KEY)||"null")||state}catch(e){}if(Date.now()-Number(state.startedAt)>15*60*1000)state={count:0,startedAt:Date.now()};state.count=Number(state.count||0)+1;try{localStorage.setItem(PERSONAL_MFA_FAIL_KEY,JSON.stringify(state))}catch(e){}if(state.count>=5){try{localStorage.setItem(PERSONAL_MFA_LOCK_KEY,JSON.stringify({until:Date.now()+15*60*1000}))}catch(e){}return true}return false}
+function showPersonalAuthGate(message=""){const gate=document.getElementById("personalAuthGate");gate.style.display="grid";document.getElementById("personalMfaCode").value="";document.getElementById("personalMfaMessage").textContent=message;document.getElementById("personalMfaVerifyBtn").disabled=false;setTimeout(()=>document.getElementById("personalMfaCode")?.focus(),50)}
+function cancelPersonalAuthentication(){document.getElementById("personalAuthGate").style.display="none";document.getElementById("portal").classList.add("show")}
+function openPersonalUnlocked(){document.getElementById("personalAuthGate").style.display="none";document.getElementById("portal").classList.remove("show");document.getElementById("app").style.display="none";document.getElementById("personal").style.display="block";personalMfaVerified=true;personalMfaLastActivity=Date.now();saveWorkspaceState()}
+async function verifyPersonalAuthenticator(){
+ if(personalMfaBusy)return;
+ const lock=getPersonalMfaLock();if(lock?.until>Date.now()){document.getElementById("personalMfaMessage").textContent="सुरक्षा के कारण Personal सेक्शन लॉक है। पुनः प्रयास: "+new Date(lock.until).toLocaleTimeString("en-IN");return}
+ const code=(document.getElementById("personalMfaCode").value||"").replace(/\\s/g,""),message=document.getElementById("personalMfaMessage"),button=document.getElementById("personalMfaVerifyBtn");
+ if(!/^\\d{6}$/.test(code)){message.textContent="Authenticator ऐप का 6 अंकों का कोड दर्ज करें।";return}
+ personalMfaBusy=true;button.disabled=true;message.textContent="Authenticator सत्यापन हो रहा है...";
+ try{
+  const db=await window.salaryDbReady,{data:sessionData,error:sessionError}=await db.auth.getSession();if(sessionError)throw sessionError;if(!sessionData?.session)throw new Error("Login session समाप्त हो गई है। पहले वेबसाइट में दोबारा Login करें।");
+  const {data:factorData,error:factorError}=await db.auth.mfa.listFactors();if(factorError)throw factorError;
+  const factor=(factorData?.totp||[]).find(x=>x.status==="verified");if(!factor)throw new Error("Verified Admin Authenticator नहीं मिला।");
+  const {data:challengeData,error:challengeError}=await db.auth.mfa.challenge({factorId:factor.id});if(challengeError)throw challengeError;
+  const {error:verifyError}=await db.auth.mfa.verify({factorId:factor.id,challengeId:challengeData.id,code});if(verifyError)throw verifyError;
+  clearPersonalMfaFailures();personalMfaFactorId=factor.id;openPersonalUnlocked();
+ }catch(e){const locked=countPersonalMfaFailure();message.textContent=locked?"5 गलत कोशिशों के कारण Personal सेक्शन 15 मिनट के लिए लॉक है।":"सत्यापन असफल: "+(e?.message||e)}
+ finally{personalMfaBusy=false;button.disabled=false}
+}
+function lockPersonalAccess(showPortal=true){personalMfaVerified=false;personalMfaFactorId=null;personalMfaLastActivity=0;const personal=document.getElementById("personal");if(personal)personal.style.display="none";document.getElementById("personalAuthGate").style.display="none";if(showPortal)document.getElementById("portal").classList.add("show")}
+function openPersonal(){const lock=getPersonalMfaLock();if(lock?.until>Date.now()){showPersonalAuthGate("Personal सेक्शन 15 मिनट के लिए लॉक है। पुनः प्रयास: "+new Date(lock.until).toLocaleTimeString("en-IN"));return}if(personalMfaVerified){openPersonalUnlocked();return}showPersonalAuthGate()}
+function openPersonalSection(id,b){
   document.getElementById("personalLoanSection").style.display=id==="loan"?"block":"none";
   document.getElementById("personalCreditCardSection").classList.toggle("show",id==="creditCard");
   document.getElementById("personalDocumentsSection").classList.toggle("show",id==="documents");
@@ -593,7 +615,7 @@ function openPersonal(){document.getElementById("portal").classList.remove("show
   resetInactivityTimer();
   saveWorkspaceState();
 }
-function goHome(){ clearWorkspaceState(); window.location.href="/"; }
+function goHome(){ lockPersonalAccess(false);clearWorkspaceState(); window.location.href="/"; }
 function goBackOne(){
   const personal=document.getElementById("personal");
   if(personal && personal.style.display!=="none"){
@@ -611,7 +633,7 @@ function goBackOne(){
   }
   backToPortal();
 }
-function backToPortal(){document.getElementById("personal").style.display="none";document.getElementById("app").style.display="none";document.getElementById("portal").classList.add("show");saveWorkspaceState()}async function refresh(){
+function backToPortal(){lockPersonalAccess(false);document.getElementById("app").style.display="none";document.getElementById("portal").classList.add("show");saveWorkspaceState()}async function refresh(){
   let a=await window.salaryDb.from("employees").select("*").order("code");
   if(a.error)return alert(a.error.message);
   employees=a.data||[];
@@ -2027,6 +2049,8 @@ function checkInactivityDeadline(){
     if(shared>last) last=shared;
   }catch(e){}
   const idleFor=Date.now()-last;
+  const personalView=document.getElementById("personal");
+  if(personalMfaVerified && personalView && personalView.style.display!=="none" && idleFor>=INACTIVITY_LIMIT){lockPersonalAccess(true);recordInactivityActivity();return}
   if(idleFor>=INACTIVITY_LIMIT){performInactivityLogout();return}
   if(idleFor>=INACTIVITY_LIMIT-INACTIVITY_WARNING_BEFORE && !inactivityWarningShown){
     inactivityWarningShown=true;
@@ -2036,6 +2060,7 @@ function checkInactivityDeadline(){
 }
 function resetInactivityTimer(){
   if(!inactivityActive || inactivityLogoutRunning) return;
+  if(personalMfaVerified && document.getElementById("personal")?.style.display!=="none") personalMfaLastActivity=Date.now();
   recordInactivityActivity();
   if(inactivityTimer===null) inactivityTimer=setInterval(checkInactivityDeadline,INACTIVITY_CHECK_EVERY);
 }
