@@ -990,7 +990,7 @@ window.verifyReportMfaCode=async function(){
 };
 let reportPaymentUnlockedEmployees=new Set();
 let reportAdminSessionCache=null;
-async function isCurrentUserReportAdmin(){if(reportAdminSessionCache!==null)return reportAdminSessionCache;try{const db=await window.salaryDbReady,{data,error}=await db.auth.getUser();if(error||!data?.user){reportAdminSessionCache=false;return false}const q=await db.from("app_admins").select("user_id").eq("user_id",data.user.id).maybeSingle();if(q.error)throw q.error;reportAdminSessionCache=!!q.data;return reportAdminSessionCache}catch(e){console.error("Report role check failed",e);return false}}
+async function isCurrentUserReportAdmin(){if(!adminLoginEntry)return false;if(reportAdminSessionCache!==null)return reportAdminSessionCache;try{const db=await window.salaryDbReady,{data,error}=await db.auth.getUser();if(error||!data?.user){reportAdminSessionCache=false;return false}const q=await db.from("app_admins").select("user_id").eq("user_id",data.user.id).maybeSingle();if(q.error)throw q.error;reportAdminSessionCache=!!q.data;return reportAdminSessionCache}catch(e){console.error("Report role check failed",e);return false}}
 function setReportPrintAvailability(unlocked){["reportPortraitBtn","reportLandscapeBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.style.display=unlocked?"inline-block":"none"})}
 async function renderReport(){
  const e=employees[Number(document.getElementById("reportEmp")?.value)];
