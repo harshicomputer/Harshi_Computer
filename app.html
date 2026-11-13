@@ -941,7 +941,7 @@ function formatReportMonth(value){const m=String(value||"").match(/^(\d{4})-(\d{
 function formatReportDate(value){if(!value)return "";const m=String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"-"+m[2]+"-"+m[1]:value}
 function employeeServiceMonthBounds(e){const now=new Date(),cur=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0"),start=e?.joining_date?String(e.joining_date).slice(0,7):"2019-03",legacy=[e?.retirement_date,e?.death_date].filter(Boolean).map(x=>String(x).slice(0,7)),finish=e?.service_end_date?String(e.service_end_date).slice(0,7):legacy.sort()[0],end=finish||cur;return {start,end:end>cur?cur:end}}function employeeMonthIsInService(e,month){const b=employeeServiceMonthBounds(e);return month>=b.start&&month<=b.end}function getReportMonthRange(e){const b=employeeServiceMonthBounds(e),months=[];for(let y=Number(b.start.slice(0,4));y<=Number(b.end.slice(0,4));y++){const first=y===Number(b.start.slice(0,4))?Number(b.start.slice(5,7)):1,last=y===Number(b.end.slice(0,4))?Number(b.end.slice(5,7)):12;for(let m=first;m<=last;m++)months.push(y+"-"+String(m).padStart(2,"0")+"-01")}return months}
 let reportMfaVerified=false,reportMfaFactorId=null,reportMfaChallengeId=null,reportMfaBusy=false;
-function syncReportMfaButton(){const b=document.getElementById("reportMfaToggleBtn");if(b)b.textContent=reportMfaVerified?"🔓 Admin Verification बंद करें":"🔐 Admin Authenticator Verification"}
+function syncReportMfaButton(){const b=document.getElementById("reportMfaToggleBtn");if(b){b.textContent="🔐 Admin Authenticator Verification";b.style.display=reportMfaVerified?"none":""}}
 window.toggleReportAuthenticator=function(){
  if(reportMfaVerified){reportMfaVerified=false;reportMfaFactorId=null;reportMfaChallengeId=null;reportMfaBusy=false;syncReportMfaButton();renderReport();return}
  beginReportMfaChallenge();
@@ -1018,7 +1018,7 @@ async function renderReport(){
   loadEmployeeReportPayment(e);return;
  }
  const body=months.map(month=>{const r=byMonth.get(month.slice(0,7))||{},payable=Number(r.payable_amount||0),paid=Number(r.amount||0),pending=Math.max(0,payable-paid);return "<tr><td>"+formatReportMonth(month)+"</td><td>₹"+payable.toLocaleString("en-IN")+"</td><td>₹"+paid.toLocaleString("en-IN")+"</td><td>₹"+pending.toLocaleString("en-IN")+"</td><td>"+safeReportText(r.voucher_no||"")+"</td><td>"+formatReportDate(r.payment_date)+"</td><td>"+safeReportText(r.remarks||"")+"</td></tr>"}).join("");
- box.innerHTML=summary+"<div id='reportPaymentBox'></div><div class='scroll report-table-wrap'><table class='employee-report-table'><thead><tr><th>माह</th><th>भुगतान योग्य</th><th>भुगतान किया</th><th>लंबित</th><th>Voucher</th><th>भुगतान दिनांक</th><th>Remarks</th></tr></thead><tbody>"+body+"</tbody></table></div>";
+ box.innerHTML=summary+(reportMfaVerified?"<div style='margin:10px 0;text-align:right'><button class='btn' type='button' onclick='toggleReportAuthenticator()'>🔒 Admin Access बंद करें</button></div>":"")+"<div id='reportPaymentBox'></div><div class='scroll report-table-wrap'><table class='employee-report-table'><thead><tr><th>माह</th><th>भुगतान योग्य</th><th>भुगतान किया</th><th>लंबित</th><th>Voucher</th><th>भुगतान दिनांक</th><th>Remarks</th></tr></thead><tbody>"+body+"</tbody></table></div>";
  loadEmployeeReportPayment(e);
 }
 
