@@ -1007,8 +1007,12 @@ async function renderReport(){
  const summaryBasic="<div class='report-summary'><p><b>कर्मचारी ID:</b> "+safeReportText(e.code)+" &nbsp; <b>नाम:</b> "+safeReportText(e.name)+"</p><p><b>अवधि:</b> "+formatReportMonth(months[0])+" से "+formatReportMonth(months[months.length-1])+" &nbsp; <b>कुल माह:</b> "+months.length+" &nbsp; <b>भुगतान किए गए माह:</b> "+paidMonths+" &nbsp; <b>बकाया माह:</b> "+pendingMonths+"</p></div>";
  const summary=summaryBasic+"<div class='report-summary'><p><b>भुगतान योग्य:</b> ₹"+totalPayable.toLocaleString("en-IN")+" &nbsp; <b>भुगतान किया:</b> ₹"+totalPaid.toLocaleString("en-IN")+" &nbsp; <b>लंबित राशि:</b> ₹"+totalPending.toLocaleString("en-IN")+"</p></div>";
  setReportPrintAvailability(false);
- if(!reportAdmin){
+ if(!reportAdmin || !reportMfaVerified){
   reportPaymentUnlockedEmployees.delete(e.id);
+  if(reportAdmin){
+   box.innerHTML=summaryBasic+"<div class='notice' style='margin-top:12px'>🔒 पूरी माहवार वेतन रिपोर्ट देखने के लिए ऊपर दिए गए Admin Authenticator Verification को पहले पूरा करें।</div>";
+   return;
+  }
   box.innerHTML=summaryBasic+"<div id='reportPaymentBox'></div><div class='notice' style='margin-top:12px'>विस्तृत माहवार वेतन रिपोर्ट, Print और PDF सुविधा ₹200 भुगतान सत्यापन के बाद Admin द्वारा उपलब्ध कराई जाएगी।</div>";
   loadEmployeeReportPayment(e);return;
  }
