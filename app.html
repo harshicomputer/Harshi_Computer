@@ -995,9 +995,8 @@ function setReportPrintAvailability(unlocked){["reportPortraitBtn","reportLandsc
 async function renderReport(){
  const e=employees[Number(document.getElementById("reportEmp")?.value)];
  const box=document.getElementById("reportBox");
- if(!e){box.innerHTML="कर्मचारी चुनें।";return}
+ if(!e){box.innerHTML="कर्मचारी चुनें।";setReportPrintAvailability(false);return}
  const reportAdmin=await isCurrentUserReportAdmin();
- if(reportAdmin)reportPaymentUnlockedEmployees.add(e.id);
  const rr=records.filter(x=>x.employee_id===e.id),byMonth=new Map(rr.map(r=>[String(r.month_start||"").slice(0,7),r]));
  const months=getReportMonthRange(e);
  const pendingMonths=months.filter(m=>Math.max(0,Number(byMonth.get(m.slice(0,7))?.payable_amount||0)-Number(byMonth.get(m.slice(0,7))?.amount||0))>0).length;
@@ -1005,14 +1004,14 @@ async function renderReport(){
  const totalPayable=months.reduce((a,m)=>a+Number(byMonth.get(m.slice(0,7))?.payable_amount||0),0);
  const totalPaid=months.reduce((a,m)=>a+Number(byMonth.get(m.slice(0,7))?.amount||0),0);
  const totalPending=Math.max(0,totalPayable-totalPaid);
- const summaryBasic="<div class='report-summary'><p><b>कर्मचारी ID:</b> "+safeReportText(e.code)+" &nbsp; <b>नाम:</b> "+safeReportText(e.name)+"</p><p><b>अवधि:</b> मार्च 2019 से "+formatReportMonth(months[months.length-1])+" &nbsp; <b>कुल माह:</b> "+months.length+" &nbsp; <b>भुगतान किए गए माह:</b> "+paidMonths+" &nbsp; <b>बकाया माह:</b> "+pendingMonths+"</p></div>";
+ const summaryBasic="<div class='report-summary'><p><b>कर्मचारी ID:</b> "+safeReportText(e.code)+" &nbsp; <b>नाम:</b> "+safeReportText(e.name)+"</p><p><b>अवधि:</b> "+formatReportMonth(months[0])+" से "+formatReportMonth(months[months.length-1])+" &nbsp; <b>कुल माह:</b> "+months.length+" &nbsp; <b>भुगतान किए गए माह:</b> "+paidMonths+" &nbsp; <b>बकाया माह:</b> "+pendingMonths+"</p></div>";
  const summary=summaryBasic+"<div class='report-summary'><p><b>भुगतान योग्य:</b> ₹"+totalPayable.toLocaleString("en-IN")+" &nbsp; <b>भुगतान किया:</b> ₹"+totalPaid.toLocaleString("en-IN")+" &nbsp; <b>लंबित राशि:</b> ₹"+totalPending.toLocaleString("en-IN")+"</p></div>";
- if(!reportPaymentUnlockedEmployees.has(e.id)){
-  setReportPrintAvailability(false);
-  box.innerHTML=summaryBasic+"<div id='reportPaymentBox'></div><div class='notice' style='margin-top:12px'>विस्तृत माहवार वेतन विवरण और Print / Download सुविधा ₹200 भुगतान सत्यापन के बाद ही उपलब्ध होगी।</div>";
+ setReportPrintAvailability(false);
+ if(!reportAdmin){
+  reportPaymentUnlockedEmployees.delete(e.id);
+  box.innerHTML=summaryBasic+"<div id='reportPaymentBox'></div><div class='notice' style='margin-top:12px'>विस्तृत माहवार वेतन रिपोर्ट, Print और PDF सुविधा ₹200 भुगतान सत्यापन के बाद Admin द्वारा उपलब्ध कराई जाएगी।</div>";
   loadEmployeeReportPayment(e);return;
  }
- setReportPrintAvailability(true);
  const body=months.map(month=>{const r=byMonth.get(month.slice(0,7))||{},payable=Number(r.payable_amount||0),paid=Number(r.amount||0),pending=Math.max(0,payable-paid);return "<tr><td>"+formatReportMonth(month)+"</td><td>₹"+payable.toLocaleString("en-IN")+"</td><td>₹"+paid.toLocaleString("en-IN")+"</td><td>₹"+pending.toLocaleString("en-IN")+"</td><td>"+safeReportText(r.voucher_no||"")+"</td><td>"+formatReportDate(r.payment_date)+"</td><td>"+safeReportText(r.remarks||"")+"</td></tr>"}).join("");
  box.innerHTML=summary+"<div id='reportPaymentBox'></div><div class='scroll report-table-wrap'><table class='employee-report-table'><thead><tr><th>माह</th><th>भुगतान योग्य</th><th>भुगतान किया</th><th>लंबित</th><th>Voucher</th><th>भुगतान दिनांक</th><th>Remarks</th></tr></thead><tbody>"+body+"</tbody></table></div>";
  loadEmployeeReportPayment(e);
@@ -1023,17 +1022,21 @@ async function loadEmployeeReportPayment(e){
  try{
   const db=await window.salaryDbReady,{data:rows,error}=await db.from("employee_report_payments").select("*").eq("employee_id",e.id).order("submitted_at",{ascending:false});
   if(error)throw error;
-  const list=rows||[],ok=list.find(x=>x.status==="verified");
-  if(ok){if(!reportPaymentUnlockedEmployees.has(e.id)){reportPaymentUnlockedEmployees.add(e.id);renderReport();return}box.innerHTML='<div class="notice" style="background:#ecfdf3;color:#067647;border-color:#abefc6">✓ ₹200 UTR '+safeReportText(ok.utr)+' सत्यापित — रिपोर्ट स्थायी रूप से Unlock है।</div>';return}
-  const admin=await isCurrentUserReportAdmin(),pending=list.find(x=>x.status==="pending");
-  if(admin){
-   if(reportPaymentUnlockedEmployees.has(e.id)&&!pending){box.innerHTML="";return}
-   const pendingHtml=pending?'<div class="notice" style="margin:10px 0">कर्मचारी ने UTR जमा किया है: <b>'+safeReportText(pending.utr)+'</b> — ₹200 प्राप्ति का मिलान करके ही Verify करें। <button class="btn primary" type="button" onclick="verifyEmployeeReportPayment('+JSON.stringify(pending.id)+')">भुगतान Verify करके Unlock करें</button></div>':'';
-   const adminForm=reportMfaVerified?'<label for="reportPaymentUtr"><b>प्राप्त भुगतान का UTR Number</b></label><input id="reportPaymentUtr" inputmode="numeric" maxlength="30" placeholder="UTR / Transaction ID" style="display:block;width:100%;margin:7px 0"><button class="btn primary" type="button" onclick="confirmEmployeeReportUnlock()">UTR Verify करें और Unlock करें</button>':'<button class="btn" type="button" onclick="beginReportMfaChallenge()">Admin Authenticator सत्यापन</button>';
-   box.innerHTML=pending?'<div class="card" style="margin:14px 0;border:1px solid #d5deeb"><h3>कर्मचारी भुगतान सत्यापन</h3>'+pendingHtml+'</div>':'';
+  const list=rows||[],ok=list.find(x=>x.status==="verified"),admin=await isCurrentUserReportAdmin();
+  const pending=list.find(x=>x.status==="pending");
+  if(ok){
+   if(admin){reportPaymentUnlockedEmployees.add(e.id);setReportPrintAvailability(true);box.innerHTML='<div class="notice" style="background:#ecfdf3;color:#067647;border-color:#abefc6">✓ ₹200 भुगतान सत्यापित — Print / PDF Download उपलब्ध है। UTR: '+safeReportText(ok.utr)+'</div>'}
+   else{box.innerHTML='<div class="notice" style="background:#ecfdf3;color:#067647;border-color:#abefc6">✓ ₹200 भुगतान सत्यापित है। विस्तृत वेतन रिपोर्ट और प्रिंट कॉपी के लिए Admin से संपर्क करें।</div>'}
    return;
   }
-  box.innerHTML='<div class="card" style="margin:14px 0;border:1px solid #e3a16d"><h3>🔒 कर्मचारी रिपोर्ट Unlock — एकमुश्त ₹200</h3><p>कुल माह: <b>'+getReportMonthRange(e).length+'</b></p><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><div style="text-align:center"><img alt="Amazon Pay QR Code" width="210" height="210" style="object-fit:contain;border:1px solid #ddd;border-radius:8px" src="https://api.qrserver.com/v1/create-qr-code/?size=210x210&data=upi%3A%2F%2Fpay%3Fpa%3D9753537605%40amazonpay%26pn%3DSUBHASH%20DINDOD"><div><b>Amazon Pay</b><br><span class="muted">9753537605@amazonpay</span></div></div><div style="flex:1;min-width:240px"><p>₹200 भुगतान करने के बाद UTR Number दर्ज करें। Admin भुगतान का मिलान करके रिपोर्ट Unlock करेगा।</p><label for="reportPaymentUtr"><b>भुगतान UTR Number</b></label><input id="reportPaymentUtr" inputmode="numeric" maxlength="30" placeholder="UTR / Transaction ID दर्ज करें" style="display:block;width:100%;margin:7px 0"><p id="reportPaymentMsg" class="muted">₹200 भुगतान करने के बाद UTR Number Admin को दें। भुगतान का मिलान और सत्यापन Admin करेगा।</p></div></div></div>';
+  if(admin){
+   reportPaymentUnlockedEmployees.delete(e.id);setReportPrintAvailability(false);
+   const pendingHtml=pending?'<div class="notice" style="margin:10px 0">कर्मचारी भुगतान UTR: <b>'+safeReportText(pending.utr)+'</b> — ₹200 प्राप्ति का मिलान करके ही Verify करें। <button class="btn primary" type="button" onclick="verifyEmployeeReportPayment('+JSON.stringify(pending.id)+')">भुगतान Verify करें</button></div>':'';
+   const adminForm=reportMfaVerified?'<label for="reportPaymentUtr"><b>प्राप्त भुगतान का UTR Number</b></label><input id="reportPaymentUtr" inputmode="numeric" maxlength="30" placeholder="UTR / Transaction ID" style="display:block;width:100%;margin:7px 0"><button class="btn primary" type="button" onclick="confirmEmployeeReportUnlock()">UTR Verify करें और Print / PDF खोलें</button>':'<button class="btn" type="button" onclick="beginReportMfaChallenge()">🔐 Admin Authenticator Verification</button>';
+   box.innerHTML='<div class="notice" style="margin:10px 0">इस कर्मचारी की पूरी वेतन रिपोर्ट Admin को दिखाई दे रही है। ₹200 भुगतान सत्यापित होने तक Print / PDF Download बंद रहेगा।</div>'+pendingHtml+(pending?'':'<div class="card" style="margin:12px 0;border:1px solid #d5deeb"><b>भुगतान प्राप्ति की पुष्टि</b><p class="muted">₹200 प्राप्त होने और UTR का मिलान करने के बाद ही नीचे सत्यापन करें।</p>'+adminForm+'</div>');
+   return;
+  }
+  box.innerHTML='<div class="card" style="margin:14px 0;border:1px solid #e3a16d"><h3>🔒 विस्तृत वेतन रिपोर्ट — एकमुश्त ₹200</h3><p>कुल माह: <b>'+getReportMonthRange(e).length+'</b></p><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><div style="text-align:center"><img alt="Amazon Pay QR Code" width="210" height="210" style="object-fit:contain;border:1px solid #ddd;border-radius:8px" src="https://api.qrserver.com/v1/create-qr-code/?size=210x210&data=upi%3A%2F%2Fpay%3Fpa%3D9753537605%40amazonpay%26pn%3DSUBHASH%20DINDOD"><div><b>Amazon Pay</b><br><span class="muted">9753537605@amazonpay</span></div></div><div style="flex:1;min-width:240px"><h2 style="margin:0 0 8px">भुगतान राशि: ₹200</h2><p>भुगतान करने के बाद UTR Number सुरक्षित रखें। Admin भुगतान का मिलान करके विस्तृत रिपोर्ट, Print और PDF उपलब्ध कराएगा।</p></div></div></div>';
  }catch(err){box.innerHTML='<p class="error">भुगतान स्थिति नहीं पढ़ी जा सकी: '+safeReportText(err?.message||err)+'</p>'}
 }
 function safeReportText(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
@@ -1047,7 +1050,7 @@ window.confirmEmployeeReportUnlock=async function(){
   const db=await window.salaryDbReady,{data:u,error:ue}=await db.auth.getUser();if(ue)throw ue;if(!u?.user)throw new Error("Admin Login session समाप्त है।");
   const {data:existing,error:checkError}=await db.from("employee_report_payments").select("id,status").eq("employee_id",e.id).eq("status","verified").maybeSingle();if(checkError)throw checkError;if(existing)throw new Error("यह कर्मचारी रिपोर्ट पहले ही Unlock है।");
   const {error}=await db.from("employee_report_payments").insert({employee_id:e.id,employee_code:e.code,employee_name:e.name,amount:200,utr,submitted_by:u.user.id,verified_by:u.user.id,status:"verified",verified_at:new Date().toISOString(),admin_note:"Admin द्वारा Amazon Pay प्राप्ति की मैनुअल पुष्टि"});if(error)throw error;
-  reportPaymentUnlockedEmployees.add(e.id);renderReport();alert("भुगतान सत्यापित। रिपोर्ट स्थायी रूप से Unlock कर दी गई है।");
+  reportPaymentUnlockedEmployees.add(e.id);setReportPrintAvailability(true);renderReport();alert("भुगतान सत्यापित। Print / PDF Download स्थायी रूप से Unlock हो गया है।");
  }catch(err){if(msg)msg.textContent="Unlock नहीं हुआ: "+(err?.message||err)}
 };
 window.verifyEmployeeReportPayment=async function(id){
