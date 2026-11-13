@@ -1020,9 +1020,15 @@ async function renderReport(){
 async function loadEmployeeReportPayment(e){
  const box=document.getElementById("reportPaymentBox");if(!box||!e)return;
  try{
+  const admin=await isCurrentUserReportAdmin();
+  if(!admin){
+   setReportPrintAvailability(false);
+   box.innerHTML='<div class="card" style="margin:14px 0;border:1px solid #e3a16d"><h3>🔒 विस्तृत वेतन रिपोर्ट — एकमुश्त ₹200</h3><p>कुल माह: <b>'+getReportMonthRange(e).length+'</b></p><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><div style="text-align:center"><img alt="Amazon Pay QR Code" width="210" height="210" style="object-fit:contain;border:1px solid #ddd;border-radius:8px" src="https://api.qrserver.com/v1/create-qr-code/?size=210x210&data=upi%3A%2F%2Fpay%3Fpa%3D9753537605%40amazonpay%26pn%3DSUBHASH%20DINDOD"><div><b>Amazon Pay</b><br><span class="muted">9753537605@amazonpay</span></div></div><div style="flex:1;min-width:240px"><h2 style="margin:0 0 8px">भुगतान राशि: ₹200</h2><p>भुगतान करने के बाद रसीद / UTR सुरक्षित रखें। Admin भुगतान की पुष्टि करके विस्तृत रिपोर्ट, Print और PDF उपलब्ध कराएगा।</p></div></div></div>';
+   return;
+  }
   const db=await window.salaryDbReady,{data:rows,error}=await db.from("employee_report_payments").select("*").eq("employee_id",e.id).order("submitted_at",{ascending:false});
   if(error)throw error;
-  const list=rows||[],ok=list.find(x=>x.status==="verified"),admin=await isCurrentUserReportAdmin();
+  const list=rows||[],ok=list.find(x=>x.status==="verified");
   const pending=list.find(x=>x.status==="pending");
   if(ok){
    if(admin){reportPaymentUnlockedEmployees.add(e.id);setReportPrintAvailability(true);box.innerHTML='<div class="notice" style="background:#ecfdf3;color:#067647;border-color:#abefc6">✓ ₹200 भुगतान सत्यापित — Print / PDF Download उपलब्ध है। UTR: '+safeReportText(ok.utr)+'</div>'}
