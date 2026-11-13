@@ -589,8 +589,8 @@ function openPersonalUnlocked(){document.getElementById("personalAuthGate").styl
 async function verifyPersonalAuthenticator(){
  if(personalMfaBusy)return;
  const lock=getPersonalMfaLock();if(lock?.until>Date.now()){document.getElementById("personalMfaMessage").textContent="सुरक्षा के कारण Personal सेक्शन लॉक है। पुनः प्रयास: "+new Date(lock.until).toLocaleTimeString("en-IN");return}
- const code=(document.getElementById("personalMfaCode").value||"").replace(/\\s/g,""),message=document.getElementById("personalMfaMessage"),button=document.getElementById("personalMfaVerifyBtn");
- if(!/^\\d{6}$/.test(code)){message.textContent="Authenticator ऐप का 6 अंकों का कोड दर्ज करें।";return}
+ const code=(document.getElementById("personalMfaCode").value||"").replace(/\s/g,""),message=document.getElementById("personalMfaMessage"),button=document.getElementById("personalMfaVerifyBtn");
+ if(!/^\d{6}$/.test(code)){message.textContent="Authenticator ऐप का 6 अंकों का कोड दर्ज करें।";return}
  personalMfaBusy=true;button.disabled=true;message.textContent="Authenticator सत्यापन हो रहा है...";
  try{
   const db=await window.salaryDbReady,{data:sessionData,error:sessionError}=await db.auth.getSession();if(sessionError)throw sessionError;if(!sessionData?.session)throw new Error("Login session समाप्त हो गई है। पहले वेबसाइट में दोबारा Login करें।");
