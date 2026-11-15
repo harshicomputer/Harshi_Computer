@@ -24,7 +24,7 @@
 <div class="actions"><button class="btn primary" type="button" id="parseStatementBtn" onclick="parseBankStatementPdf()">PDF पढ़ें और Preview दिखाएँ</button></div>
 <div id="statementMsg" class="notice" style="margin-top:12px">केवल टेक्स्ट-आधारित PDF पढ़ी जा सकती है। स्कैन/फोटो PDF के लिए OCR की आवश्यकता होगी।</div>
 <div id="statementPreviewWrap" class="hidden"><div class="toolbar" style="justify-content:space-between;margin:14px 0"><b id="statementPreviewCount">0 प्रविष्टियाँ</b><button class="btn green" type="button" id="confirmStatementBtn" onclick="confirmStatementImport()">चुनी गई प्रविष्टियाँ बैंक लेजर में जोड़ें</button></div>
-<div class="tablewrap"><table><thead><tr><th>शामिल</th><th>तारीख</th><th>विवरण</th><th>प्रकार</th><th>राशि ₹</th><th>Head / मद</th></tr></thead><tbody id="statementPreviewBody"></tbody></table></div>
+<div class="tablewrap"><table><thead><tr><th>शामिल</th><th>तारीख</th><th>विवरण</th><th>डेबिट ₹</th><th>क्रेडिट ₹</th><th>अंतिम बैलेंस ₹</th><th>Head / मद</th></tr></thead><tbody id="statementPreviewBody"></tbody></table></div>
 <p class="muted">हर पंक्ति जाँचें। बैंक विवरण में CR/DR पहचान न मिलने पर प्रकार स्वयं चुनें। स्टेटमेंट का Closing Balance बैंक से मिलाकर ही Import करें।</p></div>
 </section>
 <section class="panel"><div class="heading" style="margin-bottom:12px"><div><h3 style="margin:0">🧾 हाल के बैंक लेन-देन</h3><p class="muted">Head-wise और Bank-wise हिसाब एक ही एंट्री से जुड़ेगा।</p></div><button class="btn" onclick="loadAll()">↻ Refresh</button></div><div class="tablewrap"><table><thead><tr><th>तारीख</th><th>बैंक</th><th>Head / मद</th><th>विवरण</th><th>प्रकार</th><th>Voucher / UTR</th><th>राशि</th><th>मिलान</th></tr></thead><tbody id="txnBody"><tr><td colspan="8" class="empty">लोड हो रहा है...</td></tr></tbody></table></div></section>
@@ -51,20 +51,49 @@ function statementAmounts(s){const re=/(?:₹\s*)?\(?-?\d{1,3}(?:,\d{2,3})*(?:\.
 async function parseBankStatementPdf(){
  const file=$("statementPdf").files[0];if(!file||!/\.pdf$/i.test(file.name)){statementNote("कृपया PDF बैंक स्टेटमेंट चुनें।",true);return}
  if(!$("statementBank").value){statementNote("पहले बैंक खाता चुनें।",true);return}
- if(!window.pdfjsLib){statementNote("PDF Reader लोड नहीं हुआ। इंटरनेट कनेक्शन जाँचें और पुनः प्रयास करें।",true);return}
- $("parseStatementBtn").disabled=true;statementNote("PDF पढ़ी जा रही है...");
+ if(!window.pdfjsLib){statementNote("PDF Reader लोड नहीं हुआ। इंटरनेट कनेक्शन जाँचें।",true);return}
+ $("parseStatementBtn").disabled=true;statementNote("PDF के कॉलम पढ़े जा रहे हैं...");
  try{
   pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-  const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;let lines=[];
-  for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p),content=await page.getTextContent(),groups={};for(const it of content.items){if(!it.str||!it.str.trim())continue;const y=Math.round(it.transform[5]/3)*3;(groups[y]||(groups[y]=[])).push({x:it.transform[4],s:it.str.trim()})}for(const y of Object.keys(groups).sort((a,b)=>b-a)){const line=groups[y].sort((a,b)=>a.x-b.x).map(x=>x.s).join(" ").replace(/\s+/g," ").trim();if(line)lines.push(line)}}
-  const rows=[];for(const line of lines){const date=statementDate(line);if(!date)continue;const vals=statementAmounts(line);if(!vals.length)continue;let type=/\b(DR|DEBIT|WITHDRAWAL|WDL)\b/i.test(line)?"payment":/\b(CR|CREDIT|DEPOSIT)\b/i.test(line)?"receipt":"";const amount=vals[vals.length-1];let desc=line.replace(/\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}|\d{4}-\d{2}-\d{2}/,"").replace(/(?:₹\s*)?\(?-?\d{1,3}(?:,\d{2,3})*(?:\.\d{1,2})?\)?/g," ").replace(/\b(CR|DR|DEBIT|CREDIT|WITHDRAWAL|WDL|DEPOSIT)\b/ig," ").replace(/\s+/g," ").trim();if(desc.length<2)desc=line;rows.push({date,description:desc,type:type||"receipt",amount,include:true,head:""})}
-  if(!rows.length)throw new Error("PDF में तारीख और राशि वाली पढ़ने योग्य पंक्तियाँ नहीं मिलीं। यदि यह स्कैन PDF है तो OCR आवश्यक होगा।");
-  statementRows=rows;renderStatementPreview();statementNote(pdf.numPages+" पेज पढ़े गए। "+rows.length+" संभावित लेन-देन मिले। सभी पंक्तियाँ जाँचकर ही Import करें।");
+  const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,rows=[];
+  const moneyVal=s=>{const v=String(s).replace(/[₹,\s]/g,"").replace(/[()]/g,"");if(!v||!/\d/.test(v))return null;const n=Number(v);return Number.isFinite(n)?Math.abs(n):null};
+  for(let p=1;p<=pdf.numPages;p++){
+   const page=await pdf.getPage(p),content=await page.getTextContent(),groups={};
+   for(const it of content.items){if(!it.str||!it.str.trim())continue;const y=Math.round(it.transform[5]/2)*2;(groups[y]||(groups[y]=[])).push({x:it.transform[4],s:it.str.trim()})}
+   const lineGroups=Object.keys(groups).sort((a,b)=>b-a).map(y=>groups[y].sort((a,b)=>a.x-b.x));
+   let cols={date:null,desc:null,debit:null,credit:null,balance:null};
+   for(const line of lineGroups){const joined=line.map(x=>x.s).join(" ").toLowerCase();if(/date/.test(joined)&&/(debit|withdrawal)/.test(joined)&&/(credit|deposit)/.test(joined)&&/balance/.test(joined)){for(const it of line){const s=it.s.toLowerCase();if(/date/.test(s))cols.date=it.x;if(/particular|description|narration/.test(s))cols.desc=it.x;if(/debit|withdrawal/.test(s))cols.debit=it.x;if(/credit|deposit/.test(s))cols.credit=it.x;if(/balance/.test(s))cols.balance=it.x}break}}
+   for(const line of lineGroups){
+    const joined=line.map(x=>x.s).join(" ").replace(/\s+/g," ").trim(),date=statementDate(joined);if(!date)continue;
+    const dated=line.filter(x=>statementDate(x.s));const dateX=dated.length?dated[0].x:cols.date;
+    const numeric=line.map(x=>({x:x.x,v:moneyVal(x.s),raw:x.s})).filter(x=>x.v!==null&&/\d/.test(x.raw));
+    if(!numeric.length)continue;
+    let debit=0,credit=0,balance=null,descItems=line.filter(x=>x.x!==dateX&&!moneyVal(x.s));
+    if(cols.debit!==null&&cols.credit!==null&&cols.balance!==null){
+      const nearest=x=>numeric.filter(n=>Math.abs(n.x-x)<90).sort((a,b)=>Math.abs(a.x-x)-Math.abs(b.x))[0];
+      debit=nearest(cols.debit)?.v||0;credit=nearest(cols.credit)?.v||0;balance=nearest(cols.balance)?.v??null;
+      descItems=line.filter(x=>x.x!==dateX&&x.x<Math.min(cols.debit,cols.credit,cols.balance));
+    }else{
+      // Fallback for common statements: trailing values are debit, credit, closing balance.
+      if(numeric.length>=3){debit=numeric[numeric.length-3].v||0;credit=numeric[numeric.length-2].v||0;balance=numeric[numeric.length-1].v}
+      else if(numeric.length===2){const token=joined.toUpperCase();if(/\b(DR|DEBIT|WDL)\b/.test(token))debit=numeric[0].v;else if(/\b(CR|CREDIT)\b/.test(token))credit=numeric[0].v;balance=numeric[1].v}
+      else {const token=joined.toUpperCase();if(/\b(DR|DEBIT|WDL|WITHDRAWAL)\b/.test(token))debit=numeric[0].v;else credit=numeric[0].v}
+      descItems=line.filter(x=>!statementDate(x.s)&&moneyVal(x.s)===null);
+    }
+    if(debit===0&&credit===0)continue;
+    const description=descItems.map(x=>x.s).join(" ").replace(/\s+/g," ").trim()||joined;
+    const type=debit>0?"payment":"receipt",amount=debit>0?debit:credit;
+    rows.push({date,description,type,amount,debit,credit,balance,include:true,head:"Nikaynidhi"});
+   }
+  }
+  if(!rows.length)throw new Error("PDF में Debit/Credit/Balance कॉलम से पढ़ने योग्य लेन-देन नहीं मिले। यह स्कैन PDF या अलग फॉर्मेट हो सकता है। ऐसी स्थिति में PDF भेजें ताकि उसी बैंक के फॉर्मेट के अनुसार सुधार हो सके।");
+  statementRows=rows;renderStatementPreview();statementNote(pdf.numPages+" पेज पढ़े गए। "+rows.length+" संभावित लेन-देन मिले। Debit, Credit और Balance जाँचें।");
  }catch(e){statementNote("PDF पढ़ने में समस्या: "+(e.message||e),true)}finally{$("parseStatementBtn").disabled=false}
 }
+function statementHeadOptions(selected){return '<option value="Nikaynidhi" '+(selected==="Nikaynidhi"?"selected":"")+'>निकाय निधि (डिफॉल्ट)</option>'+heads.map(h=>'<option value="'+esc(h.head_name)+'" '+(selected===h.head_name?"selected":"")+'>'+esc(h.head_name)+'</option>').join("")}
 function renderStatementPreview(){
  $("statementPreviewWrap").classList.remove("hidden");$("statementPreviewCount").textContent=statementRows.length+" संभावित प्रविष्टियाँ";
- $("statementPreviewBody").innerHTML=statementRows.map((r,i)=>'<tr><td><input type="checkbox" data-sidx="'+i+'" '+(r.include?"checked":"")+' onchange="statementRows['+i+'].include=this.checked"></td><td><input type="date" data-sdate="'+i+'" value="'+r.date+'" onchange="statementRows['+i+'].date=this.value" style="min-width:130px"></td><td><input data-sdesc="'+i+'" value="'+esc(r.description)+'" onchange="statementRows['+i+'].description=this.value" style="min-width:220px"></td><td><select data-stype="'+i+'" onchange="statementRows['+i+'].type=this.value"><option value="receipt" '+(r.type==="receipt"?"selected":"")+'>जमा / प्राप्ति</option><option value="payment" '+(r.type==="payment"?"selected":"")+'>निकासी / भुगतान</option><option value="bank_charge" '+(r.type==="bank_charge"?"selected":"")+'>बैंक शुल्क</option><option value="interest" '+(r.type==="interest"?"selected":"")+'>बैंक ब्याज</option></select></td><td><input type="number" min=".01" step=".01" data-samt="'+i+'" value="'+r.amount+'" onchange="statementRows['+i+'].amount=Number(this.value)" style="width:120px"></td><td><input data-shead="'+i+'" value="'+esc(r.head)+'" onchange="statementRows['+i+'].head=this.value" placeholder="Head / मद" style="min-width:140px"></td></tr>').join("");
+ $("statementPreviewBody").innerHTML=statementRows.map((r,i)=>'<tr><td><input type="checkbox" '+(r.include?"checked":"")+' onchange="statementRows['+i+'].include=this.checked"></td><td><input type="date" value="'+r.date+'" onchange="statementRows['+i+'].date=this.value" style="min-width:130px"></td><td><input value="'+esc(r.description)+'" onchange="statementRows['+i+'].description=this.value" style="min-width:220px"></td><td><input type="number" min="0" step=".01" value="'+(r.debit||0)+'" onchange="statementRows['+i+'].debit=Number(this.value);statementRows['+i+'].credit=0;statementRows['+i+'].amount=Number(this.value);statementRows['+i+'].type=Number(this.value)>0?\\'payment\\':\\'receipt\\';renderStatementPreview()" style="width:105px"></td><td><input type="number" min="0" step=".01" value="'+(r.credit||0)+'" onchange="statementRows['+i+'].credit=Number(this.value);statementRows['+i+'].debit=0;statementRows['+i+'].amount=Number(this.value);statementRows['+i+'].type=Number(this.value)>0?\\'receipt\\':\\'payment\\';renderStatementPreview()" style="width:105px"></td><td><input type="number" min="0" step=".01" value="'+(r.balance??"")+'" onchange="statementRows['+i+'].balance=this.value===""?null:Number(this.value)" style="width:120px"></td><td><select onchange="statementRows['+i+'].head=this.value">'+statementHeadOptions(r.head||"Nikaynidhi")+'</select></td></tr>').join("");
 }
 async function confirmStatementImport(){
  const chosen=statementRows.filter(x=>x.include);if(!chosen.length){statementNote("कम से कम एक प्रविष्टि चुनें।",true);return}
@@ -76,7 +105,7 @@ async function confirmStatementImport(){
   const existing=txns.filter(t=>t.bank_account_id===bankId);
   const pending=chosen.filter(x=>!existing.some(t=>t.transaction_date===x.date&&Number(t.amount)===Number(x.amount)&&String(t.description||"").trim().toLowerCase()===x.description.trim().toLowerCase()&&t.transaction_type===x.type));
   const duplicateCount=chosen.length-pending.length;if(!pending.length)throw new Error("चुनी गई सभी प्रविष्टियाँ पहले से लेजर में मौजूद हैं।");
-  const payload=pending.map(x=>({user_id:auth.user.id,bank_account_id:bankId,financial_year:$("statementFY").value,transaction_date:x.date,transaction_type:x.type,head_name:x.head||null,description:x.description,amount:Number(x.amount),reconciliation_status:"pending"}));
+  const payload=pending.map(x=>({user_id:auth.user.id,bank_account_id:bankId,financial_year:$("statementFY").value,transaction_date:x.date,transaction_type:x.debit>0?"payment":"receipt",head_name:x.head||"Nikaynidhi",description:x.description,amount:Number(x.debit>0?x.debit:x.credit),statement_balance:x.balance===null||x.balance===""?null:Number(x.balance),reconciliation_status:"pending"}));
   const {error}=await db.from("bank_transactions").insert(payload);if(error)throw error;
   statementRows=[];$("statementPreviewWrap").classList.add("hidden");$("statementPdf").value="";await loadAll();statementNote(pending.length+" प्रविष्टियाँ बैंक लेजर में जुड़ गईं। "+duplicateCount+" Duplicate प्रविष्टियाँ छोड़ी गईं।",false);
  }catch(e){statementNote("Import नहीं हुआ: "+(e.message||e),true)}finally{$("confirmStatementBtn").disabled=false}
