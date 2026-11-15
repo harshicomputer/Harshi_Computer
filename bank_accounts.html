@@ -52,42 +52,38 @@ async function parseBankStatementPdf(){
  const file=$("statementPdf").files[0];if(!file||!/\.pdf$/i.test(file.name)){statementNote("कृपया PDF बैंक स्टेटमेंट चुनें।",true);return}
  if(!$("statementBank").value){statementNote("पहले बैंक खाता चुनें।",true);return}
  if(!window.pdfjsLib){statementNote("PDF Reader लोड नहीं हुआ। इंटरनेट कनेक्शन जाँचें।",true);return}
- $("parseStatementBtn").disabled=true;statementNote("PDF के कॉलम पढ़े जा रहे हैं...");
+ $("parseStatementBtn").disabled=true;statementNote("बैंक स्टेटमेंट के वास्तविक Debit, Credit और Balance कॉलम पढ़े जा रहे हैं...");
  try{
   pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,rows=[];
   const moneyVal=s=>{const v=String(s).replace(/[₹,\s]/g,"").replace(/[()]/g,"");if(!v||!/\d/.test(v))return null;const n=Number(v);return Number.isFinite(n)?Math.abs(n):null};
   for(let p=1;p<=pdf.numPages;p++){
-   const page=await pdf.getPage(p),content=await page.getTextContent(),groups={};
-   for(const it of content.items){if(!it.str||!it.str.trim())continue;const y=Math.round(it.transform[5]/2)*2;(groups[y]||(groups[y]=[])).push({x:it.transform[4],s:it.str.trim()})}
-   const lineGroups=Object.keys(groups).sort((a,b)=>b-a).map(y=>groups[y].sort((a,b)=>a.x-b.x));
-   let cols={date:null,desc:null,debit:null,credit:null,balance:null};
-   for(const line of lineGroups){const joined=line.map(x=>x.s).join(" ").toLowerCase();if(/date/.test(joined)&&/(debit|withdrawal)/.test(joined)&&/(credit|deposit)/.test(joined)&&/balance/.test(joined)){for(const it of line){const s=it.s.toLowerCase();if(/date/.test(s))cols.date=it.x;if(/particular|description|narration/.test(s))cols.desc=it.x;if(/debit|withdrawal/.test(s))cols.debit=it.x;if(/credit|deposit/.test(s))cols.credit=it.x;if(/balance/.test(s))cols.balance=it.x}break}}
-   for(const line of lineGroups){
-    const joined=line.map(x=>x.s).join(" ").replace(/\s+/g," ").trim(),date=statementDate(joined);if(!date)continue;
-    const dated=line.filter(x=>statementDate(x.s));const dateX=dated.length?dated[0].x:cols.date;
-    const numeric=line.map(x=>({x:x.x,v:moneyVal(x.s),raw:x.s})).filter(x=>x.v!==null&&/\d/.test(x.raw));
-    if(!numeric.length)continue;
-    let debit=0,credit=0,balance=null,descItems=line.filter(x=>x.x!==dateX&&!moneyVal(x.s));
-    if(cols.debit!==null&&cols.credit!==null&&cols.balance!==null){
-      const nearest=x=>numeric.filter(n=>Math.abs(n.x-x)<90).sort((a,b)=>Math.abs(a.x-x)-Math.abs(b.x))[0];
-      debit=nearest(cols.debit)?.v||0;credit=nearest(cols.credit)?.v||0;balance=nearest(cols.balance)?.v??null;
-      descItems=line.filter(x=>x.x!==dateX&&x.x<Math.min(cols.debit,cols.credit,cols.balance));
-    }else{
-      // Fallback for common statements: trailing values are debit, credit, closing balance.
-      if(numeric.length>=3){debit=numeric[numeric.length-3].v||0;credit=numeric[numeric.length-2].v||0;balance=numeric[numeric.length-1].v}
-      else if(numeric.length===2){const token=joined.toUpperCase();if(/\b(DR|DEBIT|WDL)\b/.test(token))debit=numeric[0].v;else if(/\b(CR|CREDIT)\b/.test(token))credit=numeric[0].v;balance=numeric[1].v}
-      else {const token=joined.toUpperCase();if(/\b(DR|DEBIT|WDL|WITHDRAWAL)\b/.test(token))debit=numeric[0].v;else credit=numeric[0].v}
-      descItems=line.filter(x=>!statementDate(x.s)&&moneyVal(x.s)===null);
-    }
+   const page=await pdf.getPage(p),content=await page.getTextContent(),items=content.items.filter(x=>x.str&&x.str.trim()).map(x=>({x:x.transform[4],top:page.view[3]-x.transform[5],s:x.str.trim()}));
+   const byY=[];items.slice().sort((a,b)=>a.top-b.top||a.x-b.x).forEach(it=>{let line=byY.find(l=>Math.abs(l.top-it.top)<=2.5);if(!line){line={top:it.top,items:[]};byY.push(line)}line.items.push(it)});
+   byY.sort((a,b)=>a.top-b.top);
+   let header=null;
+   for(const line of byY){const t=line.items.map(x=>x.s).join(" ").toLowerCase();if(/post\s*date/.test(t)&&/debit/.test(t)&&/credit/.test(t)&&/balance/.test(t)){const find=rx=>line.items.find(x=>rx.test(x.s.toLowerCase()))?.x;header={date:find(/date/),desc:find(/description|particular/),debit:find(/debit/),credit:find(/credit/),balance:find(/balance/)};break}}
+   if(!header||header.debit==null||header.credit==null||header.balance==null)continue;
+   const dateRows=[];
+   for(const line of byY){const ds=line.items.filter(x=>/^\d{2}[-/.]\d{2}[-/.]\d{4}$/.test(x.s));if(ds.length>=2){const d=statementDate(ds[0].s);if(d)dateRows.push({date:d,top:line.top})}}
+   for(let ri=0;ri<dateRows.length;ri++){
+    const row=dateRows[ri],next=dateRows[ri+1],end=next?next.top-8:Math.min(...items.filter(x=>x.top>row.top&&/CLOSING BALANCE|STATEMENT SUMMARY/i.test(x.s)).map(x=>x.top),row.top+95);
+    const near=items.filter(x=>Math.abs(x.top-row.top)<=9);
+    const nums=near.map(x=>({x:x.x,v:moneyVal(x.s),raw:x.s})).filter(x=>x.v!==null&&/[0-9]/.test(x.raw));
+    const midDC=(header.debit+header.credit)/2,midCB=(header.credit+header.balance)/2;
+    let debit=0,credit=0,balance=null;
+    for(const n of nums){if(n.x<midDC)debit=n.v;else if(n.x<midCB)credit=n.v;else balance=n.v}
+    // Do not interpret the running balance as a transaction amount.
     if(debit===0&&credit===0)continue;
-    const description=descItems.map(x=>x.s).join(" ").replace(/\s+/g," ").trim()||joined;
-    const type=debit>0?"payment":"receipt",amount=debit>0?debit:credit;
-    rows.push({date,description,type,amount,debit,credit,balance,include:true,head:"Nikaynidhi"});
+    const desc=items.filter(x=>x.top>=row.top-12&&x.top<end&&x.x>=120&&x.x<midDC-15&&!/^\d{2}[-/.]\d{2}[-/.]\d{4}$/.test(x.s)&&moneyVal(x.s)===null)
+      .sort((a,b)=>a.top-b.top||a.x-b.x).map(x=>x.s).join(" ").replace(/\s+/g," ").trim();
+    rows.push({date:row.date,description:desc||"Bank transaction",type:debit>0?"payment":"receipt",amount:debit>0?debit:credit,debit,credit,balance,include:true,head:"Nikaynidhi"});
    }
   }
-  if(!rows.length)throw new Error("PDF में Debit/Credit/Balance कॉलम से पढ़ने योग्य लेन-देन नहीं मिले। यह स्कैन PDF या अलग फॉर्मेट हो सकता है। ऐसी स्थिति में PDF भेजें ताकि उसी बैंक के फॉर्मेट के अनुसार सुधार हो सके।");
-  statementRows=rows;renderStatementPreview();statementNote(pdf.numPages+" पेज पढ़े गए। "+rows.length+" संभावित लेन-देन मिले। Debit, Credit और Balance जाँचें।");
+  if(!rows.length)throw new Error("इस PDF में SBI Debit/Credit/Balance कॉलम पहचान नहीं पाए। PDF का यह फॉर्मेट अभी समर्थित नहीं है।");
+  statementRows=rows;renderStatementPreview();
+  const totals=rows.reduce((a,r)=>({debit:a.debit+r.debit,credit:a.credit+r.credit}),{debit:0,credit:0});
+  statementNote(pdf.numPages+" पेज पढ़े गए। "+rows.length+" लेन-देन मिले। कुल Debit ₹"+totals.debit.toLocaleString("en-IN")+" और Credit ₹"+totals.credit.toLocaleString("en-IN")+" है। स्टेटमेंट सारांश से मिलान करें।");
  }catch(e){statementNote("PDF पढ़ने में समस्या: "+(e.message||e),true)}finally{$("parseStatementBtn").disabled=false}
 }
 function statementHeadOptions(selected){return '<option value="Nikaynidhi" '+(selected==="Nikaynidhi"?"selected":"")+'>निकाय निधि (डिफॉल्ट)</option>'+heads.map(h=>'<option value="'+esc(h.head_name)+'" '+(selected===h.head_name?"selected":"")+'>'+esc(h.head_name)+'</option>').join("")}
