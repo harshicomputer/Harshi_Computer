@@ -39,7 +39,7 @@
 </main>
 <script>
 const SUPABASE_URL="https://khwzoolgjzghdixlclwu.supabase.co",SUPABASE_KEY="sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P";
-const db=window.supabase?.createClient?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}):null;
+let db=window.salaryDb||(window.supabase?.createClient?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}):null);
 let banks=[],txns=[],heads=[];
 const $=id=>document.getElementById(id),money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -114,7 +114,7 @@ async function confirmStatementImport(){
  }catch(e){statementNote("Import नहीं हुआ: "+(e.message||e),true)}finally{$("confirmStatementBtn").disabled=false}
 }
 
-async function init(){if(!db){note("Supabase लाइब्रेरी उपलब्ध नहीं हुई। इंटरनेट कनेक्शन जाँचें।",true);return}const {data,error}=await db.auth.getSession();if(error||!data.session){note("सुरक्षा के लिए पहले वेबसाइट में Login करें।",true);return}await loadAll()}
+async function init(){try{note("Supabase से सुरक्षित कनेक्शन बनाया जा रहा है...");if(!db){if(!window.supabase?.createClient){await new Promise((resolve,reject)=>{const sc=document.createElement("script");sc.src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js";sc.onload=resolve;sc.onerror=()=>reject(new Error("Supabase लाइब्रेरी लोड नहीं हुई। इंटरनेट/CDN कनेक्शन जाँचें।"));document.head.appendChild(sc)});}if(!window.supabase?.createClient)throw new Error("Supabase लाइब्रेरी उपलब्ध नहीं है।");db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})}const {data,error}=await db.auth.getSession();if(error)throw error;if(!data.session){note("सुरक्षा के लिए पहले वेबसाइट में Login करें, फिर बैंक खाते खोलें।",true);return}await loadAll()}catch(e){console.error("Bank page init:",e);note("बैंक पेज शुरू नहीं हो पाया: "+(e.message||e)+" · Refresh करें।",true)}}
 async function loadAll(){if(!db){note("Supabase कनेक्शन उपलब्ध नहीं है। पेज Refresh करें।",true);return}note("बैंक खाते लोड हो रहे हैं...");try{const b=await db.from("bank_accounts").select("*").order("bank_name");if(b.error)throw new Error("बैंक खाते: "+b.error.message);banks=b.data||[];txns=[];render();fillStatementBanks();note("बैंक खाते: "+banks.filter(x=>x.active).length+" · विवरण देखने के लिए संबंधित खाते का बटन दबाएँ।");try{const h=await db.from("account_heads").select("financial_year,head_name,display_order").eq("financial_year",$("txnFY").value).order("display_order");if(h.error)throw h.error;heads=h.data||[];fillStatementBanks()}catch(headError){heads=[];note("बैंक खाते लोड हो गए हैं। Head / मद सूची अभी उपलब्ध नहीं: "+(headError.message||headError),true)}}catch(e){note("बैंक खाते लोड नहीं हुए: "+(e.message||e),true);$("bankBody").innerHTML="<tr><td colspan=\"9\" class=\"empty\">बैंक खाते लोड नहीं हुए। Refresh करें या Admin Authenticator से दोबारा Login करें।</td></tr>"}}
 function closeBankDetails(){$("bankDetailPanel").classList.add("hidden")}
 async function showBankDetails(id){
@@ -149,5 +149,6 @@ function resetSecurityIdleTimer(){
 ["mousemove","mousedown","keydown","scroll","touchstart","click"].forEach(evt=>window.addEventListener(evt,resetSecurityIdleTimer,{passive:true}));
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")resetSecurityIdleTimer();});
 resetSecurityIdleTimer();
-init();
+window.addEventListener("load",init,{once:true});
+window.addEventListener("error",e=>{console.error("Bank page script error:",e.error||e.message);const m=document.getElementById("msg");if(m)m.textContent="पेज में JavaScript त्रुटि: "+(e.message||"अज्ञात त्रुटि")+" · कृपया Refresh करें।";});
 </script></body></html>
