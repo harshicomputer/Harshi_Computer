@@ -149,6 +149,6 @@ function resetSecurityIdleTimer(){
 ["mousemove","mousedown","keydown","scroll","touchstart","click"].forEach(evt=>window.addEventListener(evt,resetSecurityIdleTimer,{passive:true}));
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")resetSecurityIdleTimer();});
 resetSecurityIdleTimer();
-window.addEventListener("load",init,{once:true});
+init();
 window.addEventListener("error",e=>{console.error("Bank page script error:",e.error||e.message);const m=document.getElementById("msg");if(m)m.textContent="पेज में JavaScript त्रुटि: "+(e.message||"अज्ञात त्रुटि")+" · कृपया Refresh करें।";});
 </script></body></html>
