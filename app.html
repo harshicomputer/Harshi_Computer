@@ -1249,7 +1249,12 @@ async function previewPaymentUpload(){
   try{
     let data=await file.arrayBuffer();
     if(runId!==paymentPreviewRunId||document.getElementById("paymentFile")?.files?.[0]!==file)return;
-    let wb=XLSX.read(data,{type:"array",cellDates:false}),codes=new Map(employees.map(e=>[normalizeCode(e.code),e]));
+    let wb=XLSX.read(data,{type:"array",cellDates:false});
+    // Always read the current employee master directly for upload matching; do not rely on a possibly stale page-level uploadEmployees array.
+    const employeeMasterRes=await window.salaryDb.from("employees").select("id,code,name,active").order("code");
+    if(employeeMasterRes.error){msgEl.textContent="कर्मचारी मास्टर सूची लोड नहीं हुई; सुरक्षित रखने के लिए Preview रोक दिया गया: "+employeeMasterRes.error.message;return;}
+    const uploadEmployees=employeeMasterRes.data||[];
+    if(!uploadEmployees.length){msgEl.textContent="वेबसाइट से कर्मचारी सूची खाली मिली; सुरक्षित रखने के लिए Preview रोक दिया गया।";return;}
     const cleanName=v=>String(v||"").trim().replace(/\s+/g," ").toLocaleLowerCase();
     const cleanAccount=v=>String(v??"").replace(/[^0-9]/g,"");
     const cleanIfsc=v=>String(v??"").trim().toUpperCase().replace(/\s+/g,"");
@@ -1304,7 +1309,7 @@ async function previewPaymentUpload(){
         const compactName=v=>String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"");
         const editDistance=(a,b)=>{const dp=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){let prev=dp[0];dp[0]=i;for(let j=1;j<=b.length;j++){const old=dp[j];dp[j]=Math.min(dp[j]+1,dp[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=old;}}return dp[b.length];};
         const nameSimilarity=(a,b)=>{const x=compactName(a),y=compactName(b);if(!x||!y)return 0;return 1-editDistance(x,y)/Math.max(x.length,y.length);};
-        const normalizedExcelCode=normalizeCode(code);let codeMatches=normalizedExcelCode?employees.filter(emp=>normalizeCode(emp.code)===normalizedExcelCode):[];
+        const normalizedExcelCode=normalizeCode(code);let codeMatches=normalizedExcelCode?uploadEmployees.filter(emp=>normalizeCode(emp.code)===normalizedExcelCode):[];
         // Explicit employee identities confirmed by the user for historical payroll imports.
         // Apply only when the Excel Employee Code is blank; never override a supplied code.
         const confirmedNameAliases={
@@ -1339,7 +1344,7 @@ async function previewPaymentUpload(){
         const sirajMayLegacyAlias=(sirajLegacyNumericCode==="81680225"&&compactName(nameCell)==="SIRAJSALIM")?"NR81680218":"";
         const confirmedIdentityCode=confirmedNameCodeAliases[compactName(nameCell)]||sirajMayLegacyAlias||confirmedAliasCode;
         if(confirmedIdentityCode){
-          const confirmedEmployees=employees.filter(emp=>normalizeCode(emp.code)===normalizeCode(confirmedIdentityCode));
+          const confirmedEmployees=uploadEmployees.filter(emp=>normalizeCode(emp.code)===normalizeCode(confirmedIdentityCode));
           if(confirmedEmployees.length===1)codeMatches=confirmedEmployees;
         }
         // Legacy voucher files may contain the numeric part of an NR-series code only.
@@ -1347,16 +1352,16 @@ async function previewPaymentUpload(){
         if(!codeMatches.length && /^\d+$/.test(normalizeCode(code))){
           const legacyNrAliases={"81680161":"NR81680166"};
           const nrCode=legacyNrAliases[normalizeCode(code)]||("NR"+normalizeCode(code));
-          const nrMatches=employees.filter(emp=>normalizeCode(emp.code)===nrCode);
+          const nrMatches=uploadEmployees.filter(emp=>normalizeCode(emp.code)===nrCode);
           if(nrMatches.length===1)codeMatches=nrMatches;
         }
         const codeEmp=codeMatches.length===1?codeMatches[0]:null;
-        const nameMatches=employees.filter(emp=>cleanName(emp.name)===cleanName(nameCell));
-        const exactNameMatches=employees.filter(emp=>compactName(emp.name)===compactName(nameCell));
+        const nameMatches=uploadEmployees.filter(emp=>cleanName(emp.name)===cleanName(nameCell));
+        const exactNameMatches=uploadEmployees.filter(emp=>compactName(emp.name)===compactName(nameCell));
         const accountRows=account?(bankByAccountForMonth.get(account)||[]):[];
-        const accountMatches=[...new Map(accountRows.map(b=>[b.employee_id,b])).values()].map(b=>employees.find(emp=>emp.id===b.employee_id)).filter(Boolean);
+        const accountMatches=[...new Map(accountRows.map(b=>[b.employee_id,b])).values()].map(b=>uploadEmployees.find(emp=>emp.id===b.employee_id)).filter(Boolean);
         const accountIfscRows=accountRows.filter(b=>cleanIfsc(b.ifsc_code)===ifsc);
-        const accountIfscEmployees=[...new Map(accountIfscRows.map(b=>[b.employee_id,b])).values()].map(b=>employees.find(emp=>emp.id===b.employee_id)).filter(Boolean);
+        const accountIfscEmployees=[...new Map(accountIfscRows.map(b=>[b.employee_id,b])).values()].map(b=>uploadEmployees.find(emp=>emp.id===b.employee_id)).filter(Boolean);
         let employee=null,matchReason="",matchCategory="manual_review";
         // Employee Code is the first lookup, but never trust a code-only match
         // when the supplied name conflicts. Accept only a corroborated identity:
@@ -1416,7 +1421,7 @@ async function previewPaymentUpload(){
         else {
           const exactPair=[...new Set(exactNameMatches.map(e=>e.id).filter(id=>accountRows.some(b=>b.employee_id===id)))];
           if(exactPair.length===1){
-            employee=employees.find(e=>e.id===exactPair[0])||null;
+            employee=uploadEmployees.find(e=>e.id===exactPair[0])||null;
             matchCategory="name_account_exact";
             matchReason="श्रेणी 1: पूरा नाम + बैंक खाता सटीक मेल";
           }else if(exactPair.length>1){
@@ -1579,7 +1584,7 @@ function openPaymentDuplicateReview(){
  resetInactivityTimer();
 }
 function closePaymentDuplicateReview(){
- openOfficeModule("employees");
+ openOfficeModule("uploadEmployees");
  const pay=document.getElementById("paymentPreview");
  if(pay)pay.scrollIntoView({behavior:"smooth",block:"start"});
 }
