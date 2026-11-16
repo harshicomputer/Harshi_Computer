@@ -60,7 +60,7 @@ async function loadReports(){
  document.getElementById("message").textContent="रिपोर्ट तैयार हो रही है...";
  transactions=[];details=[];
  for(let offset=0;;offset+=1000){
-  const t=await db.from("account_transactions").select("id,financial_year,head_name,transaction_date,voucher_no,description,receipt_amount,payment_amount").eq("financial_year",fy).order("transaction_date",{ascending:true}).range(offset,offset+999);
+  const t=await db.from("account_transactions").select("id,financial_year,head_name,transaction_date,voucher_no,description,receipt_amount,payment_amount").eq("financial_year",fy).order("transaction_date",{ascending:true}).order("id",{ascending:true}).range(offset,offset+999);
   if(t.error){document.getElementById("message").innerHTML='<span class="error">'+esc(t.error.message)+'</span>';return;}
   const page=t.data||[];transactions.push(...page);if(page.length<1000)break;
  }
