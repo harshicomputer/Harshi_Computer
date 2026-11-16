@@ -142,7 +142,7 @@ th{background:#f7f9fc;position:sticky;top:0;z-index:2}
    <div class="bill-section"><h3>3. TDS & Other Income Tax</h3><div class="bill-grid">
     <label style="display:flex;align-items:center;gap:8px"><input id="bd_tds_applicable" type="checkbox" style="width:auto" onchange="recalculateTds()"> TDS Applicable</label>
     <label>TDS Section<input id="bd_tds_section" placeholder="जैसे 194C / 194J"></label><label>TDS Rate (%)<input id="bd_tds_rate" type="number" min="0" max="100" step="0.001" oninput="recalculateTds()"></label>
-    <label>TDS Amount<input id="bd_tds_amount" type="number" min="0" step="0.01"></label><label>TCS Amount<input id="bd_tcs_amount" type="number" min="0" step="0.01"></label><label>Other Income Tax Amount<input id="bd_other_income_tax_amount" type="number" min="0" step="0.01"></label>
+    <label>TDS Amount<input id="bd_tds_amount" type="number" min="0" step="0.01"></label><label>Other Income Tax Amount<input id="bd_other_income_tax_amount" type="number" min="0" step="0.01"></label>
     <label>TDS Challan Number<input id="bd_tds_challan_no"></label><label>TDS Deposit Date<input id="bd_tds_deposit_date" type="date"></label>
     <label style="grid-column:span 2">Other Income Tax Details<textarea id="bd_other_income_tax_details" placeholder="अन्य कटौती / आयकर विवरण"></textarea></label>
     <div class="muted" style="grid-column:1/-1">TDS की गणना केवल दर्ज Taxable Amount और Rate के आधार पर प्रारंभिक अनुमान है। लागू Section, Threshold, PAN और कानूनी नियम की जाँच करके ही पुष्टि करें।</div>
@@ -384,7 +384,7 @@ async function deleteEntry(id){
 }
 
 const BILL_TEXT_FIELDS=["bill_type","bill_number","bill_date","party_name","party_pan","party_gstin","place_of_supply","supply_type","tds_section","tds_challan_no","tds_deposit_date","gst_return_period","gst_filing_status","treasury_bill_no","treasury_reference","treasury_status","payment_date","utr_number","payment_status","document_path","notes"];
-const BILL_NUM_FIELDS=["taxable_amount","gst_rate","cgst_amount","sgst_amount","igst_amount","cess_amount","other_charges","gross_bill_amount","tds_rate","tds_amount","tcs_amount","other_income_tax_amount","paid_amount"];
+const BILL_NUM_FIELDS=["taxable_amount","gst_rate","cgst_amount","sgst_amount","igst_amount","cess_amount","other_charges","gross_bill_amount","tds_rate","tds_amount","other_income_tax_amount","paid_amount"];
 function closeBillDetails(){document.getElementById("billDetailsModal").style.display="none";document.body.style.overflow="";}
 function billSet(id,value){const el=document.getElementById("bd_"+id);if(!el)return;if(el.type==="checkbox")el.checked=!!value;else el.value=value??"";}
 function roundMoney(n){return Math.round((Number(n||0)+Number.EPSILON)*100)/100;}
