@@ -1342,20 +1342,13 @@ async function previewPaymentUpload(){
           const confirmedEmployees=employees.filter(emp=>normalizeCode(emp.code)===normalizeCode(confirmedIdentityCode));
           if(confirmedEmployees.length===1)codeMatches=confirmedEmployees;
         }
-        // Legacy voucher files may contain only the numeric part of an employee code.
-        // Check R-series first (this voucher batch uses R168... codes), then NR-series.
-        // Only accept a prefix match when it resolves to exactly one employee.
+        // Legacy voucher files may contain the numeric part of an NR-series code only.
+        // Match 81680113 to NR81680113 only when that prefixed employee code is unique.
         if(!codeMatches.length && /^\d+$/.test(normalizeCode(code))){
-          const numericCode=normalizeCode(code);
-          const rMatches=employees.filter(emp=>normalizeCode(emp.code)==="R"+numericCode);
-          if(rMatches.length===1){
-            codeMatches=rMatches;
-          }else if(rMatches.length===0){
-            const legacyNrAliases={"81680161":"NR81680166"};
-            const nrCode=legacyNrAliases[numericCode]||("NR"+numericCode);
-            const nrMatches=employees.filter(emp=>normalizeCode(emp.code)===nrCode);
-            if(nrMatches.length===1)codeMatches=nrMatches;
-          }
+          const legacyNrAliases={"81680161":"NR81680166"};
+          const nrCode=legacyNrAliases[normalizeCode(code)]||("NR"+normalizeCode(code));
+          const nrMatches=employees.filter(emp=>normalizeCode(emp.code)===nrCode);
+          if(nrMatches.length===1)codeMatches=nrMatches;
         }
         const codeEmp=codeMatches.length===1?codeMatches[0]:null;
         const nameMatches=employees.filter(emp=>cleanName(emp.name)===cleanName(nameCell));
