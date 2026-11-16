@@ -157,6 +157,7 @@ th{background:#f7f9fc;position:sticky;top:0;z-index:2}
     <label style="grid-column:span 2">Remarks / Notes<textarea id="bd_notes"></textarea></label>
    </div></div>
    <div class="bill-section" style="background:#f8fbff"><h3>6. Tax Verification</h3><label style="display:flex;align-items:center;gap:9px;font-size:14px"><input id="bd_verified" type="checkbox" style="width:auto"> मैंने Bill, GST, TDS और अन्य Tax विवरण जाँच लिए हैं; इसे Verified करके सेव करें।</label><div id="bd_verify_info" class="muted" style="margin-top:7px">पुष्टि से पहले रिकॉर्ड Pending रहेगा।</div></div>
+   <div class="bill-section"><h3>7. बदलाव की हिस्ट्री</h3><div id="billAuditHistory" class="muted">हिस्ट्री लोड हो रही है...</div></div>
   </div>
   <div class="bill-modal-actions"><button class="bill-cancel" onclick="closeBillDetails()">बंद करें</button><button class="bill-save" id="bd_save_btn" onclick="saveBillDetails()">पुष्टि करके सेव करें</button></div>
  </section>
@@ -389,6 +390,15 @@ async function openBillDetails(id){
  document.getElementById("billTxContext").textContent="Head: "+head+" | Date: "+(tx.transaction_date||"—")+" | Voucher: "+(tx.voucher_no||"—")+" | Ledger Expense: "+money(tx.payment_amount);
  document.getElementById("bd_verify_info").textContent=d.verified_at?("Last verified: "+new Date(d.verified_at).toLocaleString("en-IN")):"Tax verification अभी नहीं हुई है।";
  document.getElementById("billDetailsModal").style.display="flex";document.body.style.overflow="hidden";
+ await loadBillAuditHistory(id,d.id);
+}
+async function loadBillAuditHistory(transactionId,detailId){
+ const ids=[String(transactionId)];if(detailId)ids.push(String(detailId));
+ const q=await db.from("admin_audit_logs").select("action,table_name,record_id,changed_fields,created_at").in("record_id",ids).order("created_at",{ascending:false}).limit(30);
+ const el=document.getElementById("billAuditHistory");if(!el)return;
+ if(q.error){el.textContent="हिस्ट्री उपलब्ध नहीं: "+q.error.message;return;}
+ const items=q.data||[];
+ el.innerHTML=items.length?items.map(x=>'<div style="padding:7px 0;border-bottom:1px solid #edf1f6"><b>'+esc(x.action)+'</b> · '+esc(x.table_name)+' · '+new Date(x.created_at).toLocaleString("en-IN")+'<div>'+esc((x.changed_fields||[]).join(", "))+'</div></div>').join(""):"अभी तक कोई बदलाव दर्ज नहीं है।";
 }
 async function saveBillDetails(){
  if(!currentBillTransactionId)return;
