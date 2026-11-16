@@ -47,6 +47,24 @@ th{background:#f7f9fc;position:sticky;top:0;z-index:2}
 .new-row td{background:#f8fbff}
 .new-row.active-new td{background:#eef6ff}
 .new-hint{color:#667085;font-size:12px;font-style:italic}
+.bill-action{border:1px solid #b8cbe4;background:#edf4ff;color:#174d8d;border-radius:6px;padding:6px 8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.bill-action:hover{background:#dceaff}
+.modal-backdrop{display:none;position:fixed;inset:0;background:#10182899;z-index:100;align-items:center;justify-content:center;padding:14px}
+.bill-modal{width:min(980px,100%);max-height:94vh;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 20px 60px #0004}
+.bill-modal-head{position:sticky;top:0;background:#123b73;color:#fff;padding:15px 18px;display:flex;justify-content:space-between;align-items:center;z-index:2}
+.bill-modal-head h2{margin:0;font-size:18px}
+.bill-modal-body{padding:16px}
+.bill-section{border:1px solid #e2e8f0;border-radius:10px;padding:13px;margin:0 0 13px}
+.bill-section h3{margin:0 0 11px;color:#123b73;font-size:15px}
+.bill-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.bill-grid label{display:block}
+.bill-grid input,.bill-grid select,.bill-grid textarea{width:100%;margin-top:5px;padding:9px;border:1px solid #dce4ef;border-radius:7px;background:#fff;font:inherit}
+.bill-grid textarea{min-height:62px;resize:vertical}
+.bill-modal-actions{display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:#fff;padding:12px 16px;border-top:1px solid #e5eaf1}
+.bill-save{background:#1857a8;color:#fff;border:1px solid #1857a8;border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer}
+.bill-cancel{background:#fff;color:#172033;border:1px solid #d7dfeb;border-radius:8px;padding:10px 16px;cursor:pointer}
+@media(max-width:650px){.bill-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bill-modal{max-height:96vh}}
+@media(max-width:420px){.bill-grid{grid-template-columns:1fr}}
 @media(max-width:900px){.desc-input{min-width:180px}}
 @media(max-width:900px){.layout{grid-template-columns:1fr}.left{position:relative;top:auto;max-height:320px}.formgrid{grid-template-columns:repeat(2,1fr)}.scroll{max-height:none}}
 @media(max-width:600px){.formgrid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
@@ -57,6 +75,7 @@ th{background:#f7f9fc;position:sticky;top:0;z-index:2}
 <header class="top">
 <h1>🏦 Harshi Computer — Account / मदवार Ledger</h1>
 <div class="toolbar">
+<a class="btn" href="account_tax_reports.html">IT-GST Reports</a>
 <a class="btn" href="app.html?open=officeAccount">← Summary</a>
 <button class="btn" onclick="signOut()">Logout</button>
 </div>
@@ -103,6 +122,46 @@ th{background:#f7f9fc;position:sticky;top:0;z-index:2}
 </div>
 </main>
 
+<div class="modal-backdrop" id="billDetailsModal" onclick="if(event.target===this)closeBillDetails()">
+ <section class="bill-modal" role="dialog" aria-modal="true" aria-labelledby="billModalTitle">
+  <div class="bill-modal-head"><div><h2 id="billModalTitle">Bill / IT-GST Details</h2><div id="billTxContext" style="font-size:12px;opacity:.85;margin-top:4px"></div></div><button class="btn" onclick="closeBillDetails()">✕</button></div>
+  <div class="bill-modal-body">
+   <div class="bill-section"><h3>1. Bill & Party Information</h3><div class="bill-grid">
+    <label>Bill Type<select id="bd_bill_type"><option value="expense">Expense</option><option value="income">Income</option><option value="purchase">Purchase</option><option value="sales">Sales</option><option value="receipt">Receipt</option><option value="adjustment">Adjustment</option><option value="other">Other</option></select></label>
+    <label>Bill Number<input id="bd_bill_number"></label><label>Bill Date<input id="bd_bill_date" type="date"></label>
+    <label>Party / Firm Name<input id="bd_party_name"></label><label>PAN<input id="bd_party_pan" maxlength="10"></label><label>GSTIN<input id="bd_party_gstin" maxlength="15"></label>
+    <label>Place of Supply<input id="bd_place_of_supply"></label><label>Supply Type<select id="bd_supply_type"><option value="">Not selected</option><option value="intra_state">Intra-state</option><option value="inter_state">Inter-state</option><option value="not_applicable">Not applicable</option></select></label>
+    <label style="display:flex;align-items:center;gap:8px"><input id="bd_reverse_charge" type="checkbox" style="width:auto"> Reverse Charge</label>
+   </div></div>
+   <div class="bill-section"><h3>2. GST Details</h3><div class="bill-grid">
+    <label>Taxable Amount<input id="bd_taxable_amount" type="number" min="0" step="0.01"></label><label>GST Rate (%)<input id="bd_gst_rate" type="number" min="0" max="100" step="0.001"></label>
+    <label>CGST Amount<input id="bd_cgst_amount" type="number" min="0" step="0.01"></label><label>SGST Amount<input id="bd_sgst_amount" type="number" min="0" step="0.01"></label><label>IGST Amount<input id="bd_igst_amount" type="number" min="0" step="0.01"></label><label>Cess Amount<input id="bd_cess_amount" type="number" min="0" step="0.01"></label>
+    <label>Other Charges<input id="bd_other_charges" type="number" step="0.01"></label><label>Gross Bill Amount<input id="bd_gross_bill_amount" type="number" min="0" step="0.01"></label>
+    <label>GST Return Period<input id="bd_gst_return_period" placeholder="जैसे 2026-04"></label><label>GST Filing Status<select id="bd_gst_filing_status"><option value="not_applicable">Not Applicable</option><option value="pending">Pending</option><option value="included">Included</option><option value="filed">Filed</option><option value="reconciled">Reconciled</option></select></label>
+   </div></div>
+   <div class="bill-section"><h3>3. TDS & Other Income Tax</h3><div class="bill-grid">
+    <label style="display:flex;align-items:center;gap:8px"><input id="bd_tds_applicable" type="checkbox" style="width:auto"> TDS Applicable</label>
+    <label>TDS Section<input id="bd_tds_section" placeholder="जैसे 194C / 194J"></label><label>TDS Rate (%)<input id="bd_tds_rate" type="number" min="0" max="100" step="0.001"></label>
+    <label>TDS Amount<input id="bd_tds_amount" type="number" min="0" step="0.01"></label><label>TCS Amount<input id="bd_tcs_amount" type="number" min="0" step="0.01"></label><label>Other Income Tax Amount<input id="bd_other_income_tax_amount" type="number" min="0" step="0.01"></label>
+    <label>TDS Challan Number<input id="bd_tds_challan_no"></label><label>TDS Deposit Date<input id="bd_tds_deposit_date" type="date"></label>
+    <label style="grid-column:span 2">Other Income Tax Details<textarea id="bd_other_income_tax_details" placeholder="अन्य कटौती / आयकर विवरण"></textarea></label>
+   </div></div>
+   <div class="bill-section"><h3>4. Treasury & Payment Details</h3><div class="bill-grid">
+    <label>Treasury Bill Number<input id="bd_treasury_bill_no"></label><label>Treasury Reference<input id="bd_treasury_reference"></label>
+    <label>Treasury Status<select id="bd_treasury_status"><option value="not_submitted">Not Submitted</option><option value="submitted">Submitted</option><option value="passed">Passed</option><option value="rejected">Rejected</option><option value="payment_processed">Payment Processed</option><option value="paid">Paid</option><option value="failed">Failed</option></select></label>
+    <label>Paid Amount<input id="bd_paid_amount" type="number" min="0" step="0.01"></label><label>Payment Date<input id="bd_payment_date" type="date"></label>
+    <label>UTR Number<input id="bd_utr_number"></label><label>Payment Status<select id="bd_payment_status"><option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Paid</option><option value="failed">Failed</option><option value="reversed">Reversed</option></select></label>
+   </div></div>
+   <div class="bill-section"><h3>5. Documents & Notes</h3><div class="bill-grid">
+    <label>Bill Document Path / Reference<input id="bd_document_path" placeholder="दस्तावेज का Storage Path"></label>
+    <label style="grid-column:span 2">Remarks / Notes<textarea id="bd_notes"></textarea></label>
+   </div></div>
+   <div class="bill-section" style="background:#f8fbff"><h3>6. Tax Verification</h3><label style="display:flex;align-items:center;gap:9px;font-size:14px"><input id="bd_verified" type="checkbox" style="width:auto"> मैंने Bill, GST, TDS और अन्य Tax विवरण जाँच लिए हैं; इसे Verified करके सेव करें।</label><div id="bd_verify_info" class="muted" style="margin-top:7px">पुष्टि से पहले रिकॉर्ड Pending रहेगा।</div></div>
+  </div>
+  <div class="bill-modal-actions"><button class="bill-cancel" onclick="closeBillDetails()">बंद करें</button><button class="bill-save" id="bd_save_btn" onclick="saveBillDetails()">पुष्टि करके सेव करें</button></div>
+ </section>
+</div>
+
 <script>
 const SUPABASE_URL="https://khwzoolgjzghdixlclwu.supabase.co";
 const SUPABASE_KEY="sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P";
@@ -111,7 +170,7 @@ let db;
 const params=new URLSearchParams(location.search);
 const fy=params.get("fy")||"2025-26";
 let head=params.get("head")||"";
-let rows=[],heads=[],timer;
+let rows=[],heads=[],timer,billDetails={},currentBillTransactionId=null;
 
 const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
 const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -181,6 +240,9 @@ async function loadLedger(){
  const q=await db.from("account_transactions").select("*").eq("financial_year",fy).eq("head_name",head).order("transaction_date",{ascending:true,nullsFirst:true}).order("source_row",{ascending:true,nullsFirst:true});
  if(q.error){document.getElementById("table").innerHTML='<p class="error" style="padding:15px">'+esc(q.error.message)+'</p>';return}
  rows=q.data||[];
+ const bq=rows.length?await db.from("account_bill_tax_details").select("*").in("transaction_id",rows.map(x=>x.id)):{data:[],error:null};
+ if(bq.error){document.getElementById("top").innerHTML='<span class="error">Bill/Tax विवरण लोड नहीं हुआ: '+esc(bq.error.message)+'</span>';billDetails={};}
+ else billDetails=Object.fromEntries((bq.data||[]).map(x=>[x.transaction_id,x]));
  renderLedgerTable(h);
  await loadHeads();
 }
@@ -191,12 +253,13 @@ function renderLedgerTable(h){
  let html='<table><thead><tr><th>Date</th><th>Voucher</th><th>विवरण</th><th>आय / Receipt</th><th>व्यय / Payment</th><th>Balance</th></tr></thead><tbody>';
  for(const x of rows){
   const r=Number(x.receipt_amount||0),p=Number(x.payment_amount||0);receipt+=r;payment+=p;bal+=r-p;
+  const bd=billDetails[x.id]; const billLabel=bd?.bill_number?("Bill: "+esc(bd.bill_number)):(bd?.tax_review_status==="verified"?"Tax Verified":"Bill / IT-GST");
   html+='<tr data-row-id="'+esc(x.id)+'">'+
     '<td><input class="ledger-input" type="date" value="'+esc(x.transaction_date||"")+'" data-id="'+esc(x.id)+'" data-field="transaction_date" onchange="queueRowSave(this)"></td>'+
     '<td><input class="ledger-input" value="'+esc(x.voucher_no||"")+'" placeholder="Voucher" data-id="'+esc(x.id)+'" data-field="voucher_no" onchange="queueRowSave(this)"></td>'+
     '<td><input class="ledger-input desc-input" value="'+esc(x.description||"")+'" placeholder="विवरण" data-id="'+esc(x.id)+'" data-field="description" onchange="queueRowSave(this)"></td>'+
     '<td><input class="ledger-input amount-input" type="number" min="0" step="0.01" value="'+(x.receipt_amount??"")+'" data-id="'+esc(x.id)+'" data-field="receipt_amount" onchange="queueRowSave(this)"></td>'+
-    '<td><input class="ledger-input amount-input" type="number" min="0" step="0.01" value="'+(x.payment_amount??"")+'" data-id="'+esc(x.id)+'" data-field="payment_amount" onchange="queueRowSave(this)"></td>'+
+    '<td><div style="display:flex;align-items:center;gap:5px"><input class="ledger-input amount-input" type="number" min="0" step="0.01" value="'+(x.payment_amount??"")+'" data-id="'+esc(x.id)+'" data-field="payment_amount" onchange="queueRowSave(this)"><button type="button" class="bill-action" onclick="openBillDetails(\''+esc(x.id)+'\')">'+billLabel+'</button></div></td>'+
     '<td><b>'+money(bal)+'</b></td>'+
     '</tr>';
  }
@@ -311,6 +374,41 @@ async function deleteEntry(id){
  await updateSummary();await loadLedger();
 }
 
+const BILL_TEXT_FIELDS=["bill_type","bill_number","bill_date","party_name","party_pan","party_gstin","place_of_supply","supply_type","tds_section","tds_challan_no","tds_deposit_date","gst_return_period","gst_filing_status","treasury_bill_no","treasury_reference","treasury_status","payment_date","utr_number","payment_status","document_path","notes"];
+const BILL_NUM_FIELDS=["taxable_amount","gst_rate","cgst_amount","sgst_amount","igst_amount","cess_amount","other_charges","gross_bill_amount","tds_rate","tds_amount","tcs_amount","other_income_tax_amount","paid_amount"];
+function closeBillDetails(){document.getElementById("billDetailsModal").style.display="none";document.body.style.overflow="";}
+function billSet(id,value){const el=document.getElementById("bd_"+id);if(!el)return;if(el.type==="checkbox")el.checked=!!value;else el.value=value??"";}
+async function openBillDetails(id){
+ const tx=rows.find(x=>String(x.id)===String(id));if(!tx)return;
+ currentBillTransactionId=id;const d=billDetails[id]||{};
+ BILL_TEXT_FIELDS.forEach(k=>billSet(k,d[k]??(k==="bill_type"?"expense":k==="gst_filing_status"?"not_applicable":k==="treasury_status"?"not_submitted":k==="payment_status"?"unpaid":"")));
+ BILL_NUM_FIELDS.forEach(k=>billSet(k,d[k]??0));
+ billSet("reverse_charge",d.reverse_charge);billSet("tds_applicable",d.tds_applicable);billSet("verified",d.tax_review_status==="verified");
+ const other=d.other_income_tax_details?.description||"";
+ billSet("other_income_tax_details",other);
+ document.getElementById("billTxContext").textContent="Head: "+head+" | Date: "+(tx.transaction_date||"—")+" | Voucher: "+(tx.voucher_no||"—")+" | Ledger Expense: "+money(tx.payment_amount);
+ document.getElementById("bd_verify_info").textContent=d.verified_at?("Last verified: "+new Date(d.verified_at).toLocaleString("en-IN")):"Tax verification अभी नहीं हुई है।";
+ document.getElementById("billDetailsModal").style.display="flex";document.body.style.overflow="hidden";
+}
+async function saveBillDetails(){
+ if(!currentBillTransactionId)return;
+ const verified=document.getElementById("bd_verified").checked;
+ if(verified&&!confirm("क्या आपने बिल और सभी लागू IT-GST विवरण जाँच लिए हैं? पुष्टि के बाद रिकॉर्ड Verified होगा।"))return;
+ const user=(await db.auth.getUser()).data.user;if(!user){location.href="app.html";return;}
+ const payload={transaction_id:currentBillTransactionId,user_id:user.id};
+ BILL_TEXT_FIELDS.forEach(k=>{const v=document.getElementById("bd_"+k).value.trim();payload[k]=v||null;});
+ BILL_NUM_FIELDS.forEach(k=>{payload[k]=Number(document.getElementById("bd_"+k).value||0);});
+ payload.reverse_charge=document.getElementById("bd_reverse_charge").checked;
+ payload.tds_applicable=document.getElementById("bd_tds_applicable").checked;
+ const other=document.getElementById("bd_other_income_tax_details").value.trim();
+ payload.other_income_tax_details=other?{description:other}:{};
+ payload.tax_review_status=verified?"verified":"pending";
+ const btn=document.getElementById("bd_save_btn");btn.disabled=true;btn.textContent="सेव हो रहा है...";
+ const q=await db.from("account_bill_tax_details").upsert(payload,{onConflict:"transaction_id"});
+ btn.disabled=false;btn.textContent="पुष्टि करके सेव करें";
+ if(q.error){alert("Bill/Tax विवरण सेव नहीं हुआ: "+q.error.message);return;}
+ closeBillDetails();await loadLedger();
+}
 async function signOut(){await db.auth.signOut();location.href="app.html"}
 function resetTimer(){clearTimeout(timer);timer=setTimeout(async()=>{await db.auth.signOut();location.href="index.html"},600000)}
 ["click","keydown","mousemove","scroll","touchstart"].forEach(e=>document.addEventListener(e,resetTimer,{passive:true}));
