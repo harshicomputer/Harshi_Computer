@@ -239,12 +239,19 @@ async function loadLedger(){
  const hq=await db.from("account_heads").select("*").eq("financial_year",fy).eq("head_name",head).maybeSingle();
  if(hq.error){document.getElementById("top").innerHTML='<span class="error">'+esc(hq.error.message)+'</span>';return}
  const h=hq.data||{};
- const q=await db.from("account_transactions").select("*").eq("financial_year",fy).eq("head_name",head).order("transaction_date",{ascending:true,nullsFirst:true}).order("source_row",{ascending:true,nullsFirst:true});
- if(q.error){document.getElementById("table").innerHTML='<p class="error" style="padding:15px">'+esc(q.error.message)+'</p>';return}
- rows=q.data||[];
- const bq=rows.length?await db.from("account_bill_tax_details").select("*").in("transaction_id",rows.map(x=>x.id)):{data:[],error:null};
- if(bq.error){document.getElementById("top").innerHTML='<span class="error">Bill/Tax विवरण लोड नहीं हुआ: '+esc(bq.error.message)+'</span>';billDetails={};}
- else billDetails=Object.fromEntries((bq.data||[]).map(x=>[x.transaction_id,x]));
+ rows=[];
+ for(let offset=0;;offset+=1000){
+  const q=await db.from("account_transactions").select("*").eq("financial_year",fy).eq("head_name",head).order("transaction_date",{ascending:true,nullsFirst:true}).order("source_row",{ascending:true,nullsFirst:true}).range(offset,offset+999);
+  if(q.error){document.getElementById("table").innerHTML='<p class="error" style="padding:15px">'+esc(q.error.message)+'</p>';return}
+  const page=q.data||[];rows.push(...page);if(page.length<1000)break;
+ }
+ let billRows=[];
+ for(let i=0;i<rows.length;i+=200){
+  const bq=await db.from("account_bill_tax_details").select("*").in("transaction_id",rows.slice(i,i+200).map(x=>x.id));
+  if(bq.error){document.getElementById("top").innerHTML='<span class="error">Bill/Tax विवरण लोड नहीं हुआ: '+esc(bq.error.message)+'</span>';billRows=[];break;}
+  billRows.push(...(bq.data||[]));
+ }
+ billDetails=Object.fromEntries(billRows.map(x=>[x.transaction_id,x]));
  renderLedgerTable(h);
  await loadHeads();
 }
