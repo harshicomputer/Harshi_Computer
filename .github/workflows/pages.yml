@@ -53,6 +53,23 @@ jobs:
           cat /tmp/syntax-errors.txt
           exit $failed
 
+      - name: Validate accounting page JavaScript
+        run: |
+          python3 - <<'PY'
+          import re, pathlib
+          for page in ["account_ledger.html", "account_tax_reports.html"]:
+              html = pathlib.Path(page).read_text(encoding="utf-8")
+              blocks = re.findall(r"<script(?:\\s[^>]*)?>(.*?)</script>", html, re.S|re.I)
+              for i, code in enumerate(blocks, 1):
+                  if code.strip():
+                      pathlib.Path(f"/tmp/{page}-{i}.js").write_text(code, encoding="utf-8")
+              print(f"{page}: checked {sum(bool(x.strip()) for x in blocks)} inline script blocks")
+          PY
+          for f in /tmp/account_ledger.html-*.js /tmp/account_tax_reports.html-*.js; do
+            [ -f "$f" ] || continue
+            node --check "$f"
+          done
+
       - name: Upload JavaScript validation report
         if: always()
         uses: actions/upload-artifact@v4
