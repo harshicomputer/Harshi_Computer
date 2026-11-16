@@ -59,7 +59,7 @@ jobs:
           import re, pathlib
           for page in ["account_ledger.html", "account_tax_reports.html"]:
               html = pathlib.Path(page).read_text(encoding="utf-8")
-              blocks = re.findall(r"<script(?:\\s[^>]*)?>(.*?)</script>", html, re.S|re.I)
+              blocks = re.findall(r"<script(?:\s[^>]*)?>(.*?)</script>", html, re.S|re.I)
               for i, code in enumerate(blocks, 1):
                   if code.strip():
                       pathlib.Path(f"/tmp/{page}-{i}.js").write_text(code, encoding="utf-8")
