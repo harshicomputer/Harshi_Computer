@@ -47,22 +47,30 @@ h2{font-size:17px;margin:0 0 12px;color:#123b73}table{width:100%;border-collapse
 <script>
 const SUPABASE_URL="https://khwzoolgjzghdixlclwu.supabase.co";
 const SUPABASE_KEY="sb_publishable_ooB9J-BxQ11AFzYURjthcw_G90Zyb6P";
-let db,transactions=[],details=[],detailMap={};
+let db,transactions=[],details=[],detailMap={},timer;
 const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const fmtDate=v=>{if(!v)return"—";const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"-"+m[2]+"-"+m[1]:v};
 function sum(a,k){return a.reduce((s,x)=>s+Number(x[k]||0),0)}
-async function init(){db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);const s=await db.auth.getSession();if(!s.data.session){location.href="app.html";return;}await loadReports();}
+async function init(){db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);const s=await db.auth.getSession();if(!s.data.session){location.href="app.html";return;}await loadReports();resetTimer();}
+function resetTimer(){clearTimeout(timer);timer=setTimeout(async()=>{await db.auth.signOut();location.href="index.html";},600000);}
+["click","keydown","mousemove","scroll","touchstart"].forEach(e=>document.addEventListener(e,resetTimer,{passive:true}));
 async function loadReports(){
  const fy=document.getElementById("fy").value.trim();if(!/^\d{4}-\d{2}$/.test(fy)){alert("वित्तीय वर्ष 2026-27 जैसे लिखें।");return;}
  document.getElementById("message").textContent="रिपोर्ट तैयार हो रही है...";
- const t=await db.from("account_transactions").select("id,financial_year,head_name,transaction_date,voucher_no,description,receipt_amount,payment_amount").eq("financial_year",fy).order("transaction_date",{ascending:true});
- if(t.error){document.getElementById("message").innerHTML='<span class="error">'+esc(t.error.message)+'</span>';return;}
- transactions=t.data||[];
+ transactions=[];details=[];
+ for(let offset=0;;offset+=1000){
+  const t=await db.from("account_transactions").select("id,financial_year,head_name,transaction_date,voucher_no,description,receipt_amount,payment_amount").eq("financial_year",fy).order("transaction_date",{ascending:true}).range(offset,offset+999);
+  if(t.error){document.getElementById("message").innerHTML='<span class="error">'+esc(t.error.message)+'</span>';return;}
+  const page=t.data||[];transactions.push(...page);if(page.length<1000)break;
+ }
  const ids=transactions.map(x=>x.id);
- const d=ids.length?await db.from("account_bill_tax_details").select("*").in("transaction_id",ids):{data:[],error:null};
- if(d.error){document.getElementById("message").innerHTML='<span class="error">Bill/Tax रिपोर्ट नहीं खुली: '+esc(d.error.message)+'</span>';return;}
- details=d.data||[];detailMap=Object.fromEntries(details.map(x=>[x.transaction_id,x]));
+ for(let i=0;i<ids.length;i+=200){
+  const d=await db.from("account_bill_tax_details").select("*").in("transaction_id",ids.slice(i,i+200));
+  if(d.error){document.getElementById("message").innerHTML='<span class="error">Bill/Tax रिपोर्ट नहीं खुली: '+esc(d.error.message)+'</span>';return;}
+  details.push(...(d.data||[]));
+ }
+ detailMap=Object.fromEntries(details.map(x=>[x.transaction_id,x]));
  renderReports(fy);
 }
 function renderReports(fy){
@@ -88,7 +96,7 @@ function exportCsv(){
  const csv="\ufeff"+rows.map(r=>r.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));a.download="Harshi_IT_GST_Report_"+document.getElementById("fy").value+".csv";a.click();URL.revokeObjectURL(a.href);
 }
-async function signOut(){await db.auth.signOut();location.href="app.html";}
+async function signOut(){clearTimeout(timer);await db.auth.signOut();location.href="app.html";}
 init();
 </script>
 </body></html>
