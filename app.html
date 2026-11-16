@@ -1180,7 +1180,7 @@ function parseExcelParts(v){
   }
   // Month-only salary values such as 03-2024 or 03/2024 (MM-YYYY).
   // Keep this after full day-month-year parsing so 03-04-2024 remains a date.
-  m=s.match(/^(0?[1-9]|1[0-2])[-/.](\\d{4})$/);
+  m=s.match(/^(0?[1-9]|1[0-2])[-/.](\d{4})$/);
   if(m)return {y:Number(m[2]),m:Number(m[1]),d:1};
 
   m=s.match(/^(\d{4})[\\/.-](\d{1,2})(?:[\\/.-](\d{1,2}))?$/);
