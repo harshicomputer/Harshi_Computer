@@ -130,21 +130,22 @@ th{background:#f7f9fc;position:sticky;top:0;z-index:2}
     <label>Bill Type<select id="bd_bill_type"><option value="expense">Expense</option><option value="income">Income</option><option value="purchase">Purchase</option><option value="sales">Sales</option><option value="receipt">Receipt</option><option value="adjustment">Adjustment</option><option value="other">Other</option></select></label>
     <label>Bill Number<input id="bd_bill_number"></label><label>Bill Date<input id="bd_bill_date" type="date"></label>
     <label>Party / Firm Name<input id="bd_party_name"></label><label>PAN<input id="bd_party_pan" maxlength="10"></label><label>GSTIN<input id="bd_party_gstin" maxlength="15"></label>
-    <label>Place of Supply<input id="bd_place_of_supply"></label><label>Supply Type<select id="bd_supply_type"><option value="">Not selected</option><option value="intra_state">Intra-state</option><option value="inter_state">Inter-state</option><option value="not_applicable">Not applicable</option></select></label>
+    <label>Place of Supply<input id="bd_place_of_supply"></label><label>Supply Type<select id="bd_supply_type" onchange="recalculateBillTaxes()"><option value="">Not selected</option><option value="intra_state">Intra-state</option><option value="inter_state">Inter-state</option><option value="not_applicable">Not applicable</option></select></label>
     <label style="display:flex;align-items:center;gap:8px"><input id="bd_reverse_charge" type="checkbox" style="width:auto"> Reverse Charge</label>
    </div></div>
    <div class="bill-section"><h3>2. GST Details</h3><div class="bill-grid">
-    <label>Taxable Amount<input id="bd_taxable_amount" type="number" min="0" step="0.01"></label><label>GST Rate (%)<input id="bd_gst_rate" type="number" min="0" max="100" step="0.001"></label>
-    <label>CGST Amount<input id="bd_cgst_amount" type="number" min="0" step="0.01"></label><label>SGST Amount<input id="bd_sgst_amount" type="number" min="0" step="0.01"></label><label>IGST Amount<input id="bd_igst_amount" type="number" min="0" step="0.01"></label><label>Cess Amount<input id="bd_cess_amount" type="number" min="0" step="0.01"></label>
-    <label>Other Charges<input id="bd_other_charges" type="number" step="0.01"></label><label>Gross Bill Amount<input id="bd_gross_bill_amount" type="number" min="0" step="0.01"></label>
+    <label>Taxable Amount<input id="bd_taxable_amount" type="number" min="0" step="0.01" oninput="recalculateBillTaxes()"></label><label>GST Rate (%)<input id="bd_gst_rate" type="number" min="0" max="100" step="0.001" oninput="recalculateBillTaxes()"></label>
+    <label>CGST Amount<input id="bd_cgst_amount" type="number" min="0" step="0.01" oninput="updateGrossBillAmount()"></label><label>SGST Amount<input id="bd_sgst_amount" type="number" min="0" step="0.01" oninput="updateGrossBillAmount()"></label><label>IGST Amount<input id="bd_igst_amount" type="number" min="0" step="0.01" oninput="updateGrossBillAmount()"></label><label>Cess Amount<input id="bd_cess_amount" type="number" min="0" step="0.01" oninput="updateGrossBillAmount()"></label>
+    <label>Other Charges<input id="bd_other_charges" type="number" step="0.01" oninput="updateGrossBillAmount()"></label><label>Gross Bill Amount<input id="bd_gross_bill_amount" type="number" min="0" step="0.01"></label>
     <label>GST Return Period<input id="bd_gst_return_period" placeholder="जैसे 2026-04"></label><label>GST Filing Status<select id="bd_gst_filing_status"><option value="not_applicable">Not Applicable</option><option value="pending">Pending</option><option value="included">Included</option><option value="filed">Filed</option><option value="reconciled">Reconciled</option></select></label>
    </div></div>
    <div class="bill-section"><h3>3. TDS & Other Income Tax</h3><div class="bill-grid">
-    <label style="display:flex;align-items:center;gap:8px"><input id="bd_tds_applicable" type="checkbox" style="width:auto"> TDS Applicable</label>
-    <label>TDS Section<input id="bd_tds_section" placeholder="जैसे 194C / 194J"></label><label>TDS Rate (%)<input id="bd_tds_rate" type="number" min="0" max="100" step="0.001"></label>
+    <label style="display:flex;align-items:center;gap:8px"><input id="bd_tds_applicable" type="checkbox" style="width:auto" onchange="recalculateTds()"> TDS Applicable</label>
+    <label>TDS Section<input id="bd_tds_section" placeholder="जैसे 194C / 194J"></label><label>TDS Rate (%)<input id="bd_tds_rate" type="number" min="0" max="100" step="0.001" oninput="recalculateTds()"></label>
     <label>TDS Amount<input id="bd_tds_amount" type="number" min="0" step="0.01"></label><label>TCS Amount<input id="bd_tcs_amount" type="number" min="0" step="0.01"></label><label>Other Income Tax Amount<input id="bd_other_income_tax_amount" type="number" min="0" step="0.01"></label>
     <label>TDS Challan Number<input id="bd_tds_challan_no"></label><label>TDS Deposit Date<input id="bd_tds_deposit_date" type="date"></label>
     <label style="grid-column:span 2">Other Income Tax Details<textarea id="bd_other_income_tax_details" placeholder="अन्य कटौती / आयकर विवरण"></textarea></label>
+    <div class="muted" style="grid-column:1/-1">TDS की गणना केवल दर्ज Taxable Amount और Rate के आधार पर प्रारंभिक अनुमान है। लागू Section, Threshold, PAN और कानूनी नियम की जाँच करके ही पुष्टि करें।</div>
    </div></div>
    <div class="bill-section"><h3>4. Treasury & Payment Details</h3><div class="bill-grid">
     <label>Treasury Bill Number<input id="bd_treasury_bill_no"></label><label>Treasury Reference<input id="bd_treasury_reference"></label>
@@ -379,6 +380,26 @@ const BILL_TEXT_FIELDS=["bill_type","bill_number","bill_date","party_name","part
 const BILL_NUM_FIELDS=["taxable_amount","gst_rate","cgst_amount","sgst_amount","igst_amount","cess_amount","other_charges","gross_bill_amount","tds_rate","tds_amount","tcs_amount","other_income_tax_amount","paid_amount"];
 function closeBillDetails(){document.getElementById("billDetailsModal").style.display="none";document.body.style.overflow="";}
 function billSet(id,value){const el=document.getElementById("bd_"+id);if(!el)return;if(el.type==="checkbox")el.checked=!!value;else el.value=value??"";}
+function roundMoney(n){return Math.round((Number(n||0)+Number.EPSILON)*100)/100;}
+function updateGrossBillAmount(){
+ const base=Number(document.getElementById("bd_taxable_amount").value||0);
+ const gst=["cgst_amount","sgst_amount","igst_amount","cess_amount","other_charges"].reduce((s,k)=>s+Number(document.getElementById("bd_"+k).value||0),0);
+ document.getElementById("bd_gross_bill_amount").value=roundMoney(base+gst).toFixed(2);
+}
+function recalculateBillTaxes(){
+ const base=Number(document.getElementById("bd_taxable_amount").value||0),rate=Number(document.getElementById("bd_gst_rate").value||0);
+ const type=document.getElementById("bd_supply_type").value, tax=roundMoney(base*rate/100);
+ if(type==="intra_state"){document.getElementById("bd_cgst_amount").value=(tax/2).toFixed(2);document.getElementById("bd_sgst_amount").value=(tax-tax/2).toFixed(2);document.getElementById("bd_igst_amount").value="0.00";}
+ else if(type==="inter_state"){document.getElementById("bd_cgst_amount").value="0.00";document.getElementById("bd_sgst_amount").value="0.00";document.getElementById("bd_igst_amount").value=tax.toFixed(2);}
+ else if(type==="not_applicable"){document.getElementById("bd_cgst_amount").value="0.00";document.getElementById("bd_sgst_amount").value="0.00";document.getElementById("bd_igst_amount").value="0.00";}
+ updateGrossBillAmount();recalculateTds();
+}
+function recalculateTds(){
+ const applicable=document.getElementById("bd_tds_applicable").checked;
+ const base=Number(document.getElementById("bd_taxable_amount").value||0),rate=Number(document.getElementById("bd_tds_rate").value||0);
+ if(applicable)document.getElementById("bd_tds_amount").value=roundMoney(base*rate/100).toFixed(2);
+ else document.getElementById("bd_tds_amount").value="0.00";
+}
 async function openBillDetails(id){
  const tx=rows.find(x=>String(x.id)===String(id));if(!tx)return;
  currentBillTransactionId=id;const d=billDetails[id]||{};
