@@ -245,14 +245,15 @@ async function loadLedger(){
   if(q.error){document.getElementById("table").innerHTML='<p class="error" style="padding:15px">'+esc(q.error.message)+'</p>';return}
   const page=q.data||[];rows.push(...page);if(page.length<1000)break;
  }
- let billRows=[];
+ let billRows=[],billLoadError=null;
  for(let i=0;i<rows.length;i+=200){
   const bq=await db.from("account_bill_tax_details").select("*").in("transaction_id",rows.slice(i,i+200).map(x=>x.id));
-  if(bq.error){document.getElementById("top").innerHTML='<span class="error">Bill/Tax विवरण लोड नहीं हुआ: '+esc(bq.error.message)+'</span>';billRows=[];break;}
+  if(bq.error){billLoadError=bq.error.message;billRows=[];break;}
   billRows.push(...(bq.data||[]));
  }
  billDetails=Object.fromEntries(billRows.map(x=>[x.transaction_id,x]));
  renderLedgerTable(h);
+ if(billLoadError)document.getElementById("top").innerHTML+='<br><span class="error">Bill/Tax विवरण लोड नहीं हुआ: '+esc(billLoadError)+'</span>';
  await loadHeads();
 }
 
