@@ -432,7 +432,8 @@ async function loadBillAuditHistory(transactionId,detailId){
 async function saveBillDetails(){
  if(!currentBillTransactionId)return;
  const verified=document.getElementById("bd_verified").checked;
- if(verified&&!confirm("क्या आपने बिल और सभी लागू IT-GST विवरण जाँच लिए हैं? पुष्टि के बाद रिकॉर्ड Verified होगा।"))return;
+ if(!verified){alert("सेव करने से पहले Bill, GST, TDS और लागू Income Tax विवरण की पुष्टि वाला चेकबॉक्स चुनें।");return;}
+ if(!confirm("क्या आपने बिल और सभी लागू IT-GST विवरण जाँच लिए हैं? पुष्टि के बाद रिकॉर्ड Verified होगा।"))return;
  const user=(await db.auth.getUser()).data.user;if(!user){location.href="app.html";return;}
  const payload={transaction_id:currentBillTransactionId,user_id:user.id};
  BILL_TEXT_FIELDS.forEach(k=>{const v=document.getElementById("bd_"+k).value.trim();payload[k]=v||null;});
