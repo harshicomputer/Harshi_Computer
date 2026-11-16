@@ -241,7 +241,7 @@ async function loadLedger(){
  const h=hq.data||{};
  rows=[];
  for(let offset=0;;offset+=1000){
-  const q=await db.from("account_transactions").select("*").eq("financial_year",fy).eq("head_name",head).order("transaction_date",{ascending:true,nullsFirst:true}).order("source_row",{ascending:true,nullsFirst:true}).range(offset,offset+999);
+  const q=await db.from("account_transactions").select("*").eq("financial_year",fy).eq("head_name",head).order("transaction_date",{ascending:true,nullsFirst:true}).order("source_row",{ascending:true,nullsFirst:true}).order("id",{ascending:true}).range(offset,offset+999);
   if(q.error){document.getElementById("table").innerHTML='<p class="error" style="padding:15px">'+esc(q.error.message)+'</p>';return}
   const page=q.data||[];rows.push(...page);if(page.length<1000)break;
  }
