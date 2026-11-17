@@ -1606,19 +1606,40 @@ async function confirmPaymentUpload(modeOverride){
   if(!u){msgEl.textContent="Login session समाप्त हो गई है।";btn.disabled=false;return}
   const duplicateKeys=new Set(pendingPaymentDatabaseDuplicates.map(d=>d.employee_id+"|"+String(d.month).slice(0,7)));
   const allMatched=pendingPaymentRows.filter(x=>x.employee_id);
-  const rowsToUpload=mode==="skip"?allMatched.filter(x=>!duplicateKeys.has(x.employee_id+"|"+String(x.month_start).slice(0,7))):allMatched;
-  const skipped=allMatched.length-rowsToUpload.length;
-  if(!rowsToUpload.length){
+  const isDuplicate=x=>duplicateKeys.has(x.employee_id+"|"+String(x.month_start).slice(0,7));
+  const duplicateRows=mode==="update"?allMatched.filter(isDuplicate):[];
+  const newRows=allMatched.filter(x=>!isDuplicate(x));
+  const skipped=mode==="skip"?allMatched.length-newRows.length:0;
+  if(!duplicateRows.length&&!newRows.length){
    msgEl.textContent="कोई नया रिकॉर्ड अपलोड नहीं हुआ। "+skipped+" Duplicate रिकॉर्ड अपडेट नहीं किए गए; Database का पुराना डेटा सुरक्षित है।";
    btn.disabled=false;return;
   }
-  const existingDuplicateMap=new Map(pendingPaymentDatabaseDuplicates.map(d=>[d.employee_id+"|"+String(d.month).slice(0,7),d.existing]));
-  const rows=rowsToUpload.map(x=>{const key=x.employee_id+"|"+String(x.month_start).slice(0,7);const existing=mode==="update"?existingDuplicateMap.get(key):null;return {employee_id:x.employee_id,month_start:x.month_start,payable_amount:x.payable_amount===null?null:x.payable_amount,amount:x.amount,payment_date:x.payment_date,voucher_no:String(x.voucher_no??"").trim()||null,remarks:existing?existing.remarks:(String(x.remarks??"").trim()||null),updated_by:u.id}});
   msgEl.textContent="Upload हो रहा है…";
-  const {error}=await window.salaryDb.from("salary_records").upsert(rows,{onConflict:"employee_id,month_start"});
-  if(error)throw error;
+  // Existing rows: explicit update allow-list; remarks is intentionally excluded.
+  for(const x of duplicateRows){
+   const {error}=await window.salaryDb.from("salary_records").update({
+    payable_amount:x.payable_amount===null?null:x.payable_amount,
+    amount:x.amount,
+    payment_date:x.payment_date,
+    voucher_no:String(x.voucher_no??"").trim()||null,
+    updated_by:u.id
+   }).eq("employee_id",x.employee_id).eq("month_start",x.month_start);
+   if(error)throw error;
+  }
+  // New rows only: insert Excel remarks normally.
+  if(newRows.length){
+   const insertRows=newRows.map(x=>({
+    employee_id:x.employee_id,month_start:x.month_start,
+    payable_amount:x.payable_amount===null?null:x.payable_amount,
+    amount:x.amount,payment_date:x.payment_date,
+    voucher_no:String(x.voucher_no??"").trim()||null,
+    remarks:String(x.remarks??"").trim()||null,updated_by:u.id
+   }));
+   const {error}=await window.salaryDb.from("salary_records").insert(insertRows);
+   if(error)throw error;
+  }
   await refresh();renderEmployees();updateDash();setupRecord();
-  msgEl.textContent=rows.length+" भुगतान रिकॉर्ड सफलतापूर्वक सेव हुए। "+(mode==="update"&&pendingPaymentDatabaseDuplicates.length?"Excel से Duplicate अपडेट: "+pendingPaymentDatabaseDuplicates.length+". ":mode==="skip"&&skipped?"Duplicate अपडेट नहीं किए: "+skipped+"; पुराने रिकॉर्ड सुरक्षित रहे. ":"")+(pendingPaymentRejectedRows.length?" अस्वीकार: "+pendingPaymentRejectedRows.length+".":"");
+  msgEl.textContent=(duplicateRows.length+newRows.length)+" भुगतान रिकॉर्ड सफलतापूर्वक सेव हुए। "+(duplicateRows.length?"Duplicate अपडेट: "+duplicateRows.length+" (पुराने Remarks सुरक्षित). ":"")+(skipped?"Duplicate अपडेट नहीं किए: "+skipped+"; पुराने रिकॉर्ड सुरक्षित रहे. ":"")+(pendingPaymentRejectedRows.length?" अस्वीकार: "+pendingPaymentRejectedRows.length+".":"");
   pendingPaymentRows=[];pendingPaymentDatabaseDuplicates=[];pendingPaymentRejectedRows=[];pendingPaymentInternalDuplicates=0;
   document.getElementById("paymentFile").value="";document.getElementById("paymentPreview").innerHTML="";btn.disabled=true;
  }catch(e){msgEl.textContent="Upload error: "+(e?.message||e);btn.disabled=false}
