@@ -256,7 +256,7 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 <button class="btn primary" type="button" onclick="confirmPaymentUpload('skip')">Duplicate अपडेट न करें — केवल नए अपलोड करें</button>
 <button class="btn" type="button" onclick="confirmPaymentUpload('update')">Excel से Duplicate अपडेट करें</button>
 </div>
-<p class="muted">पहला विकल्प पुराने भुगतान रिकॉर्ड सुरक्षित रखेगा। दूसरा विकल्प Duplicate रिकॉर्ड की भुगतान राशि, दिनांक, वाउचर और Remarks को Excel के अनुसार बदल सकता है।</p>
+<p class="muted">पहला विकल्प पुराने भुगतान रिकॉर्ड सुरक्षित रखेगा। दूसरा विकल्प Duplicate रिकॉर्ड की भुगतान राशि, दिनांक और वाउचर को Excel के अनुसार अपडेट करेगा; पहले से सेव Remarks ज्यों के त्यों सुरक्षित रहेंगे।</p>
 <div id="paymentDuplicateComparisonTableWrap" style="max-height:65vh;overflow:auto;margin-top:14px"></div>
 </div>
 </section>
@@ -1596,7 +1596,7 @@ async function confirmPaymentUpload(modeOverride){
  const mode=modeOverride||"skip";
  if(pendingPaymentInternalDuplicates>0){alert("Excel फ़ाइल के अंदर Duplicate रिकॉर्ड हैं। पहले Excel में सुधार करके Preview दोबारा करें।");return}
  if(pendingPaymentDatabaseDuplicates.length&&!modeOverride){alert("पहले Duplicate मिलान देखें और वहाँ से एक विकल्प चुनें।");openPaymentDuplicateReview();return}
- if(mode==="update"&&pendingPaymentDatabaseDuplicates.length&&!confirm("Excel से "+pendingPaymentDatabaseDuplicates.length+" Duplicate रिकॉर्ड अपडेट होंगे। Paid Amount, Payment Date, Voucher No. और Remarks भी बदल सकते हैं, Excel की खाली वैल्यू से भी। क्या आपने मिलान जाँच लिया है?"))return
+ if(mode==="update"&&pendingPaymentDatabaseDuplicates.length&&!confirm("Excel से "+pendingPaymentDatabaseDuplicates.length+" Duplicate रिकॉर्ड अपडेट होंगे। Paid Amount, Payment Date और Voucher No. अपडेट होंगे; पहले से सेव Remarks बिल्कुल नहीं बदलेंगे। क्या आपने मिलान जाँच लिया है?"))return
  if(mode==="skip"&&pendingPaymentDatabaseDuplicates.length&&!confirm("Duplicate रिकॉर्ड अपडेट नहीं होंगे; केवल नए रिकॉर्ड अपलोड होंगे। पुराने रिकॉर्ड सुरक्षित रहेंगे। जारी रखें?"))return;
  const msgEl=document.getElementById("paymentMsg"),btn=document.getElementById("confirmPaymentBtn");
  if(pendingPaymentInternalDuplicates>0){alert("Excel फ़ाइल के अंदर ही एक कर्मचारी और महीने के duplicate रिकॉर्ड हैं। इन्हें पहले Excel में ठीक करके Preview दोबारा करें.");return}
@@ -1612,7 +1612,8 @@ async function confirmPaymentUpload(modeOverride){
    msgEl.textContent="कोई नया रिकॉर्ड अपलोड नहीं हुआ। "+skipped+" Duplicate रिकॉर्ड अपडेट नहीं किए गए; Database का पुराना डेटा सुरक्षित है।";
    btn.disabled=false;return;
   }
-  const rows=rowsToUpload.map(x=>({employee_id:x.employee_id,month_start:x.month_start,payable_amount:x.payable_amount===null?null:x.payable_amount,amount:x.amount,payment_date:x.payment_date,voucher_no:String(x.voucher_no??"").trim()||null,remarks:String(x.remarks??"").trim()||null,updated_by:u.id}));
+  const existingDuplicateMap=new Map(pendingPaymentDatabaseDuplicates.map(d=>[d.employee_id+"|"+String(d.month).slice(0,7),d.existing]));
+  const rows=rowsToUpload.map(x=>{const key=x.employee_id+"|"+String(x.month_start).slice(0,7);const existing=mode==="update"?existingDuplicateMap.get(key):null;return {employee_id:x.employee_id,month_start:x.month_start,payable_amount:x.payable_amount===null?null:x.payable_amount,amount:x.amount,payment_date:x.payment_date,voucher_no:String(x.voucher_no??"").trim()||null,remarks:existing?existing.remarks:(String(x.remarks??"").trim()||null),updated_by:u.id}});
   msgEl.textContent="Upload हो रहा है…";
   const {error}=await window.salaryDb.from("salary_records").upsert(rows,{onConflict:"employee_id,month_start"});
   if(error)throw error;
