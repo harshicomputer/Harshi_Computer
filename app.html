@@ -915,7 +915,7 @@ function closeAccountLedger(){
 function init(){updateDash();renderEmployees();setupRecord();setupReport();setupFdrFinancialYears();renderFdr();setupAccount()}
 function showPage(id,b){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");if(id==="employees")renderEmployees();if(id==="records")setupRecord();if(id==="reports")setupReport();if(id==="fdr")renderFdr();if(id==="officeAccount")setupAccount();if(id==="backup")renderBackupList();updateDash()}
 function stats(e){let r=records.filter(x=>x.employee_id===e.id);let payable=r.reduce((s,x)=>s+Number(x.payable_amount||0),0),total=r.reduce((s,x)=>s+Number(x.amount||0),0);return{months:r.filter(x=>Number(x.payable_amount||0)>0||Number(x.amount||0)>0).length,payable,total,pending:r.reduce((s,x)=>s+(x.payable_amount==null?0:Number(x.payable_amount)-Number(x.amount||0)),0)}}
-function filterPaymentsByDate(){
+async function filterPaymentsByDate(){
 const date=(document.getElementById("paymentDateFilter")?.value||"").trim();
 const voucher=(document.getElementById("paymentVoucherFilter")?.value||"").trim().toLocaleLowerCase();
 const body=document.getElementById("paymentDateRows"),summary=document.getElementById("paymentDateSummary"),msg=document.getElementById("paymentDateMsg");
@@ -926,14 +926,38 @@ const norm=v=>{if(v==null||v==="")return "";let s=String(v).trim();if(/^\d{4}-\d
 const all=Array.isArray(records)?records:[];
 const paid=all.filter(r=>{const hasAmount=Number(r.amount||0)>0;const dateMatch=!date||norm(r.payment_date)===date;const voucherMatch=!voucher||String(r.voucher_no??"").trim().toLocaleLowerCase()===voucher;return hasAmount&&dateMatch&&voucherMatch});
 const total=paid.reduce((sum,r)=>sum+Number(r.amount||0),0);
-summary.innerHTML='<div class="card"><div class="muted">भुगतान रिकॉर्ड</div><div class="stat">'+paid.length+'</div></div><div class="card"><div class="muted">कुल भुगतान</div><div class="stat">₹'+total.toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>';
+summary.innerHTML='<div class="card"><div class="muted">भुगतान रिकॉर्ड</div><div class="stat">'+paid.length+'</div></div><div class="card"><div class="muted">कुल भुगतान</div><div class="stat">₹'+total.toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>'+((date&&voucher)?'<div class="card"><div class="muted">वाउचर टिप्पणी / Remark</div><textarea id="paymentVoucherNote" rows="2" maxlength="2000" placeholder="इस भुगतान / वाउचर के संबंध में टिप्पणी लिखें..." style="width:100%;box-sizing:border-box;margin-top:8px"></textarea><div class="toolbar" style="margin:8px 0 0"><button class="btn primary" type="button" onclick="savePaymentVoucherNote()">टिप्पणी सेव करें</button><span id="paymentVoucherNoteMsg" class="muted"></span></div></div>':'');
 const esc=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const monthLabel=v=>{if(v==null||v==="")return "—";const s=String(v).trim();const m=s.match(/^(\d{4})-(\d{1,2})(?:-\d{1,2})?$/);if(m){const names=["जनवरी","फ़रवरी","मार्च","अप्रैल","मई","जून","जुलाई","अगस्त","सितम्बर","अक्टूबर","नवम्बर","दिसम्बर"];const n=Number(m[2]);return n>=1&&n<=12?names[n-1]+" "+m[1]:s}return s};
 const rows=paid.map((r,i)=>{const emp=Array.isArray(employees)?employees.find(e=>String(e.id)===String(r.employee_id)):null;const code=emp?.code||r.employee_code||r.employee_id||"—";const name=emp?.name||r.employee_name||"कर्मचारी विवरण उपलब्ध नहीं";const dt=norm(r.payment_date);const dateText=dt?dt.split("-").reverse().join("-"):"—";const salaryMonth=monthLabel(r.month_start??r.salary_month??r.salaryMonth??r.pay_month??r.month_year??r.payment_month);return '<tr><td>'+(i+1)+'</td><td>'+esc(code)+'</td><td>'+esc(name)+'</td><td>'+dateText+'</td><td>'+esc(r.voucher_no||"—")+'</td><td>'+esc(salaryMonth)+'</td><td>₹'+Number(r.amount||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2})+'</td></tr>'});
 body.innerHTML=rows.length?rows.join(""):'<tr><td colspan="7">दिए गए दिनांक/वाउचर के लिए कोई भुगतान रिकॉर्ड नहीं मिला।</td></tr>';
 msg.textContent='कुल '+all.length+' वेतन रिकॉर्ड में से फ़िल्टर से मेल खाने वाले भुगतान दिखाए गए हैं।';
+if(date&&voucher){
+  try{
+    const noteResult=await window.salaryDb.from("payment_voucher_notes").select("note").eq("payment_date",date).eq("voucher_no",voucher).maybeSingle();
+    if(noteResult.error) throw noteResult.error;
+    const noteInput=document.getElementById("paymentVoucherNote");
+    if(noteInput) noteInput.value=noteResult.data?.note||"";
+  }catch(noteErr){console.error("Voucher note load error",noteErr);const noteMsg=document.getElementById("paymentVoucherNoteMsg");if(noteMsg)noteMsg.textContent="टिप्पणी लोड नहीं हो सकी";}
+}else if(!date||!voucher){
+  msg.textContent+=" टिप्पणी लिखने/देखने के लिए भुगतान दिनांक और वाउचर नंबर दोनों भरें।";
+}
 }catch(err){console.error("Payment date/voucher report error",err);body.innerHTML='<tr><td colspan="7">सूची दिखाने में त्रुटि हुई। कृपया पेज रिफ्रेश करें।</td></tr>';msg.textContent='रिपोर्ट त्रुटि: '+String(err?.message||err)}
-}function clearPaymentDateFilter(){document.getElementById("paymentDateFilter").value="";const v=document.getElementById("paymentVoucherFilter");if(v)v.value="";document.getElementById("paymentDateSummary").innerHTML="";document.getElementById("paymentDateMsg").textContent="";document.getElementById("paymentDateRows").innerHTML='<tr><td colspan="6">दिनांक या वाउचर नंबर डालकर रिकॉर्ड देखें।</td></tr>'}function updateDash(){let t=records.reduce((a,x)=>{a.m+=Number(x.payable_amount||0)>0||Number(x.amount||0)>0?1:0;a.p+=Number(x.payable_amount||0);a.s+=Number(x.amount||0);return a},{m:0,p:0,s:0});cntEmp.textContent=employees.length;cntRec.textContent=t.m;sumPayable.textContent="₹"+t.p.toLocaleString("en-IN");sumRec.textContent="₹"+t.s.toLocaleString("en-IN");sumPending.textContent="₹"+records.reduce((s,x)=>s+(x.payable_amount==null?0:Number(x.payable_amount)-Number(x.amount||0)),0).toLocaleString("en-IN");period.textContent=periodMonths().length+" माह"}
+}async function savePaymentVoucherNote(){
+const date=(document.getElementById("paymentDateFilter")?.value||"").trim();
+const voucher=(document.getElementById("paymentVoucherFilter")?.value||"").trim();
+const note=(document.getElementById("paymentVoucherNote")?.value||"").trim();
+const status=document.getElementById("paymentVoucherNoteMsg");
+if(!date||!voucher){if(status)status.textContent="दिनांक और वाउचर नंबर दोनों जरूरी हैं।";return}
+if(!window.salaryDb){if(status)status.textContent="Database उपलब्ध नहीं है।";return}
+try{
+ if(status)status.textContent="सेव हो रहा है...";
+ const result=await window.salaryDb.from("payment_voucher_notes").upsert({payment_date:date,voucher_no:voucher,note,updated_at:new Date().toISOString()},{onConflict:"payment_date,voucher_no"});
+ if(result.error)throw result.error;
+ if(status)status.textContent="टिप्पणी सुरक्षित हो गई।";
+}catch(err){console.error("Voucher note save error",err);if(status)status.textContent="सेव नहीं हुआ: "+String(err?.message||err)}
+}
+function clearPaymentDateFilter(){document.getElementById("paymentDateFilter").value="";const v=document.getElementById("paymentVoucherFilter");if(v)v.value="";document.getElementById("paymentDateSummary").innerHTML="";document.getElementById("paymentDateMsg").textContent="";document.getElementById("paymentDateRows").innerHTML='<tr><td colspan="6">दिनांक या वाउचर नंबर डालकर रिकॉर्ड देखें।</td></tr>'}function updateDash(){let t=records.reduce((a,x)=>{a.m+=Number(x.payable_amount||0)>0||Number(x.amount||0)>0?1:0;a.p+=Number(x.payable_amount||0);a.s+=Number(x.amount||0);return a},{m:0,p:0,s:0});cntEmp.textContent=employees.length;cntRec.textContent=t.m;sumPayable.textContent="₹"+t.p.toLocaleString("en-IN");sumRec.textContent="₹"+t.s.toLocaleString("en-IN");sumPending.textContent="₹"+records.reduce((s,x)=>s+(x.payable_amount==null?0:Number(x.payable_amount)-Number(x.amount||0)),0).toLocaleString("en-IN");period.textContent=periodMonths().length+" माह"}
 function showMonthlySalarySummary(){
 const input=document.getElementById("salarySummaryMonth"),month=(input?.value||"").trim(),cards=document.getElementById("salaryMonthSummaryCards"),body=document.getElementById("salaryMonthSummaryRows"),msg=document.getElementById("salaryMonthSummaryMsg");
 if(!month){cards.innerHTML="";body.innerHTML='<tr><td colspan="8">कृपया वेतन माह चुनें।</td></tr>';msg.textContent="";return}
