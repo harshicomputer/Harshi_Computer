@@ -2091,6 +2091,7 @@ let inactivityActive=false;
 let inactivityLogoutRunning=false;
 let inactivityRedirectingHome=false;
 let inactivityWarningShown=false;
+let inactivityCheckRunning=false;
 let inactivityLastActivity=Date.now();
 const INACTIVITY_LIMIT=600000;
 const INACTIVITY_WARNING_BEFORE=60000;
@@ -2128,20 +2129,47 @@ async function performInactivityLogout(){
   // Navigate to the public landing page, not app.html or the Login route.
   window.location.replace(new URL("/",window.location.origin).href);
 }
-function checkInactivityDeadline(){
-  if(!inactivityActive || inactivityLogoutRunning) return;
-  let last=inactivityLastActivity;
+async function checkInactivityDeadline(){
+  if(!inactivityActive || inactivityLogoutRunning || inactivityCheckRunning) return;
+  inactivityCheckRunning=true;
   try{
-    const shared=Number(localStorage.getItem(INACTIVITY_STORAGE_KEY)||0);
-    if(shared>last) last=shared;
-  }catch(e){}
-  const idleFor=Date.now()-last;
-  const personalView=document.getElementById("personal");
-  if(personalMfaVerified && personalView && personalView.style.display!=="none" && idleFor>=INACTIVITY_LIMIT){lockPersonalAccess(true);recordInactivityActivity();return}
-  if(idleFor>=INACTIVITY_LIMIT){performInactivityLogout();return}
-  // No blocking confirm dialog: it interrupted active data entry and could
-  // leave the user staring at a modal while the protected session expires.
-  // Logout is performed only at the full 10-minute inactivity deadline.
+    let last=inactivityLastActivity;
+    try{
+      const shared=Number(localStorage.getItem(INACTIVITY_STORAGE_KEY)||0);
+      if(shared>last) last=shared;
+    }catch(e){}
+    const idleFor=Date.now()-last;
+    const personalView=document.getElementById("personal");
+    if(personalMfaVerified && personalView && personalView.style.display!=="none" && idleFor>=INACTIVITY_LIMIT){lockPersonalAccess(true);recordInactivityActivity();return}
+    if(idleFor>=INACTIVITY_LIMIT){await performInactivityLogout();return}
+    if(idleFor>=INACTIVITY_LIMIT-INACTIVITY_WARNING_BEFORE && !inactivityWarningShown){
+      inactivityWarningShown=true;
+      // Verify the authenticated session before asking the user to stay signed in.
+      let session=null;
+      try{
+        const result=await window.salaryDb.auth.getSession();
+        session=result?.data?.session||null;
+      }catch(e){console.warn("Session check before inactivity warning failed:",e);}
+      if(!inactivityActive || inactivityLogoutRunning) return;
+      let latest=inactivityLastActivity;
+      try{
+        const shared=Number(localStorage.getItem(INACTIVITY_STORAGE_KEY)||0);
+        if(shared>latest) latest=shared;
+      }catch(e){}
+      if(Date.now()-latest<INACTIVITY_LIMIT-INACTIVITY_WARNING_BEFORE){
+        inactivityWarningShown=false;
+        return;
+      }
+      if(!session){
+        await performInactivityLogout();
+        return;
+      }
+      const stay=confirm("आप अभी भी लॉगिन हैं। सुरक्षा के लिए 1 मिनट में Logout हो जाएगा।\n\nकाम जारी रखने और लॉगिन बनाए रखने के लिए OK दबाएँ।\nLogout होने देना है तो Cancel दबाएँ।");
+      if(stay) recordInactivityActivity();
+    }
+  }finally{
+    inactivityCheckRunning=false;
+  }
 }
 function resetInactivityTimer(){
   if(!inactivityActive || inactivityLogoutRunning) return;
