@@ -2139,11 +2139,9 @@ function checkInactivityDeadline(){
   const personalView=document.getElementById("personal");
   if(personalMfaVerified && personalView && personalView.style.display!=="none" && idleFor>=INACTIVITY_LIMIT){lockPersonalAccess(true);recordInactivityActivity();return}
   if(idleFor>=INACTIVITY_LIMIT){performInactivityLogout();return}
-  if(idleFor>=INACTIVITY_LIMIT-INACTIVITY_WARNING_BEFORE && !inactivityWarningShown){
-    inactivityWarningShown=true;
-    const stay=confirm("आपकी वेबसाइट पर कुछ समय से गतिविधि नहीं हुई है। सुरक्षा के लिए 1 मिनट में Logout हो जाएगा।\n\nकाम जारी रखने के लिए OK दबाएँ।");
-    if(stay){recordInactivityActivity();}
-  }
+  // No blocking confirm dialog: it interrupted active data entry and could
+  // leave the user staring at a modal while the protected session expires.
+  // Logout is performed only at the full 10-minute inactivity deadline.
 }
 function resetInactivityTimer(){
   if(!inactivityActive || inactivityLogoutRunning) return;
@@ -2152,7 +2150,7 @@ function resetInactivityTimer(){
   if(inactivityTimer===null) inactivityTimer=setInterval(checkInactivityDeadline,INACTIVITY_CHECK_EVERY);
 }
 // Capture real data-entry events as well as pointer/keyboard activity, including nested form controls.
-["mousemove","mousedown","mouseup","keydown","keyup","scroll","touchstart","touchend","click","pointerdown","pointerup","pointermove","wheel","input","beforeinput","change","paste","compositionstart","compositionupdate","compositionend","focus","focusin","dragover"].forEach(function(evt){
+["mousemove","mousedown","mouseup","keydown","keyup","scroll","touchstart","touchend","click","pointerdown","pointerup","pointermove","wheel","input","beforeinput","change","paste","compositionstart","compositionupdate","compositionend","focus","focusin","dragover","dragstart","drop","select","submit","touchmove"].forEach(function(evt){
   document.addEventListener(evt,resetInactivityTimer,{passive:true,capture:true});
 });
 // Loan is displayed in a same-origin iframe. Its events do not bubble to the parent,
