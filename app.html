@@ -206,16 +206,16 @@ window.loginNow=async function(){const msgEl=document.getElementById("authMsg"),
 <div class="scroll" style="margin-top:10px"><table style="min-width:1000px"><thead><tr><th>तारीख</th><th>प्रकार</th><th>मद / विवरण</th><th>फसल / खेत</th><th>राशि</th><th>पैसे किसने दिए</th><th>माध्यम</th><th>कार्रवाई</th></tr></thead><tbody id="jfRows"><tr><td colspan="8">अभी कोई रिकॉर्ड नहीं।</td></tr></tbody></table></div>
 <p class="muted">यह रिकॉर्ड लॉगिन और Personal Authenticator सुरक्षा के अंतर्गत डेटाबेस में सेव रहेगा।</p></div></div></div><div id="app" class="app"><header class="top"><h1>Harshi Computer — Office / Salary Record</h1><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button class="btn" onclick="goBackOne()">← Back</button> <span id="who"></span> <button class="btn" onclick="signOut()">Logout</button></div></header>
 <nav id="officeModuleNav">
-  <a class="btn" data-office-key="office" href="app.html?open=office" onclick="openOffice();return false;">🏢 Office</a>
-  <a class="btn" data-office-key="employeeManagement" href="app.html?open=employeeManagement" onclick="openEmployeeManagement();return false;">कर्मचारी प्रबंधन</a>
-  <a class="btn" data-office-key="accountsManagement" href="app.html?open=accountsManagement" onclick="openAccountsManagement();return false;">लेखा प्रबंधन</a>
+  <button data-office-key="office" onclick="openOffice()">🏢 Office</button>
+  <button data-office-key="employeeManagement" onclick="openEmployeeManagement()">कर्मचारी प्रबंधन</button>
+  <button data-office-key="accountsManagement" onclick="openAccountsManagement()">लेखा प्रबंधन</button>
   <span id="salarySubNav" style="display:none">
-    <a class="btn" data-office-key="dash" href="app.html?open=dash" onclick="openOfficeModule('dash');return false;">डैशबोर्ड</a>
-    <a class="btn" data-office-key="employees" href="app.html?open=employees" onclick="openOfficeModule('employees');return false;">कर्मचारी</a>
-    <a class="btn" data-office-key="records" href="app.html?open=records" onclick="openOfficeModule('records');return false;">मासिक रिकॉर्ड</a>
-    <a class="btn" data-office-key="payrollSheet" href="app.html?open=payrollSheet" onclick="openOfficeModule('payrollSheet');return false;">वेतन पत्रक</a>
-    <a class="btn" data-office-key="reports" href="app.html?open=reports" onclick="openOfficeModule('reports');return false;">रिपोर्ट</a>
-    <a class="btn" data-office-key="backup" href="app.html?open=backup" onclick="openOfficeModule('backup');return false;">Backup / Export</a>
+    <button data-office-key="dash" onclick="openOfficeModule('dash')">डैशबोर्ड</button>
+    <button data-office-key="employees" onclick="openOfficeModule('employees')">कर्मचारी</button>
+    <button data-office-key="records" onclick="openOfficeModule('records')">मासिक रिकॉर्ड</button>
+    <button data-office-key="payrollSheet" onclick="openOfficeModule('payrollSheet')">वेतन पत्रक</button>
+    <button data-office-key="reports" onclick="openOfficeModule('reports')">रिपोर्ट</button>
+    <button data-office-key="backup" onclick="openOfficeModule('backup')">Backup / Export</button>
   </span>
   <button id="reportMfaToggleBtn" class="btn" type="button" onclick="toggleReportAuthenticator()" style="margin-left:auto;flex:0 0 auto;font-size:11px;padding:4px 9px;line-height:1.25;color:#1857a8;background:#fff;border-color:#9bb5d8">🔐 Admin Authenticator Verification</button>
 </nav>
@@ -503,27 +503,13 @@ async function start(s){
   document.getElementById("app").style.display="none";
   document.getElementById("personal").style.display="none";
   window.currentSession=s;
-  // Load employee and salary data before opening a deep-linked module.
-  // Otherwise setupRecord() can run against an empty employees array in a new browser tab.
-  try{
-    await refresh();
-    try{init()}catch(e){console.error("Initial UI error:",e)}
-  }catch(e){
-    console.error("Initial database refresh failed:",e);
-    alert("डेटाबेस से कर्मचारी सूची लोड नहीं हो सकी: "+(e?.message||e));
-  }
+  try{init()}catch(e){console.error("Initial UI error:",e)}
   const openParam=new URLSearchParams(location.search).get("open");
-  const officeTargets=["office","employeeManagement","accountsManagement","dash","employees","records","payrollSheet","reports","backup","officeAccount"];
-  if(officeTargets.includes(openParam)){
+  if(openParam==="officeAccount"){
     clearWorkspaceState();
-    if(openParam==="office")openOffice();
-    else if(openParam==="employeeManagement"){openOffice();openEmployeeManagement();}
-    else if(openParam==="accountsManagement"){openOffice();openAccountsManagement();}
-    else{
-      openOffice();
-      openOfficeModule(openParam);
-      if(openParam==="officeAccount")setupAccount();
-    }
+    openOffice();
+    openOfficeModule("officeAccount");
+    setupAccount();
     const cleanUrl=new URL(location.href);
     cleanUrl.searchParams.delete("open");
     history.replaceState(history.state,"",cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
@@ -532,6 +518,9 @@ async function start(s){
     // The normal inactivity deadline still logs out after 10 minutes without activity.
     restoreWorkspaceState();
   }
+  refresh().then(()=>{try{init();}catch(e){console.error("UI refresh error:",e)}}).catch(e=>{
+    console.error("Background database refresh error:",e);
+  });
 }
 function setOfficeActiveMenu(key){
   document.querySelectorAll("#officeModuleNav [data-office-key]").forEach(button=>{
