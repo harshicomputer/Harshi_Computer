@@ -503,7 +503,15 @@ async function start(s){
   document.getElementById("app").style.display="none";
   document.getElementById("personal").style.display="none";
   window.currentSession=s;
-  try{init()}catch(e){console.error("Initial UI error:",e)}
+  // Load employee and salary data before opening a deep-linked module.
+  // Otherwise setupRecord() can run against an empty employees array in a new browser tab.
+  try{
+    await refresh();
+    try{init()}catch(e){console.error("Initial UI error:",e)}
+  }catch(e){
+    console.error("Initial database refresh failed:",e);
+    alert("डेटाबेस से कर्मचारी सूची लोड नहीं हो सकी: "+(e?.message||e));
+  }
   const openParam=new URLSearchParams(location.search).get("open");
   const officeTargets=["office","employeeManagement","accountsManagement","dash","employees","records","payrollSheet","reports","backup","officeAccount"];
   if(officeTargets.includes(openParam)){
@@ -524,9 +532,6 @@ async function start(s){
     // The normal inactivity deadline still logs out after 10 minutes without activity.
     restoreWorkspaceState();
   }
-  refresh().then(()=>{try{init();}catch(e){console.error("UI refresh error:",e)}}).catch(e=>{
-    console.error("Background database refresh error:",e);
-  });
 }
 function setOfficeActiveMenu(key){
   document.querySelectorAll("#officeModuleNav [data-office-key]").forEach(button=>{
